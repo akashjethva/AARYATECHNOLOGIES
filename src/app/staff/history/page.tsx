@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
+import { loadFromStorage, INITIAL_TRANSACTIONS } from "@/utils/storage";
 
 export default function StaffHistory() {
     const router = useRouter();
@@ -18,39 +19,33 @@ export default function StaffHistory() {
     const [isGenerating, setIsGenerating] = useState(false);
 
     useEffect(() => {
-        // Load Collections from LocalStorage
-        const storedCollections = localStorage.getItem('payment_app_collections');
-        const storedExpenses = localStorage.getItem('payment_app_expenses');
+        // Load Collections from Shared LocalStorage
+        let allData = loadFromStorage("transactions", INITIAL_TRANSACTIONS);
 
-        let allData: any[] = [];
+        // Ensure compatibility if some fields are missing or different
+        // The Admin app saves 'status', 'customer', 'amount', etc.
+        // We need 'type' (Credit/Debit) for the filter logic.
+        // If 'type' is missing, we infer it: if 'mode' is 'Expense' or 'status' says something specific, etc.
+        // For now, let's assume the new entries from StaffEntry have 'type', and existing mock Admin entries might need adaptation.
 
-        if (storedCollections) {
-            allData = [...allData, ...JSON.parse(storedCollections)];
-        }
-        if (storedExpenses) {
-            // Adapt expenses to look like transactions for the list
-            const expenses = JSON.parse(storedExpenses).map((e: any) => ({
-                ...e,
-                name: e.category, // Use Category as name
-                mode: 'Expense', // Mark as Expense type
-                type: 'Debit'
-            }));
-            allData = [...allData, ...expenses];
-        }
+        allData = allData.map((t: any) => ({
+            ...t,
+            name: t.customer, // Map customer to name for display consistency
+            // If type is missing (from Admin side usually), assume Credit (Collection) unless it's explicitly an Expense
+            type: t.type || (t.mode === 'Expense' ? 'Debit' : 'Credit')
+        }));
 
-        // Fallback to Mock Data if no local data
-        if (allData.length === 0) {
-            allData = [
-                { id: 1, name: "Shiv Shakti Traders", time: "10:45 AM", amount: "5,000", type: "Credit", mode: "Cash", date: "Today" },
-                { id: 2, name: "Jay Ambe Store", time: "09:30 AM", amount: "2,400", type: "Credit", mode: "Online", date: "Today" },
-                { id: 3, name: "Petrol Expense", time: "08:15 AM", amount: "500", type: "Debit", mode: "Expense", date: "Today" },
-                { id: 4, name: "Ganesh Provision", time: "04:15 PM", amount: "12,500", type: "Credit", mode: "Cash", date: "Yesterday" },
-                { id: 5, name: "Om Enterprise", time: "02:00 PM", amount: "8,200", type: "Credit", mode: "Online", date: "Yesterday" },
-            ];
-        }
+        // Sort by id (timestamp or string comparison if "REC-...") descending
+        // If IDs are "REC-XXX", string comparison works for simple cases, but reverse is better.
+        // Best to check if ID is number or string.
 
-        // Sort by id (timestamp) descending
-        allData.sort((a, b) => b.id - a.id);
+        allData.sort((a: any, b: any) => {
+            if (typeof a.id === 'string' && typeof b.id === 'string') {
+                return b.id.localeCompare(a.id);
+            }
+            return b.id - a.id;
+        });
+
         setTransactions(allData);
     }, []);
 

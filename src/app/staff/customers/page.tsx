@@ -2,38 +2,21 @@
 
 import { Search, Phone, MapPin, ArrowRight, User, ArrowLeft, X, TrendingUp, History, ShieldCheck, Download, ExternalLink, Calendar, Map, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
+import { loadFromStorage, INITIAL_CUSTOMERS } from "@/utils/storage";
 
 export default function StaffCustomers() {
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
     const router = useRouter();
 
-    // Mock Data - Enhanced with ledger/history for the deep dive
-    const customers = [
-        {
-            id: 1, name: "Shiv Shakti Traders", contact: "Rajesh Bhai", phone: "+91 98765 11223", city: "Ahmedabad", balance: "15,200", lastVisit: "2 days ago",
-            address: "Shiv Shakti Traders, C.G. Road, Ahmedabad, Gujarat",
-            history: [
-                { date: "JAN 02", type: "PAYMENT", label: "Payment Received", amount: "+ ₹ 5,000", mode: "Cash" },
-                { date: "DEC 28", type: "INVOICE", label: "Invoice Issued", amount: "₹ 12,000", mode: "Bill" },
-                { date: "DEC 15", type: "PAYMENT", label: "Payment Received", amount: "+ ₹ 2,000", mode: "UPI" },
-            ]
-        },
-        {
-            id: 2, name: "Jay Mataji Store", contact: "Vikram Sinh", phone: "+91 91234 99887", city: "Surat", balance: "8,500", lastVisit: "Yesterday",
-            address: "Jay Mataji Store, Varachha, Surat, Gujarat",
-            history: [
-                { date: "JAN 03", type: "PAYMENT", label: "Payment Received", amount: "+ ₹ 3,000", mode: "Cash" },
-                { date: "DEC 20", type: "INVOICE", label: "Invoice Issued", amount: "₹ 11,500", mode: "Bill" },
-            ]
-        },
-        { id: 3, name: "Ganesh Provision", contact: "Suresh Patel", phone: "+91 98980 12345", city: "Rajkot", balance: "12,500", lastVisit: "Today", address: "Ganesh Provision, Kalavad Road, Rajkot", history: [] },
-        { id: 4, name: "Om Enterprise", contact: "Amit Shah", phone: "+91 99887 55443", city: "Vadodara", balance: "0", lastVisit: "Last Week", address: "Om Enterprise, Alkapuri, Vadodara", history: [] },
-        { id: 5, name: "Maruti Nandan", contact: "Vikram Solanki", phone: "+91 97654 32109", city: "Surat", balance: "2,100", lastVisit: "3 days ago", address: "Maruti Nandan, Adajan, Surat", history: [] },
-    ];
+    const [customers, setCustomers] = useState<any[]>([]);
+
+    useEffect(() => {
+        setCustomers(loadFromStorage("customers", INITIAL_CUSTOMERS));
+    }, []);
 
     const filtered = customers.filter(c =>
         c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||

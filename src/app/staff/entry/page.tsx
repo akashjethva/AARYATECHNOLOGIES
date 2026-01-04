@@ -2,9 +2,10 @@
 
 import { ArrowLeft, Camera, User, X, Check, Banknote, CreditCard, Building2 } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
+import { loadFromStorage, saveToStorage, INITIAL_CUSTOMERS, INITIAL_TRANSACTIONS } from "@/utils/storage";
 
 export default function StaffEntry() {
     const router = useRouter();
@@ -21,14 +22,12 @@ export default function StaffEntry() {
 
     const [showSuccess, setShowSuccess] = useState(false);
 
-    // Mock Customers for Search
-    const customers = [
-        { id: 1, name: "Shiv Shakti Traders", city: "Ahmedabad" },
-        { id: 2, name: "Jay Mataji Store", city: "Surat" },
-        { id: 3, name: "Ganesh Provision", city: "Rajkot" },
-        { id: 4, name: "Om Enterprise", city: "Vadodara" },
-        { id: 5, name: "Maruti Nandan", city: "Surat" },
-    ];
+    const [customers, setCustomers] = useState<any[]>([]);
+
+    useEffect(() => {
+        setCustomers(loadFromStorage("customers", INITIAL_CUSTOMERS));
+    }, []);
+
     const [filteredCustomers, setFilteredCustomers] = useState<{ id: number, name: string, city: string }[]>([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
 
@@ -56,22 +55,40 @@ export default function StaffEntry() {
 
         setLoading(true);
 
-        // Save to Shared LocalStorage for Admin Panel
+        // Load existing transactions
+        const existingTransactions = loadFromStorage("transactions", INITIAL_TRANSACTIONS);
+
+        const newId = `REC-${String(existingTransactions.length + 1).padStart(3, '0')}`;
+
+        // Create new entry matching Admin Transaction interface
         const newExEntry = {
-            id: Date.now(),
-            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            id: newId,
             customer: formData.type === 'Collection' ? formData.customer : formData.category || 'Expense',
-            amount: Number(formData.amount).toLocaleString(),
             staff: "Rahul Varma", // Hardcoded staff name for now
+            amount: formData.amount,
+            status: "Paid", // Auto-verified for staff
+            date: new Date().toISOString().split('T')[0], // YYYY-MM-DD
             mode: formData.mode,
-            status: "Verified", // Staff entries auto-verified for demo
-            date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
-            type: formData.type, // Collection, Expense, Deposit
-            remarks: formData.remarks
+            time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+            contact: "+91 00000 00000",
+            remarks: formData.remarks || "",
+            // Additional fields for staff app logic if needed, but keeping it consistent with Admin
+            type: formData.type === 'Collection' ? 'Credit' : 'Debit' // Implicitly handle type via logic later if needed or add field
         };
 
-        const existing = JSON.parse(localStorage.getItem('payment_app_transactions') || '[]');
-        localStorage.setItem('payment_app_transactions', JSON.stringify([newExEntry, ...existing]));
+        // For this specific app, it seems 'type' was used for filtering history (Credit/Debit).
+        // Admin 'Transaction' interface doesn't strictly have 'type' but uses 'status' or implies it by logic.
+        // However, to keep History page working, we might need 'type' or derive it.
+        // Let's attach 'type' property implicitly to the stored object even if TS interface on Admin side doesnt show it yet,
+        // or just rely on the fact that if it's an Expense category it is Debit.
+        // For simplicity, I'll spread the object and add 'type' which will be saved in JSON.
+
+        const entryToSave = {
+            ...newExEntry,
+            type: formData.type === 'Collection' ? 'Credit' : 'Debit'
+        };
+
+        saveToStorage("transactions", [entryToSave, ...existingTransactions]);
 
         // Simulate API call
         setTimeout(() => {
