@@ -1,9 +1,10 @@
 "use client";
 
 import { Filter, Download, Search, Check, ChevronLeft, ChevronRight, MoreHorizontal, ArrowUpRight, TrendingUp, Calendar, CreditCard, DollarSign, X, Clock, Phone, FileText, Edit, Trash2, Eye, Plus } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
+import { loadFromStorage, saveToStorage, INITIAL_TRANSACTIONS, INITIAL_CUSTOMERS } from "@/utils/storage";
 
 interface Transaction {
     id: string;
@@ -22,25 +23,46 @@ export default function CollectionsPage() {
     // Helper to get today's date in YYYY-MM-DD
     const getToday = () => new Date().toISOString().split('T')[0];
 
-    // Initial Data with standard date format
-    const [transactions, setTransactions] = useState<Transaction[]>([
-        { id: "REC-001", customer: "Shiv Shakti Traders", staff: "Rahul V.", amount: "5,000", status: "Paid", date: "2024-01-02", mode: "Cash", time: "10:45 AM", contact: "+91 98765 43210", remarks: "Monthly payment received." },
-        { id: "REC-002", customer: "Jay Mataji Store", staff: "Amit K.", amount: "2,200", status: "Paid", date: "2024-01-02", mode: "UPI", time: "11:15 AM", contact: "+91 91234 56789", remarks: "UPI Ref: 1234567890" },
-        { id: "REC-003", customer: "Om Enterprise", staff: "Rahul V.", amount: "10,000", status: "Processing", date: "2024-01-01", mode: "Cheque", time: "02:30 PM", contact: "+91 88997 76655", remarks: "Cheque deposit pending clearance." },
-        { id: "REC-004", customer: "Ganesh Provision", staff: "Suresh P.", amount: "1,500", status: "Paid", date: "2024-01-01", mode: "Cash", time: "09:00 AM", contact: "+91 76543 21098", remarks: "" },
-        { id: "REC-005", customer: "Maruti Traders", staff: "Vikram S.", amount: "8,500", status: "Paid", date: "2024-01-01", mode: "Cash", time: "04:45 PM", contact: "+91 99887 76655", remarks: "Partial payment." },
-        { id: "REC-006", customer: "Krishna General", staff: "Amit K.", amount: "3,200", status: "Paid", date: "2024-01-01", mode: "UPI", time: "01:20 PM", contact: "+91 66554 43322", remarks: "Scanning issue fixed." },
-        { id: "REC-007", customer: "Balaji Snacks", staff: "Rahul V.", amount: "4,100", status: "Failed", date: "2023-12-31", mode: "UPI", time: "06:10 PM", contact: "+91 55443 32211", remarks: "Transaction failed from bank side." },
-        { id: "REC-008", customer: "Riya Novelty", staff: "Suresh P.", amount: "1,200", status: "Paid", date: "2023-12-30", mode: "Cash", time: "10:00 AM", contact: "+91 98765 12345", remarks: "" },
-    ]);
+    // --- Persistence Logic ---
+    const [transactions, setTransactions] = useState<Transaction[]>([]);
+    const [customers, setCustomers] = useState<any[]>([]); // Load customers for dropdown
+
+    useEffect(() => {
+        setTransactions(loadFromStorage("transactions", INITIAL_TRANSACTIONS));
+        setCustomers(loadFromStorage("customers", INITIAL_CUSTOMERS));
+    }, []);
+
+    useEffect(() => {
+        if (transactions.length > 0) {
+            saveToStorage("transactions", transactions);
+        }
+    }, [transactions]);
+    // -------------------------
 
     // View States
     const [isFilterOpen, setIsFilterOpen] = useState(false);
     const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+
+    // New Entry State
     const [newTransaction, setNewTransaction] = useState<Partial<Transaction>>({
         customer: "", amount: "", mode: "Cash", date: getToday(), staff: "Admin", remarks: "", status: "Paid"
     });
+
+    // Customer Search State
+    const [customerSearch, setCustomerSearch] = useState("");
+    const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
+
+    // Filtered Customers for Dropdown
+    const filteredCustomersList = customers.filter(c =>
+        c.name.toLowerCase().includes(customerSearch.toLowerCase())
+    );
+
+    const handleSelectCustomer = (customerName: string) => {
+        setNewTransaction(prev => ({ ...prev, customer: customerName }));
+        setCustomerSearch(customerName);
+        setShowCustomerDropdown(false);
+    };
 
     const handleAddTransaction = () => {
         if (!newTransaction.customer || !newTransaction.amount) return;
@@ -62,6 +84,7 @@ export default function CollectionsPage() {
         setTransactions([newEntry, ...transactions]);
         setIsAddModalOpen(false);
         setNewTransaction({ customer: "", amount: "", mode: "Cash", date: getToday(), staff: "Admin", remarks: "", status: "Paid" });
+        setCustomerSearch(""); // Reset Search
     };
 
     // Filter States
@@ -738,9 +761,54 @@ export default function CollectionsPage() {
                             </div>
                             <div className="p-8 space-y-6 max-h-[70vh] overflow-y-auto custom-scrollbar">
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div className="md:col-span-2">
+                                    <div className="md:col-span-2 relative">
                                         <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Customer Name</label>
-                                        <input type="text" value={newTransaction.customer} onChange={(e) => setNewTransaction({ ...newTransaction, customer: e.target.value })} placeholder="Search or enter customer..." className="w-full bg-[#0f172a] border border-white/10 rounded-2xl px-5 py-4 text-white outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-bold text-lg placeholder:text-slate-600" />
+                                        <input
+                                            type="text"
+                                            value={customerSearch}
+                                            onFocus={() => setShowCustomerDropdown(true)}
+                                            onChange={(e) => {
+                                                setCustomerSearch(e.target.value);
+                                                setNewTransaction(prev => ({ ...prev, customer: e.target.value }));
+                                                setShowCustomerDropdown(true);
+                                            }}
+                                            placeholder="Search existing customer..."
+                                            className="w-full bg-[#0f172a] border border-white/10 rounded-2xl px-5 py-4 text-white outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-bold text-lg placeholder:text-slate-600"
+                                        />
+
+                                        {/* Dropdown Results */}
+                                        <AnimatePresence>
+                                            {showCustomerDropdown && customerSearch && (
+                                                <motion.div
+                                                    initial={{ opacity: 0, y: 10 }}
+                                                    animate={{ opacity: 1, y: 0 }}
+                                                    exit={{ opacity: 0, y: 10 }}
+                                                    className="absolute w-full mt-2 bg-[#0f172a] border border-white/10 rounded-xl shadow-xl z-50 max-h-48 overflow-y-auto custom-scrollbar"
+                                                >
+                                                    {filteredCustomersList.length > 0 ? (
+                                                        filteredCustomersList.map((c, i) => (
+                                                            <div
+                                                                key={i}
+                                                                onClick={() => handleSelectCustomer(c.name)}
+                                                                className="px-5 py-3 hover:bg-white/5 cursor-pointer flex justify-between items-center transition-colors border-b border-white/5 last:border-0"
+                                                            >
+                                                                <span className="font-bold text-white text-sm">{c.name}</span>
+                                                                <span className="text-xs text-slate-500 font-medium">{c.city} • {c.balance}</span>
+                                                            </div>
+                                                        ))
+                                                    ) : (
+                                                        <div className="px-5 py-3 text-slate-500 text-xs font-bold text-center">
+                                                            No customer found. Adding as new.
+                                                        </div>
+                                                    )}
+                                                </motion.div>
+                                            )}
+                                        </AnimatePresence>
+
+                                        {/* Close Dropdown on Outside Click (Simple Overlay) */}
+                                        {showCustomerDropdown && (
+                                            <div className="fixed inset-0 z-40" onClick={() => setShowCustomerDropdown(false)}></div>
+                                        )}
                                     </div>
                                     <div>
                                         <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Amount (₹)</label>

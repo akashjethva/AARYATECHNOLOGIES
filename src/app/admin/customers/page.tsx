@@ -1,8 +1,9 @@
 "use client";
 
 import { UserPlus, Search, MoreVertical, Phone, MapPin, Filter, Mail, X, History, ArrowDownRight, ArrowUpRight, Check, AlertCircle, Save, Edit, Trash2, Download, TrendingUp, MessageSquare, Calendar, Map, Bell, ExternalLink, ShieldCheck } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { loadFromStorage, saveToStorage, INITIAL_CUSTOMERS } from "@/utils/storage";
 
 interface Customer {
     id: number;
@@ -18,17 +19,20 @@ interface Customer {
 }
 
 export default function CustomersPage() {
-    const [customers, setCustomers] = useState<Customer[]>([
-        { id: 1, name: "Shiv Shakti Traders", contact: "Rajesh Bhai", phone: "+91 98765 11223", city: "Ahmedabad", status: "Active", balance: "15,200", email: "shivshakti@gmail.com", address: "123, Market Yard, Naroda", zone: "East" },
-        { id: 2, name: "Jay Mataji Store", contact: "Vikram Sinh", phone: "+91 91234 99887", city: "Surat", status: "Active", balance: "8,500", email: "jaymataji@gmail.com", address: "45, Varachha Road", zone: "West" },
-        { id: 3, name: "Om Enterprise", contact: "Amit Shah", phone: "+91 99887 55443", city: "Vadodara", status: "Inactive", balance: "0", email: "om.ent@gmail.com", address: "88, Alkapuri", zone: "Central" },
-        { id: 4, name: "Ganesh Provision", contact: "Suresh Patel", phone: "+91 98980 12345", city: "Rajkot", status: "Active", balance: "12,500", email: "ganesh.prov@gmail.com", address: "12, Soni Bazar", zone: "North" },
-        { id: 5, name: "Maruti Nandan", contact: "Vikram Solanki", phone: "+91 97654 32109", city: "Surat", status: "Active", balance: "2,100", email: "maruti@gmail.com", address: "Ring Road, Surat", zone: "South" },
-        { id: 6, name: "Khodiyar General", contact: "Ketan Bhai", phone: "+91 99000 88777", city: "Ahmedabad", status: "Inactive", balance: "45,000", email: "khodiyar@gmail.com", address: "Gota, Ahmedabad", zone: "North" },
-        { id: 7, name: "Umiya Traders", contact: "Praveen Patel", phone: "+91 88776 65544", city: "Mehsana", status: "Active", balance: "8,900", email: "umiya@gmail.com", address: "Highway Road", zone: "North" },
-        { id: 8, name: "Balaji Kirana", contact: "Ramesh Gupta", phone: "+91 77665 54433", city: "Vadodara", status: "Active", balance: "5,600", email: "balaji@gmail.com", address: "Manjalpur", zone: "South" },
-        { id: 9, name: "Sardar Stores", contact: "Manish Singh", phone: "+91 66554 43322", city: "Rajkot", status: "Inactive", balance: "0", email: "sardar@gmail.com", address: "Yagnik Road", zone: "West" },
-    ]);
+    // Initial load from storage or fallback
+    const [customers, setCustomers] = useState<Customer[]>([]);
+
+    useEffect(() => {
+        const storedCustomers = loadFromStorage("customers", INITIAL_CUSTOMERS);
+        setCustomers(storedCustomers);
+    }, []);
+
+    // Save to storage whenever customers change
+    useEffect(() => {
+        if (customers.length > 0) {
+            saveToStorage("customers", customers);
+        }
+    }, [customers]);
 
     const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -69,13 +73,13 @@ export default function CustomersPage() {
             setCustomers(customers.map(c => c.id === editingId ? { ...c, ...formData, status: c.status } : c));
         } else {
             // Add New
-            setCustomers([...customers, {
+            setCustomers([{
                 id: Date.now(),
                 ...formData,
                 status: "Active",
                 balance: formData.balance || "0",
                 city: formData.city || "Unknown"
-            }]);
+            }, ...customers]); // Add to top
         }
 
         setIsAddModalOpen(false);
