@@ -99,7 +99,19 @@ export default function Home() {
               </div>
 
               <div className="space-y-4">
-                {/* Admin Panel button removed as per user request for Staff-only app */}
+                <button
+                  onClick={() => handleRoleSelect('admin')}
+                  className="w-full p-4 bg-white/5 hover:bg-white/10 active:scale-[0.98] border border-white/10 rounded-2xl flex items-center gap-4 group transition-all"
+                >
+                  <div className="w-12 h-12 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center group-hover:bg-indigo-500 group-hover:text-white transition-colors">
+                    <ShieldCheck size={22} />
+                  </div>
+                  <div className="flex-1 text-left">
+                    <h3 className="font-bold text-white text-lg">Admin Portal</h3>
+                    <p className="text-xs text-slate-500 group-hover:text-slate-400 transition-colors">Access Dashboard & Settings</p>
+                  </div>
+                  <ChevronRight className="text-slate-600 group-hover:text-white transition-colors" />
+                </button>
 
                 <button
                   onClick={() => handleRoleSelect('staff')}
