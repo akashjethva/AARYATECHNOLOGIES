@@ -4,7 +4,7 @@ import { Filter, Download, Search, Check, ChevronLeft, ChevronRight, MoreHorizon
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { loadFromStorage, saveToStorage, INITIAL_TRANSACTIONS, INITIAL_CUSTOMERS } from "@/utils/storage";
+import { useCurrency } from "@/hooks/useCurrency";
 
 interface Transaction {
     id: string;
@@ -19,50 +19,29 @@ interface Transaction {
     remarks: string;
 }
 
+import { loadFromStorage, saveToStorage, INITIAL_TRANSACTIONS } from "@/utils/storage";
+
 export default function CollectionsPage() {
     // Helper to get today's date in YYYY-MM-DD
     const getToday = () => new Date().toISOString().split('T')[0];
 
-    // --- Persistence Logic ---
+    // Initial Data with standard date format
     const [transactions, setTransactions] = useState<Transaction[]>([]);
-    const [customers, setCustomers] = useState<any[]>([]); // Load customers for dropdown
 
     useEffect(() => {
-        setTransactions(loadFromStorage("transactions", INITIAL_TRANSACTIONS));
-        setCustomers(loadFromStorage("customers", INITIAL_CUSTOMERS));
-    }, []);
-
-    useEffect(() => {
-        if (transactions.length > 0) {
-            saveToStorage("transactions", transactions);
+        const saved = loadFromStorage('transactions', INITIAL_TRANSACTIONS);
+        if (saved && Array.isArray(saved)) {
+            setTransactions(saved as Transaction[]);
         }
-    }, [transactions]);
-    // -------------------------
+    }, []);
 
     // View States
     const [isFilterOpen, setIsFilterOpen] = useState(false);
     const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-
-    // New Entry State
     const [newTransaction, setNewTransaction] = useState<Partial<Transaction>>({
         customer: "", amount: "", mode: "Cash", date: getToday(), staff: "Admin", remarks: "", status: "Paid"
     });
-
-    // Customer Search State
-    const [customerSearch, setCustomerSearch] = useState("");
-    const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
-
-    // Filtered Customers for Dropdown
-    const filteredCustomersList = customers.filter(c =>
-        c.name.toLowerCase().includes(customerSearch.toLowerCase())
-    );
-
-    const handleSelectCustomer = (customerName: string) => {
-        setNewTransaction(prev => ({ ...prev, customer: customerName }));
-        setCustomerSearch(customerName);
-        setShowCustomerDropdown(false);
-    };
 
     const handleAddTransaction = () => {
         if (!newTransaction.customer || !newTransaction.amount) return;
@@ -81,10 +60,18 @@ export default function CollectionsPage() {
             remarks: newTransaction.remarks || ""
         };
 
-        setTransactions([newEntry, ...transactions]);
+        const updatedTransactions = [newEntry, ...transactions];
+        setTransactions(updatedTransactions);
+        saveToStorage('transactions', updatedTransactions);
+        // Dispatch event for other listeners (AdminLayout balance etc)
+        if (typeof window !== 'undefined') {
+            window.dispatchEvent(new Event('transaction-updated'));
+            // Also manual dispatch for storage event if needed (though saveToStorage handles it if cross-tab)
+            // But same-tab listener needs this custom event often
+        }
+
         setIsAddModalOpen(false);
         setNewTransaction({ customer: "", amount: "", mode: "Cash", date: getToday(), staff: "Admin", remarks: "", status: "Paid" });
-        setCustomerSearch(""); // Reset Search
     };
 
     // Filter States
@@ -93,13 +80,31 @@ export default function CollectionsPage() {
     const [statusFilter, setStatusFilter] = useState("All Status");
     const [staffFilter, setStaffFilter] = useState("All Staff");
 
+    const [showDropdown, setShowDropdown] = useState(false);
+    const mockCustomers = [
+        "Shiv Shakti Traders",
+        "Jay Mataji Store",
+        "Om Enterprise",
+        "Ganesh Provision",
+        "Maruti Nandan",
+        "Khodiyar General",
+        "Umiya Traders",
+        "Balaji Kirana",
+        "Sardar Stores"
+    ];
+
     // Action State
     const [activeActionId, setActiveActionId] = useState<string | null>(null);
     const [selectedItems, setSelectedItems] = useState<string[]>([]);
 
     const handleDelete = (id: string) => {
         if (confirm("Are you sure you want to delete this transaction?")) {
-            setTransactions(prev => prev.filter(t => t.id !== id));
+            const updatedTransactions = transactions.filter(t => t.id !== id);
+            setTransactions(updatedTransactions);
+            saveToStorage('transactions', updatedTransactions);
+            if (typeof window !== 'undefined') {
+                window.dispatchEvent(new Event('transaction-updated'));
+            }
             setActiveActionId(null);
             if (selectedItems.includes(id)) {
                 setSelectedItems(prev => prev.filter(i => i !== id));
@@ -133,7 +138,12 @@ export default function CollectionsPage() {
 
     const handleBulkDelete = () => {
         if (confirm(`Are you sure you want to delete ${selectedItems.length} transactions?`)) {
-            setTransactions(prev => prev.filter(t => !selectedItems.includes(t.id)));
+            const updatedTransactions = transactions.filter(t => !selectedItems.includes(t.id));
+            setTransactions(updatedTransactions);
+            saveToStorage('transactions', updatedTransactions);
+            if (typeof window !== 'undefined') {
+                window.dispatchEvent(new Event('transaction-updated'));
+            }
             setSelectedItems([]);
         }
     };
@@ -215,19 +225,13 @@ export default function CollectionsPage() {
     const totalCollections = transactions
         .filter(t => t.status === "Paid")
         .reduce((sum, t) => sum + parseFloat(t.amount.replace(/,/g, '')), 0);
-
     const pendingAmount = transactions
         .filter(t => t.status === "Processing")
         .reduce((sum, t) => sum + parseFloat(t.amount.replace(/,/g, '')), 0);
 
-    const formatCurrency = (amount: number) => {
-        return new Intl.NumberFormat('en-IN', {
-            style: 'currency',
-            currency: 'INR',
-            maximumFractionDigits: 0
-        }).format(amount);
-    };
+    const { formatCurrency } = useCurrency();
 
+    // Stats Calculation
     const successfulTx = transactions.filter(t => t.status === "Paid").length;
     const failedTx = transactions.filter(t => t.status === "Failed").length;
     const successRate = transactions.length > 0 ? Math.round((successfulTx / transactions.length) * 100) : 0;
@@ -425,18 +429,17 @@ export default function CollectionsPage() {
             {/* Collections Table Container */}
             <div id="transaction-table" className="bg-[#1e293b]/40 backdrop-blur-xl rounded-[2.5rem] border border-white/5 shadow-2xl overflow-hidden flex flex-col min-h-[600px] transition-all relative">
 
-                {/* Table - Hidden on Mobile */}
-                <div className="hidden md:block overflow-x-auto flex-1">
+                {/* Table */}
+                <div className="overflow-x-auto flex-1">
                     <table className="w-full text-left border-collapse">
-                        {/* ... Existing Table Header ... */}
-                        <thead className="bg-[#0f172a]/80 text-indigo-300/80 font-bold text-lg uppercase tracking-wider border-b border-white/5">
+                        <thead className="bg-[#0f172a]/80 text-indigo-300/80 font-bold text-base uppercase tracking-wider border-b border-white/5">
                             <tr>
                                 <th className="px-8 py-5 w-16">
                                     <input
                                         type="checkbox"
                                         checked={selectedItems.length === filteredTransactions.length && filteredTransactions.length > 0}
                                         onChange={handleSelectAll}
-                                        className="w-6 h-6 rounded border-slate-600 bg-slate-800 text-indigo-500 focus:ring-offset-[#0f172a] focus:ring-indigo-500 accent-indigo-500 cursor-pointer"
+                                        className="w-4 h-4 rounded border-slate-600 bg-slate-800 text-indigo-500 focus:ring-offset-[#0f172a] focus:ring-indigo-500 accent-indigo-500 cursor-pointer"
                                     />
                                 </th>
                                 <th className="px-6 py-5">Receipt ID</th>
@@ -448,107 +451,110 @@ export default function CollectionsPage() {
                                 <th className="px-8 py-5 text-center">Action</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-white/5 text-xl">
+                        <tbody className="divide-y divide-white/5 text-lg">
                             {currentItems.length > 0 ? (
-                                currentItems.map((t) => (
-                                    <tr key={t.id} className={`hover:bg-white/5 transition-colors group cursor-pointer border-l-2 ${selectedItems.includes(t.id) ? 'bg-indigo-500/5 border-indigo-500' : 'border-transparent hover:border-indigo-500'}`} onClick={() => setSelectedTransaction(t)}>
-                                        <td className="px-8 py-5" onClick={(e) => e.stopPropagation()}>
-                                            <input
-                                                type="checkbox"
-                                                checked={selectedItems.includes(t.id)}
-                                                onChange={() => handleToggleSelect(t.id)}
-                                                className="w-6 h-6 rounded border-slate-600 bg-slate-800 text-indigo-500 focus:ring-offset-[#0f172a] focus:ring-indigo-500 accent-indigo-500 cursor-pointer"
-                                            />
-                                        </td>
-                                        <td className="px-6 py-5">
-                                            <div className="flex flex-col">
-                                                <span className="font-bold text-white text-2xl group-hover:text-indigo-400 transition-colors">{t.id}</span>
-                                                <span className="text-lg font-medium text-slate-500 mt-1">{formatDate(t.date)}</span>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-5">
-                                            <span className="font-bold text-slate-300 text-2xl group-hover:text-white transition-colors">{t.customer}</span>
-                                        </td>
-                                        <td className="px-6 py-5">
-                                            <div className="flex items-center gap-3">
-                                                <div className={`h-10 w-10 rounded-lg flex items-center justify-center text-sm font-bold text-white shadow-md ${t.staff.includes('Rahul') ? 'bg-indigo-600' : 'bg-purple-600'
-                                                    }`}>
-                                                    {t.staff.split(' ')[0][0]}{t.staff.split(' ')[1][0]}
+                                currentItems.map((t) => {
+                                    if (!t) return null;
+                                    return (
+                                        <tr key={t.id} className={`hover:bg-white/5 transition-colors group cursor-pointer border-l-2 ${selectedItems.includes(t.id) ? 'bg-indigo-500/5 border-indigo-500' : 'border-transparent hover:border-indigo-500'}`} onClick={() => setSelectedTransaction(t)}>
+                                            <td className="px-8 py-5" onClick={(e) => e.stopPropagation()}>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={selectedItems.includes(t.id)}
+                                                    onChange={() => handleToggleSelect(t.id)}
+                                                    className="w-4 h-4 rounded border-slate-600 bg-slate-800 text-indigo-500 focus:ring-offset-[#0f172a] focus:ring-indigo-500 accent-indigo-500 cursor-pointer"
+                                                />
+                                            </td>
+                                            <td className="px-6 py-5">
+                                                <div className="flex flex-col">
+                                                    <span className="font-bold text-white group-hover:text-indigo-400 transition-colors">{t.id}</span>
+                                                    <span className="text-xs font-medium text-slate-500 mt-0.5">{formatDate(t.date)}</span>
                                                 </div>
-                                                <span className="font-bold text-slate-400 text-xl">{t.staff}</span>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-5">
-                                            <span className="px-4 py-2 rounded-md bg-white/5 border border-white/5 text-base font-bold text-slate-400 uppercase tracking-wide group-hover:bg-white/10 transition-colors">
-                                                {t.mode}
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-5 text-right font-bold text-white text-3xl group-hover:text-indigo-300 transition-colors">₹ {t.amount}</td>
-                                        <td className="px-6 py-5">
-                                            <span className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-base font-bold border ${t.status === 'Paid' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
-                                                t.status === 'Processing' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
-                                                    'bg-rose-500/10 text-rose-400 border-rose-500/20'
-                                                }`}>
-                                                <span className={`w-2.5 h-2.5 rounded-full shadow ${t.status === 'Paid' ? 'bg-emerald-500 shadow-emerald-500/50' :
-                                                    t.status === 'Processing' ? 'bg-amber-500 shadow-amber-500/50' :
-                                                        'bg-rose-500 shadow-rose-500/50'
-                                                    }`}></span>
-                                                {t.status}
-                                            </span>
-                                        </td>
-                                        <td className="px-8 py-5 text-center relative">
-                                            <button
-                                                onClick={(e) => { e.stopPropagation(); setActiveActionId(activeActionId === t.id ? null : t.id); }}
-                                                className={`p-3 rounded-xl transition-colors focus:bg-white/10 ${activeActionId === t.id ? 'bg-white/10 text-white' : 'text-slate-500 hover:text-white hover:bg-white/10'}`}
-                                            >
-                                                <MoreHorizontal size={24} />
-                                            </button>
+                                            </td>
+                                            <td className="px-6 py-5">
+                                                <span className="font-bold text-slate-300 group-hover:text-white transition-colors">{t.customer}</span>
+                                            </td>
+                                            <td className="px-6 py-5">
+                                                <div className="flex items-center gap-3">
+                                                    <div className={`h-8 w-8 rounded-lg flex items-center justify-center text-xs font-bold text-white shadow-md ${t.staff.includes('Rahul') ? 'bg-indigo-600' : 'bg-purple-600'
+                                                        }`}>
+                                                        {t.staff.split(' ')[0][0]}{(t.staff.split(' ')[1] || '')[0] || ''}
+                                                    </div>
+                                                    <span className="font-bold text-slate-400">{t.staff}</span>
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-5">
+                                                <span className="px-3 py-1 rounded-md bg-white/5 border border-white/5 text-xs font-bold text-slate-400 uppercase tracking-wide group-hover:bg-white/10 transition-colors">
+                                                    {t.mode}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-5 text-right font-bold text-white text-xl group-hover:text-indigo-300 transition-colors">₹ {t.amount}</td>
+                                            <td className="px-6 py-5">
+                                                <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-base font-bold border ${t.status === 'Paid' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
+                                                    t.status === 'Processing' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
+                                                        'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                                                    }`}>
+                                                    <span className={`w-1.5 h-1.5 rounded-full shadow ${t.status === 'Paid' ? 'bg-emerald-500 shadow-emerald-500/50' :
+                                                        t.status === 'Processing' ? 'bg-amber-500 shadow-amber-500/50' :
+                                                            'bg-rose-500 shadow-rose-500/50'
+                                                        }`}></span>
+                                                    {t.status}
+                                                </span>
+                                            </td>
+                                            <td className="px-8 py-5 text-center relative">
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); setActiveActionId(activeActionId === t.id ? null : t.id); }}
+                                                    className={`p-2 rounded-lg transition-colors focus:bg-white/10 ${activeActionId === t.id ? 'bg-white/10 text-white' : 'text-slate-500 hover:text-white hover:bg-white/10'}`}
+                                                >
+                                                    <MoreHorizontal size={20} />
+                                                </button>
 
-                                            <AnimatePresence>
-                                                {activeActionId === t.id && (
-                                                    <motion.div
-                                                        initial={{ opacity: 0, scale: 0.9, y: 10 }}
-                                                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                                                        exit={{ opacity: 0, scale: 0.9, y: 10 }}
-                                                        className="absolute right-10 top-8 z-50 w-48 bg-[#1e293b] border border-white/10 rounded-xl shadow-xl overflow-hidden"
-                                                        onClick={(e) => e.stopPropagation()}
-                                                    >
-                                                        <div className="flex flex-col p-1">
-                                                            <button
-                                                                onClick={() => { setSelectedTransaction(t); setActiveActionId(null); }}
-                                                                className="flex items-center gap-3 px-4 py-3 text-base font-medium text-slate-300 hover:text-white hover:bg-white/5 rounded-lg transition-colors text-left"
-                                                            >
-                                                                <Eye size={18} className="text-blue-400" /> View Details
-                                                            </button>
-                                                            <button
-                                                                onClick={() => handleEdit(t.id)}
-                                                                className="flex items-center gap-3 px-4 py-3 text-base font-medium text-slate-300 hover:text-white hover:bg-white/5 rounded-lg transition-colors text-left"
-                                                            >
-                                                                <Edit size={18} className="text-amber-400" /> Edit Entry
-                                                            </button>
-                                                            <div className="h-px bg-white/5 my-1"></div>
-                                                            <button
-                                                                onClick={() => handleDelete(t.id)}
-                                                                className="flex items-center gap-3 px-4 py-3 text-base font-bold text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors text-left"
-                                                            >
-                                                                <Trash2 size={18} /> Delete
-                                                            </button>
-                                                        </div>
-                                                    </motion.div>
-                                                )}
-                                            </AnimatePresence>
-                                        </td>
-                                    </tr>
-                                ))
+                                                <AnimatePresence>
+                                                    {activeActionId === t.id && (
+                                                        <motion.div
+                                                            initial={{ opacity: 0, scale: 0.9, y: 10 }}
+                                                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                                                            exit={{ opacity: 0, scale: 0.9, y: 10 }}
+                                                            className="absolute right-10 top-8 z-50 w-32 bg-[#1e293b] border border-white/10 rounded-xl shadow-xl overflow-hidden"
+                                                            onClick={(e) => e.stopPropagation()}
+                                                        >
+                                                            <div className="flex flex-col p-1">
+                                                                <button
+                                                                    onClick={() => { setSelectedTransaction(t); setActiveActionId(null); }}
+                                                                    className="flex items-center gap-2 px-3 py-2 text-xs font-medium text-slate-300 hover:text-white hover:bg-white/5 rounded-lg transition-colors text-left"
+                                                                >
+                                                                    <Eye size={12} className="text-blue-400" /> View
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => handleEdit(t.id)}
+                                                                    className="flex items-center gap-2 px-3 py-2 text-xs font-medium text-slate-300 hover:text-white hover:bg-white/5 rounded-lg transition-colors text-left"
+                                                                >
+                                                                    <Edit size={12} className="text-amber-400" /> Edit
+                                                                </button>
+                                                                <div className="h-px bg-white/5 my-1"></div>
+                                                                <button
+                                                                    onClick={() => handleDelete(t.id)}
+                                                                    className="flex items-center gap-2 px-3 py-2 text-xs font-bold text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors text-left"
+                                                                >
+                                                                    <Trash2 size={12} /> Delete
+                                                                </button>
+                                                            </div>
+                                                        </motion.div>
+                                                    )}
+                                                </AnimatePresence>
+                                            </td>
+                                        </tr>
+                                    );
+                                })
                             ) : (
                                 <tr>
                                     <td colSpan={8} className="py-20 text-center text-slate-500">
-                                        <Filter size={64} className="mx-auto mb-6 opacity-50" />
-                                        <p className="font-bold text-2xl">No transactions found</p>
+                                        <Filter size={48} className="mx-auto mb-4 opacity-50" />
+                                        <p className="font-bold text-lg">No transactions found</p>
                                         {(searchQuery || filterDate || statusFilter !== 'All Status' || staffFilter !== 'All Staff') && (
                                             <button
                                                 onClick={() => { setSearchQuery(""); setFilterDate(""); setStatusFilter("All Status"); setStaffFilter("All Staff"); }}
-                                                className="mt-4 text-indigo-400 hover:text-indigo-300 underline font-bold text-lg"
+                                                className="mt-2 text-indigo-400 hover:text-indigo-300 underline font-bold"
                                             >
                                                 Reset Filters
                                             </button>
@@ -558,44 +564,6 @@ export default function CollectionsPage() {
                             )}
                         </tbody>
                     </table>
-                </div>
-
-                {/* Mobile Card View (Vertical List) */}
-                <div className="md:hidden flex flex-col p-4 space-y-4">
-                    {currentItems.length > 0 ? (
-                        currentItems.map((t) => (
-                            <div key={t.id} onClick={() => setSelectedTransaction(t)} className="bg-white/5 border border-white/5 rounded-2xl p-4 active:scale-98 transition-transform">
-                                <div className="flex justify-between items-start mb-3">
-                                    <div className="flex items-center gap-3">
-                                        <div className={`h-10 w-10 rounded-xl flex items-center justify-center text-sm font-bold text-white shadow-lg ${t.staff.includes('Rahul') ? 'bg-indigo-600' : 'bg-purple-600'}`}>
-                                            {t.staff.split(' ')[0][0]}{t.staff.split(' ')[1][0]}
-                                        </div>
-                                        <div>
-                                            <p className="text-white font-bold text-lg leading-tight">{t.customer}</p>
-                                            <p className="text-slate-400 text-xs font-medium">{t.id} • {t.time}</p>
-                                        </div>
-                                    </div>
-                                    <div className="text-right">
-                                        <p className="text-white font-extrabold text-xl tracking-tight">₹ {t.amount}</p>
-                                        <p className="text-xs font-bold uppercase tracking-wider text-slate-500">{t.mode}</p>
-                                    </div>
-                                </div>
-                                <div className="flex justify-between items-center pt-3 border-t border-white/5">
-                                    <div className="flex items-center gap-2">
-                                        <span className={`w-2 h-2 rounded-full ${t.status === 'Paid' ? 'bg-emerald-500' : t.status === 'Processing' ? 'bg-amber-500' : 'bg-rose-500'}`}></span>
-                                        <span className={`text-xs font-bold ${t.status === 'Paid' ? 'text-emerald-400' : t.status === 'Processing' ? 'text-amber-400' : 'text-rose-400'}`}>
-                                            {t.status}
-                                        </span>
-                                    </div>
-                                    <p className="text-slate-500 text-xs font-bold">{formatDate(t.date)}</p>
-                                </div>
-                            </div>
-                        ))
-                    ) : (
-                        <div className="text-center py-10">
-                            <p className="text-slate-500">No transactions found.</p>
-                        </div>
-                    )}
                 </div>
 
                 {/* Footer / Pagination */}
@@ -765,49 +733,36 @@ export default function CollectionsPage() {
                                         <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Customer Name</label>
                                         <input
                                             type="text"
-                                            value={customerSearch}
-                                            onFocus={() => setShowCustomerDropdown(true)}
+                                            value={newTransaction.customer}
+                                            onFocus={() => setShowDropdown(true)}
+                                            onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
                                             onChange={(e) => {
-                                                setCustomerSearch(e.target.value);
-                                                setNewTransaction(prev => ({ ...prev, customer: e.target.value }));
-                                                setShowCustomerDropdown(true);
+                                                setNewTransaction({ ...newTransaction, customer: e.target.value });
+                                                setShowDropdown(true);
                                             }}
-                                            placeholder="Search existing customer..."
+                                            placeholder="Search or enter customer..."
                                             className="w-full bg-[#0f172a] border border-white/10 rounded-2xl px-5 py-4 text-white outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-bold text-lg placeholder:text-slate-600"
                                         />
-
-                                        {/* Dropdown Results */}
-                                        <AnimatePresence>
-                                            {showCustomerDropdown && customerSearch && (
-                                                <motion.div
-                                                    initial={{ opacity: 0, y: 10 }}
-                                                    animate={{ opacity: 1, y: 0 }}
-                                                    exit={{ opacity: 0, y: 10 }}
-                                                    className="absolute w-full mt-2 bg-[#0f172a] border border-white/10 rounded-xl shadow-xl z-50 max-h-48 overflow-y-auto custom-scrollbar"
-                                                >
-                                                    {filteredCustomersList.length > 0 ? (
-                                                        filteredCustomersList.map((c, i) => (
-                                                            <div
-                                                                key={i}
-                                                                onClick={() => handleSelectCustomer(c.name)}
-                                                                className="px-5 py-3 hover:bg-white/5 cursor-pointer flex justify-between items-center transition-colors border-b border-white/5 last:border-0"
-                                                            >
-                                                                <span className="font-bold text-white text-sm">{c.name}</span>
-                                                                <span className="text-xs text-slate-500 font-medium">{c.city} • {c.balance}</span>
-                                                            </div>
-                                                        ))
-                                                    ) : (
-                                                        <div className="px-5 py-3 text-slate-500 text-xs font-bold text-center">
-                                                            No customer found. Adding as new.
+                                        {/* Autocomplete Dropdown */}
+                                        {showDropdown && (
+                                            <div className="absolute top-full left-0 w-full mt-2 bg-[#1e293b] border border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden max-h-48 overflow-y-auto custom-scrollbar">
+                                                {mockCustomers.filter(c => c.toLowerCase().includes((newTransaction.customer || "").toLowerCase())).length > 0 ? (
+                                                    mockCustomers.filter(c => c.toLowerCase().includes((newTransaction.customer || "").toLowerCase())).map((c, i) => (
+                                                        <div
+                                                            key={i}
+                                                            onMouseDown={() => {
+                                                                setNewTransaction({ ...newTransaction, customer: c });
+                                                                setShowDropdown(false);
+                                                            }}
+                                                            className="px-5 py-3 hover:bg-white/5 cursor-pointer text-slate-300 hover:text-white font-bold transition-colors"
+                                                        >
+                                                            {c}
                                                         </div>
-                                                    )}
-                                                </motion.div>
-                                            )}
-                                        </AnimatePresence>
-
-                                        {/* Close Dropdown on Outside Click (Simple Overlay) */}
-                                        {showCustomerDropdown && (
-                                            <div className="fixed inset-0 z-40" onClick={() => setShowCustomerDropdown(false)}></div>
+                                                    ))
+                                                ) : (
+                                                    <div className="px-5 py-3 text-slate-500 text-sm italic">New customer will be created</div>
+                                                )}
+                                            </div>
                                         )}
                                     </div>
                                     <div>

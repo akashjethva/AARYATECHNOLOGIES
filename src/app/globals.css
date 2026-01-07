@@ -65,6 +65,7 @@ nextjs-portal {
     visibility: hidden;
   }
 
+  /* Receipt Modal Printing */
   #receipt-modal,
   #receipt-modal * {
     visibility: visible;
@@ -75,21 +76,35 @@ nextjs-portal {
     top: 50% !important;
     left: 50% !important;
     transform: translate(-50%, -50%) !important;
-
     width: 80% !important;
     max-width: 450px !important;
     height: auto !important;
-
     margin: 0 !important;
     padding: 30px !important;
-
     background: white !important;
     color: black !important;
     z-index: 2147483647 !important;
-
     border: 1px solid #000 !important;
     border-radius: 10px !important;
     box-shadow: none !important;
+  }
+
+  /* Dashboard Report Printing */
+  .printable-area,
+  .printable-area * {
+    visibility: visible !important;
+  }
+
+  .printable-area {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 20px !important;
+    background: white !important;
+    color: black !important;
+    /* Force black text */
   }
 
   .print-only {

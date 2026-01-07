@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Payment Soft</string>
+    <string name="title_activity_main">Payment Soft</string>
+    <string name="package_name">com.akashohk1.app</string>
+    <string name="custom_url_scheme">com.akashohk1.app</string>
+</resources>

@@ -1,12 +1,14 @@
 "use client";
 
-import { UserPlus, Search, MoreVertical, Phone, X, Save, Edit, Trash2, Shield, Calendar, TrendingUp } from "lucide-react";
+import { UserPlus, Search, MoreVertical, Phone, X, Save, Edit, Trash2, Shield, Calendar, TrendingUp, LayoutGrid, List, CheckCircle, Clock } from "lucide-react";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useCurrency } from "@/hooks/useCurrency";
 
 export default function StaffPage() {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
+    const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
     const [editingId, setEditingId] = useState<number | null>(null);
 
     const [staffList, setStaffList] = useState([
@@ -60,7 +62,7 @@ export default function StaffPage() {
             name: staff.name,
             phone: staff.phone,
             role: staff.role,
-            email: "staff@example.com", // Placeholder for now as staffList data doesn't have it explicitly
+            email: "staff@example.com", // Placeholder
             zone: "North Zone",        // Placeholder
             address: "123, Main Street, City" // Placeholder
         });
@@ -73,8 +75,10 @@ export default function StaffPage() {
         setFormData({ name: "", phone: "", role: "Field Agent", email: "", zone: "", address: "" });
     };
 
+    const { formatCurrency } = useCurrency();
+
     return (
-        <div className="max-w-7xl mx-auto space-y-8 relative pb-20">
+        <div className="max-w-[1600px] mx-auto space-y-8 relative pb-20">
 
             {/* Page Header */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -82,31 +86,49 @@ export default function StaffPage() {
                     <h1 className="text-4xl font-bold text-white tracking-tight">Staff Management</h1>
                     <p className="text-slate-400 mt-2 font-medium">Manage field staff, performance, and access levels</p>
                 </div>
-                <button
-                    onClick={() => setIsModalOpen(true)}
-                    className="bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-3 rounded-2xl flex items-center gap-2 transition-all shadow-lg shadow-indigo-500/20 active:scale-95 font-bold border border-indigo-500/50"
-                >
-                    <UserPlus size={20} />
-                    Add New Staff
-                </button>
+                <div className="flex items-center gap-3 w-full sm:w-auto">
+                    <div className="flex bg-[#0f172a] p-1.5 rounded-2xl border border-white/10 shadow-lg">
+                        <button
+                            onClick={() => setViewMode('grid')}
+                            className={`p-2.5 rounded-xl transition-all ${viewMode === 'grid' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
+                        >
+                            <LayoutGrid size={20} />
+                        </button>
+                        <button
+                            onClick={() => setViewMode('list')}
+                            className={`p-2.5 rounded-xl transition-all ${viewMode === 'list' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
+                        >
+                            <List size={20} />
+                        </button>
+                    </div>
+                    <button
+                        onClick={() => setIsModalOpen(true)}
+                        className="flex-1 sm:flex-none bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-3.5 rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg shadow-indigo-500/20 active:scale-95 font-bold border border-indigo-500/50"
+                    >
+                        <UserPlus size={20} />
+                        <span className="hidden sm:inline">Add New Staff</span>
+                        <span className="sm:hidden">Add Staff</span>
+                    </button>
+                </div>
             </div>
 
-            {/* Stats Cards Row (Optional Addition for "Review") */}
+            {/* Stats Cards Row */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-[#1e293b]/40 backdrop-blur-xl border border-white/5 p-6 rounded-3xl">
+                <div className="bg-[#1e293b]/40 backdrop-blur-xl border border-white/5 p-6 rounded-[2rem] shadow-xl relative overflow-hidden group hover:bg-[#1e293b]/60 transition-colors">
+                    <div className="absolute top-4 right-4 opacity-10 group-hover:scale-110 transition-transform"><Shield size={64} /></div>
                     <p className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">Total Staff</p>
                     <h3 className="text-3xl font-extrabold text-white">{staffList.length}</h3>
                 </div>
-                <div className="bg-[#1e293b]/40 backdrop-blur-xl border border-white/5 p-6 rounded-3xl">
+                <div className="bg-[#1e293b]/40 backdrop-blur-xl border border-white/5 p-6 rounded-[2rem] shadow-xl relative overflow-hidden group hover:bg-[#1e293b]/60 transition-colors">
+                    <div className="absolute top-4 right-4 opacity-10 group-hover:scale-110 transition-transform"><CheckCircle size={64} /></div>
                     <p className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">Active Today</p>
                     <h3 className="text-3xl font-extrabold text-emerald-400">{staffList.filter(s => s.status === 'Active').length}</h3>
                 </div>
-                <div className="bg-[#1e293b]/40 backdrop-blur-xl border border-white/5 p-6 rounded-3xl">
+                <div className="bg-[#1e293b]/40 backdrop-blur-xl border border-white/5 p-6 rounded-[2rem] shadow-xl relative overflow-hidden group hover:bg-[#1e293b]/60 transition-colors">
+                    <div className="absolute top-4 right-4 opacity-10 group-hover:scale-110 transition-transform"><TrendingUp size={64} /></div>
                     <p className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">Total Collections Today</p>
                     <h3 className="text-3xl font-extrabold text-indigo-400">
-                        {new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(
-                            staffList.reduce((sum, s) => sum + s.collectedToday, 0)
-                        )}
+                        {formatCurrency(staffList.reduce((sum, s) => sum + s.collectedToday, 0))}
                     </h3>
                 </div>
             </div>
@@ -114,36 +136,108 @@ export default function StaffPage() {
             {/* Search Bar */}
             <div className="bg-[#1e293b]/60 p-2 rounded-2xl shadow-xl border border-white/5 flex gap-4 max-w-2xl backdrop-blur-xl">
                 <div className="relative flex-1">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-indigo-400" size={20} />
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-indigo-400 transition-colors" size={20} />
                     <input
                         type="text"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="Search staff by name or phone..."
+                        placeholder="Search staff by name, phone, or role..."
                         className="w-full pl-12 pr-4 py-3 bg-transparent border-none outline-none font-medium text-slate-200 placeholder:text-slate-500 focus:bg-white/5 rounded-xl transition-colors"
                     />
                 </div>
             </div>
 
-            {/* Staff Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <AnimatePresence>
-                    {filteredStaff.map((staff) => (
-                        <StaffCard
-                            key={staff.id}
-                            staff={staff}
-                            onEdit={() => openEditModal(staff)}
-                            onDelete={() => handleDelete(staff.id)}
-                        />
-                    ))}
-                </AnimatePresence>
-            </div>
+            {/* Content Area - Grid or List */}
+            <AnimatePresence mode="wait">
+                {viewMode === 'grid' ? (
+                    <motion.div
+                        key="grid"
+                        initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+                        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+                    >
+                        {filteredStaff.map((staff) => (
+                            <StaffCard
+                                key={staff.id}
+                                staff={staff}
+                                onEdit={() => openEditModal(staff)}
+                                onDelete={() => handleDelete(staff.id)}
+                            />
+                        ))}
+                    </motion.div>
+                ) : (
+                    <motion.div
+                        key="list"
+                        initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+                        className="bg-[#1e293b]/40 backdrop-blur-sm rounded-[2.5rem] border border-white/5 overflow-hidden shadow-2xl"
+                    >
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left border-collapse">
+                                <thead>
+                                    <tr className="border-b border-white/10 text-xs font-bold text-slate-400 uppercase tracking-wider bg-[#0f172a]/50">
+                                        <th className="px-8 py-6">Staff Member</th>
+                                        <th className="px-6 py-6">Role / Designation</th>
+                                        <th className="px-6 py-6">Status</th>
+                                        <th className="px-6 py-6 text-right">Collected Today</th>
+                                        <th className="px-6 py-6">Joined Date</th>
+                                        <th className="px-8 py-6 text-center">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="text-white divide-y divide-white/5">
+                                    {filteredStaff.map((staff) => (
+                                        <tr key={staff.id} className="group hover:bg-white/5 transition-colors">
+                                            <td className="px-8 py-5">
+                                                <div className="flex items-center gap-4">
+                                                    <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-indigo-600 to-purple-700 flex items-center justify-center text-white text-lg font-bold shadow-lg shadow-indigo-500/20 shrink-0">
+                                                        {staff.name.split(' ').map((n) => n[0]).join('')}
+                                                    </div>
+                                                    <div>
+                                                        <div className="font-bold text-lg text-white">{staff.name}</div>
+                                                        <div className="text-slate-400 text-sm flex items-center gap-1.5"><Phone size={12} /> {staff.phone}</div>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-5">
+                                                <div className="text-sm font-medium text-slate-300 bg-slate-800/50 px-3 py-1 rounded-full border border-white/5 w-fit">
+                                                    {staff.role}
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-5">
+                                                <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${staff.status === 'Active' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border-amber-500/20'}`}>
+                                                    <span className={`w-1.5 h-1.5 rounded-full ${staff.status === 'Active' ? 'bg-emerald-500' : 'bg-amber-500'}`}></span>
+                                                    {staff.status}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-5 text-right">
+                                                <div className="font-mono font-bold text-indigo-300 text-lg">{formatCurrency(staff.collectedToday)}</div>
+                                            </td>
+                                            <td className="px-6 py-5 text-slate-400 text-sm font-medium">
+                                                {staff.joined}
+                                            </td>
+                                            <td className="px-8 py-5 text-center">
+                                                <div className="flex items-center justify-center gap-2 opacity-60 group-hover:opacity-100 transition-opacity">
+                                                    <button onClick={() => openEditModal(staff)} className="p-2 hover:bg-white/10 rounded-lg text-amber-400 transition-colors" title="Edit">
+                                                        <Edit size={18} />
+                                                    </button>
+                                                    <button onClick={() => handleDelete(staff.id)} className="p-2 hover:bg-rose-500/10 rounded-lg text-rose-500 transition-colors" title="Delete">
+                                                        <Trash2 size={18} />
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                        {filteredStaff.length === 0 && (
+                            <div className="text-center py-20 opacity-50">
+                                <p className="text-xl font-bold text-slate-400">No staff members found matching your search.</p>
+                            </div>
+                        )}
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
-            {filteredStaff.length === 0 && (
-                <div className="text-center py-20 opacity-50">
-                    <p className="text-xl font-bold text-slate-400">No staff members found.</p>
-                </div>
-            )}
+            {/* Add/Edit Staff Modal - Kept Original */}
 
             {/* Add/Edit Staff Modal */}
             <AnimatePresence>

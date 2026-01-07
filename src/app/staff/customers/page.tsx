@@ -1,6 +1,6 @@
 "use client";
 
-import { Search, Phone, MapPin, ArrowRight, User, ArrowLeft, X, TrendingUp, History, ShieldCheck, Download, ExternalLink, Calendar, Map, CheckCircle2 } from "lucide-react";
+import { Search, Phone, MapPin, ArrowRight, User, ArrowLeft, X, TrendingUp, History, ShieldCheck, Download, ExternalLink, Calendar, Map, CheckCircle2, ArrowUpRight, ArrowDownRight, Bell, Link as LinkIcon, FileText, CheckCircle } from "lucide-react";
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -113,129 +113,225 @@ export default function StaffCustomers() {
     )
 }
 
-function CustomerDetailsModal({ customer, onClose }: { customer: any, onClose: () => void }) {
-    return (
-        <div className="fixed inset-0 z-[100] flex flex-col justify-end">
-            <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                onClick={onClose}
-                className="absolute inset-0 bg-black/90 backdrop-blur-md"
-            />
-            <motion.div
-                initial={{ y: "100%" }}
-                animate={{ y: 0 }}
-                exit={{ y: "100%" }}
-                transition={{ type: "spring", damping: 25, stiffness: 200 }}
-                className="bg-[#0f1115] w-full rounded-t-[3rem] border-t border-white/10 relative z-10 flex flex-col max-h-[92vh] overflow-hidden"
-            >
-                {/* Pull Handle */}
-                <div className="w-full flex justify-center p-4">
-                    <div className="w-12 h-1.5 bg-white/20 rounded-full"></div>
-                </div>
 
+function CustomerDetailsModal({ customer, onClose }: { customer: any, onClose: () => void }) {
+    const [activeTab, setActiveTab] = useState("Transaction Timeline");
+
+    return (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+            <motion.div
+                initial={{ scale: 0.95, opacity: 0, y: 20 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.95, opacity: 0, y: 20 }}
+                className="bg-[#0b0c10] w-full max-w-7xl rounded-[2.5rem] border border-white/5 shadow-2xl relative z-10 overflow-hidden h-[90vh] max-h-[900px] flex flex-col"
+            >
                 {/* Modal Header */}
-                <div className="px-8 pb-6 border-b border-white/5">
-                    <div className="flex justify-between items-start mb-6">
-                        <div className="h-14 w-14 rounded-2xl bg-indigo-600 flex items-center justify-center text-white text-2xl font-bold shadow-lg shadow-indigo-600/30">
+                <div className="px-8 py-6 border-b border-white/5 flex justify-between items-center bg-[#0b0c10] shrink-0">
+                    <div className="flex items-center gap-6">
+                        <div className="h-16 w-16 rounded-3xl bg-[#4f46e5] flex items-center justify-center text-white text-3xl font-bold shadow-2xl shadow-indigo-500/20">
                             {customer.name[0]}
                         </div>
-                        <button onClick={onClose} className="p-3 bg-white/5 rounded-2xl text-slate-400 hover:text-white transition-colors">
+                        <div>
+                            <div className="flex items-center gap-4">
+                                <h3 className="text-3xl font-bold text-white tracking-tight">{customer.name}</h3>
+                                <span className="bg-[#059669] text-white border border-emerald-400/20 text-[10px] font-extrabold px-3 py-1 rounded-full uppercase tracking-wider shadow-lg shadow-emerald-900/20">Active</span>
+                            </div>
+                            <div className="flex items-center gap-6 text-slate-400 text-sm mt-2 font-medium">
+                                <span className="flex items-center gap-2"><Phone size={16} className="text-slate-500" /> {customer.phone || customer.contact}</span>
+                                <span className="w-1.5 h-1.5 rounded-full bg-slate-700"></span>
+                                <span className="flex items-center gap-2"><MapPin size={16} className="text-slate-500" /> {customer.city}, East Zone</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <button className="h-12 w-12 flex items-center justify-center bg-[#1c1f26] hover:bg-white/10 rounded-2xl transition-colors text-slate-400 hover:text-white border border-white/5">
+                            <Download size={20} />
+                        </button>
+                        <button onClick={onClose} className="h-12 w-12 flex items-center justify-center bg-[#1c1f26] hover:bg-white/10 rounded-2xl transition-colors text-slate-400 hover:text-white border border-white/5">
                             <X size={20} />
                         </button>
                     </div>
-                    <div className="flex items-center gap-3">
-                        <h3 className="text-2xl font-bold text-white tracking-tight">{customer.name}</h3>
-                        <div className="px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-1">
-                            <ShieldCheck size={10} className="text-emerald-400" />
-                            <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest">Verified</span>
-                        </div>
-                    </div>
-                    <p className="text-slate-500 text-sm font-medium mt-1">{customer.city} • {customer.contact}</p>
                 </div>
 
-                {/* Modal Content */}
-                <div className="flex-1 overflow-y-auto px-8 py-8 space-y-8 scrollbar-hide pb-24">
+                <div className="flex-1 overflow-hidden flex flex-col md:flex-row">
+                    {/* LEFT PANEL - Financial Status */}
+                    <div className="w-full md:w-[450px] bg-[#0b0c10] p-8 border-r border-white/5 flex flex-col gap-5 overflow-y-auto custom-scrollbar">
+                        <p className="text-[11px] font-extrabold text-[#64748b] uppercase tracking-[0.2em] mb-2">Financial Status</p>
 
-                    {/* Financial Summary */}
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="bg-[#16181d] p-5 rounded-[2rem] border border-white/5">
-                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Total Paid</p>
-                            <h4 className="text-xl font-bold text-white">₹ 1,25,000</h4>
-                            <div className="flex items-center gap-1 mt-2">
-                                <TrendingUp size={12} className="text-emerald-500" />
-                                <span className="text-[10px] text-emerald-500 font-bold">+12%</span>
+                        {/* Total Collections Card */}
+                        <div className="bg-[#151921] p-6 rounded-[2rem] border border-white/5 relative overflow-hidden group hover:border-white/10 transition-colors">
+                            <div className="absolute top-4 right-4 opacity-[0.05] group-hover:opacity-[0.1] transition-opacity duration-500">
+                                <ArrowUpRight size={120} />
+                            </div>
+                            <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider mb-2">Total Collections</p>
+                            <h4 className="text-[2.75rem] leading-none font-extrabold text-white tracking-tight">₹ 1,25,000</h4>
+                            <div className="flex items-center gap-2 mt-4">
+                                <TrendingUp size={16} className="text-emerald-500" />
+                                <span className="text-emerald-500 text-xs font-bold">+12% from last month</span>
                             </div>
                         </div>
-                        <div className="bg-[#16181d] p-5 rounded-[2rem] border border-white/5">
-                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Pending Due</p>
-                            <h4 className="text-xl font-bold text-rose-500">₹ {customer.balance}</h4>
-                            <p className="text-[10px] text-slate-500 font-medium mt-2 italic">Visit: {customer.lastVisit}</p>
-                        </div>
-                    </div>
 
-                    {/* Timeline */}
-                    <div>
-                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-6">Recent History</p>
-                        <div className="space-y-6">
-                            {(customer.history && customer.history.length > 0) ? (
-                                customer.history.map((item: any, idx: number) => (
-                                    <div key={idx} className="flex gap-5 group">
-                                        <div className="flex flex-col items-center">
-                                            <div className="w-9 h-9 rounded-full bg-white/5 flex items-center justify-center border border-white/10 relative z-10">
-                                                {item.type === 'PAYMENT' ? <CheckCircle2 size={16} className="text-emerald-400" /> : <History size={16} className="text-indigo-400" />}
-                                            </div>
-                                            {idx !== customer.history.length - 1 && <div className="flex-1 w-0.5 border-l border-white/5 my-2 border-dashed"></div>}
-                                        </div>
-                                        <div className="flex-1 pb-4">
-                                            <div className="flex justify-between items-start">
-                                                <div>
-                                                    <p className="text-[10px] font-bold text-slate-600 tracking-wider mb-1">{item.date}</p>
-                                                    <h5 className="font-bold text-white text-sm">{item.label}</h5>
-                                                    <p className="text-[10px] text-slate-500 font-medium mt-1">{item.mode}</p>
-                                                </div>
-                                                <p className={`font-bold text-sm ${item.amount.includes('+') ? 'text-emerald-400' : 'text-slate-300'}`}>{item.amount}</p>
-                                            </div>
-                                        </div>
+                        {/* Current Balance Card */}
+                        <div className="bg-[#151921] p-6 rounded-[2rem] border border-white/5 relative overflow-hidden group hover:border-white/10 transition-colors">
+                            <div className="absolute top-4 right-4 opacity-[0.05] group-hover:opacity-[0.1] transition-opacity duration-500">
+                                <ArrowDownRight size={120} className="text-rose-500" />
+                            </div>
+                            <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider mb-2">Current Balance</p>
+                            <h4 className="text-[2.75rem] leading-none font-extrabold text-white tracking-tight">₹ {customer.balance}</h4>
+                            <p className="text-slate-600 text-[10px] font-bold mt-4 uppercase tracking-wide">Next expected collection: Jan 05</p>
+                        </div>
+
+                        {/* Collection Trend */}
+                        <div className="bg-[#151921] p-6 rounded-[2rem] border border-white/5 flex-1 min-h-[220px] flex flex-col">
+                            <div className="flex justify-between items-center mb-6">
+                                <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider">Collection Trend</p>
+                                <span className="text-white text-[10px] font-bold bg-[#059669] px-3 py-1 rounded-full shadow-lg shadow-emerald-900/20">6 MONTHS</span>
+                            </div>
+                            <div className="flex-1 flex items-end gap-3 justify-between px-1 pb-1">
+                                {[30, 45, 25, 60, 40, 75, 50, 80].map((h, i) => (
+                                    <div key={i} className={`w-full rounded-t-sm relative group overflow-hidden ${i === 7 ? 'bg-[#6366f1]' : 'bg-[#1e293b]/50'}`} style={{ height: `${h}%` }}>
+                                        <div className={`absolute bottom-0 left-0 right-0 top-0 bg-[#818cf8] opacity-0 group-hover:opacity-100 transition-opacity rounded-t-sm duration-300`}></div>
                                     </div>
-                                ))
-                            ) : (
-                                <div className="p-8 bg-white/5 rounded-3xl text-center border border-dashed border-white/10">
-                                    <p className="text-slate-500 text-sm font-medium">No recent transactions</p>
+                                ))}
+                            </div>
+                            <div className="flex justify-between mt-4 px-1">
+                                <span className="text-[10px] font-bold text-slate-500 tracking-wider">JULY</span>
+                                <span className="text-[10px] font-bold text-slate-500 tracking-wider">TODAY</span>
+                            </div>
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="grid grid-cols-3 gap-4 mt-2">
+                            <button className="bg-[#151921] hover:bg-[#1f2937] border border-white/5 rounded-2xl py-4 px-2 flex flex-col items-center justify-center gap-2 transition-all active:scale-95 group shadow-lg shadow-black/20">
+                                <Bell size={20} className="text-[#818cf8] group-hover:scale-110 transition-transform" />
+                                <span className="text-[10px] font-bold text-slate-300 text-center leading-tight tracking-wide">SEND<br />ALERT</span>
+                            </button>
+                            <button className="bg-[#064e3b] hover:bg-[#065f46] border border-white/5 rounded-2xl py-4 px-2 flex flex-col items-center justify-center gap-2 transition-all active:scale-95 group shadow-lg shadow-emerald-900/20">
+                                <MapPin size={20} className="text-white group-hover:scale-110 transition-transform" />
+                                <span className="text-[10px] font-bold text-white text-center leading-tight tracking-wide">NAVIGATE</span>
+                            </button>
+                            <button className="bg-[#151921] hover:bg-[#1f2937] border border-white/5 rounded-2xl py-4 px-2 flex flex-col items-center justify-center gap-2 transition-all active:scale-95 group shadow-lg shadow-black/20">
+                                <LinkIcon size={20} className="text-slate-400 group-hover:scale-110 transition-transform" />
+                                <span className="text-[10px] font-bold text-slate-300 text-center leading-tight tracking-wide">KYC<br />LINK</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* RIGHT PANEL - Timeline & Details */}
+                    <div className="flex-1 bg-[#050608] p-10 flex flex-col overflow-hidden relative border-l border-white/5">
+                        {/* Tabs */}
+                        <div className="flex items-center gap-10 border-b border-white/5 pb-0 mb-10 overflow-x-auto scrollbar-hide">
+                            {["Transaction Timeline", "Communication", "KYC Docs"].map((tab) => (
+                                <button
+                                    key={tab}
+                                    onClick={() => setActiveTab(tab)}
+                                    className={`relative pb-4 text-sm font-bold transition-colors whitespace-nowrap tracking-wide ${activeTab === tab ? "text-white" : "text-slate-500 hover:text-slate-300"}`}
+                                >
+                                    {tab}
+                                    {tab === "Communication" && <span className="ml-3 bg-[#1e293b] text-slate-300 text-[10px] px-2 py-0.5 rounded-full">3</span>}
+                                    {activeTab === tab && (
+                                        <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-[3px] bg-[#6366f1] shadow-[0_0_20px_rgba(99,102,241,0.5)] rounded-full" />
+                                    )}
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* Content */}
+                        <div className="flex-1 overflow-y-auto custom-scrollbar pr-6 space-y-10">
+                            {/* Jan 02 */}
+                            <div className="relative pl-10 border-l border-white/5 pb-2 last:pb-0 last:border-transparent group">
+                                <div className="absolute -left-3.5 top-0 h-7 w-7 rounded-full bg-[#0b0c10] border border-emerald-500/30 flex items-center justify-center group-hover:border-emerald-500 transition-colors shadow-[0_0_15px_rgba(16,185,129,0.2)]">
+                                    <ShieldCheck size={14} className="text-emerald-500" />
                                 </div>
-                            )}
-                        </div>
-                    </div>
+                                <div className="flex justify-between items-start">
+                                    <div>
+                                        <p className="text-[10px] font-bold text-slate-500 tracking-wider uppercase mb-1.5">JAN 02, 2026</p>
+                                        <h4 className="text-xl font-bold text-white mb-1">Payment Received</h4>
+                                        <p className="text-sm text-slate-400 font-medium">Processed by <span className="text-slate-200">Rahul Varma</span></p>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="text-xl font-bold text-emerald-400 mb-1">+ ₹ 5,000</p>
+                                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">CASH</p>
+                                    </div>
+                                </div>
+                            </div>
 
-                    {/* Quick Tools */}
-                    <div>
-                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-4">Operations</p>
-                        <div className="grid grid-cols-2 gap-3">
-                            <a href={`tel:${customer.phone}`} className="flex items-center gap-3 p-4 bg-indigo-600/10 rounded-2xl border border-indigo-600/20">
-                                <Phone size={18} className="text-indigo-400" />
-                                <span className="text-xs font-bold text-white uppercase tracking-wider">Direct Call</span>
-                            </a>
-                            <a
-                                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(customer.address || `${customer.name} ${customer.city}`)}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex items-center gap-3 p-4 bg-white/5 rounded-2xl border border-white/10"
-                            >
-                                <MapPin size={18} className="text-slate-400" />
-                                <span className="text-xs font-bold text-white uppercase tracking-wider">Navigate</span>
-                            </a>
+                            {/* Dec 28 */}
+                            <div className="relative pl-10 border-l border-white/5 pb-2 last:pb-0 last:border-transparent group">
+                                <div className="absolute -left-3.5 top-0 h-7 w-7 rounded-full bg-[#0b0c10] border border-blue-500/30 flex items-center justify-center group-hover:border-blue-500 transition-colors shadow-[0_0_15px_rgba(59,130,246,0.2)]">
+                                    <TrendingUp size={14} className="text-blue-500" />
+                                </div>
+                                <div className="flex justify-between items-start">
+                                    <div>
+                                        <p className="text-[10px] font-bold text-slate-500 tracking-wider uppercase mb-1.5">DEC 28, 2025</p>
+                                        <h4 className="text-xl font-bold text-white mb-1">Invoice Issued</h4>
+                                        <p className="text-sm text-slate-400 font-medium">Processed by <span className="text-slate-200">System Admin</span></p>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="text-xl font-bold text-white mb-1">₹ 12,000</p>
+                                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">TAX BILL</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Dec 22 */}
+                            <div className="relative pl-10 border-l border-white/5 pb-2 last:pb-0 last:border-transparent group">
+                                <div className="absolute -left-3.5 top-0 h-7 w-7 rounded-full bg-[#0b0c10] border border-amber-500/30 flex items-center justify-center group-hover:border-amber-500 transition-colors shadow-[0_0_15px_rgba(245,158,11,0.2)]">
+                                    <Map size={14} className="text-amber-500" />
+                                </div>
+                                <div className="flex justify-between items-start">
+                                    <div>
+                                        <p className="text-[10px] font-bold text-slate-500 tracking-wider uppercase mb-1.5">DEC 22, 2025</p>
+                                        <h4 className="text-xl font-bold text-white mb-1">Site Visit Confirmed</h4>
+                                        <p className="text-sm text-slate-400 font-medium">Processed by <span className="text-slate-200">Amit Kumar</span></p>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="text-sm font-bold text-white mb-1">Details Updated</p>
+                                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">CHECK-IN</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Dec 15 */}
+                            <div className="relative pl-10 border-l border-white/5 pb-2 last:pb-0 last:border-transparent group">
+                                <div className="absolute -left-3.5 top-0 h-7 w-7 rounded-full bg-[#0b0c10] border border-emerald-500/30 flex items-center justify-center group-hover:border-emerald-500 transition-colors shadow-[0_0_15px_rgba(16,185,129,0.2)]">
+                                    <CheckCircle size={14} className="text-emerald-500" />
+                                </div>
+                                <div className="flex justify-between items-start">
+                                    <div>
+                                        <p className="text-[10px] font-bold text-slate-500 tracking-wider uppercase mb-1.5">DEC 15, 2025</p>
+                                        <h4 className="text-xl font-bold text-white mb-1">Payment Received</h4>
+                                        <p className="text-sm text-slate-400 font-medium">Processed by <span className="text-slate-200">Rahul Varma</span></p>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="text-xl font-bold text-emerald-400 mb-1">+ ₹ 2,000</p>
+                                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">UPI</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Custom Report Banner */}
+                        <div className="mt-8 pt-0">
+                            <div className="bg-gradient-to-r from-[#1e1b4b] to-[#1e1b4b] border border-indigo-500/30 rounded-[2rem] p-6 flex items-center justify-between relative overflow-hidden group hover:border-indigo-500/50 transition-colors shadow-2xl">
+                                <div className="absolute inset-0 bg-[#4f46e5]/10 blur-2xl group-hover:bg-[#4f46e5]/20 transition-colors"></div>
+                                <div className="flex items-center gap-6 relative z-10">
+                                    <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-[#4f46e5] to-[#4338ca] flex items-center justify-center shadow-lg shadow-indigo-500/30 group-hover:scale-110 transition-transform">
+                                        <FileText size={28} className="text-white" />
+                                    </div>
+                                    <div>
+                                        <h4 className="text-xl font-bold text-white">Need a custom report?</h4>
+                                        <p className="text-indigo-200 text-sm font-medium mt-1">Export specific filters as a PDF or Excel.</p>
+                                    </div>
+                                </div>
+                                <button className="bg-[#4f46e5] hover:bg-[#4338ca] text-white font-bold py-4 px-8 rounded-xl shadow-lg shadow-indigo-600/30 transition-all active:scale-95 relative z-10 text-sm">
+                                    Generate Custom PDF
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                {/* Bottom Sticky Action */}
-                <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-[#0f1115] via-[#0f1115] to-transparent">
-                    <Link href={`/staff/entry?customer=${customer.id}`} className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-2xl transition-all shadow-xl shadow-indigo-600/30 flex items-center justify-center gap-3 active:scale-[0.98]">
-                        <TrendingUp size={20} />
-                        Collect Payment
-                    </Link>
-                </div>
             </motion.div>
         </div>
     )

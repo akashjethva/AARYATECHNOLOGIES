@@ -94,24 +94,12 @@ export default function Home() {
                 <div className="w-20 h-20 bg-gradient-to-br from-indigo-500 to-violet-600 rounded-3xl mx-auto flex items-center justify-center shadow-lg shadow-indigo-500/30 mb-6 rotate-3 hover:rotate-6 transition-transform">
                   <ShieldCheck className="w-10 h-10 text-white" />
                 </div>
-                <h1 className="text-3xl font-black text-white tracking-tight mb-2">Payment Soft</h1>
+                <h1 className="text-3xl font-black text-white tracking-tight mb-2">Payment Entry Reports</h1>
                 <p className="text-slate-400 font-medium">Secure Login Portal</p>
               </div>
 
               <div className="space-y-4">
-                <button
-                  onClick={() => handleRoleSelect('admin')}
-                  className="w-full p-4 bg-white/5 hover:bg-white/10 active:scale-[0.98] border border-white/10 rounded-2xl flex items-center gap-4 group transition-all"
-                >
-                  <div className="w-12 h-12 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center group-hover:bg-indigo-500 group-hover:text-white transition-colors">
-                    <LayoutDashboard size={22} />
-                  </div>
-                  <div className="flex-1 text-left">
-                    <h3 className="font-bold text-white text-lg">Admin Panel</h3>
-                    <p className="text-xs text-slate-500 group-hover:text-slate-400 transition-colors">Owner & Management</p>
-                  </div>
-                  <ChevronRight className="text-slate-600 group-hover:text-white transition-colors" />
-                </button>
+                {/* Admin Panel button removed as per user request for Staff-only app */}
 
                 <button
                   onClick={() => handleRoleSelect('staff')}
@@ -121,8 +109,8 @@ export default function Home() {
                     <Smartphone size={22} />
                   </div>
                   <div className="flex-1 text-left">
-                    <h3 className="font-bold text-white text-lg">Field Staff</h3>
-                    <p className="text-xs text-slate-500 group-hover:text-slate-400 transition-colors">Collection Agents</p>
+                    <h3 className="font-bold text-white text-lg">Agent Portal</h3>
+                    <p className="text-xs text-slate-500 group-hover:text-slate-400 transition-colors">Manage Daily Collections</p>
                   </div>
                   <ChevronRight className="text-slate-600 group-hover:text-white transition-colors" />
                 </button>

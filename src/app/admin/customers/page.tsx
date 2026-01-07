@@ -1,9 +1,10 @@
 "use client";
 
-import { UserPlus, Search, MoreVertical, Phone, MapPin, Filter, Mail, X, History, ArrowDownRight, ArrowUpRight, Check, AlertCircle, Save, Edit, Trash2, Download, TrendingUp, MessageSquare, Calendar, Map, Bell, ExternalLink, ShieldCheck } from "lucide-react";
-import { useState, useEffect } from "react";
+import { UserPlus, Search, MoreVertical, Phone, MapPin, Filter, Mail, X, History, ArrowDownRight, ArrowUpRight, Check, AlertCircle, Save, Edit, Trash2, Download, Bell, Navigation, Link as LinkIcon, ShieldCheck, TrendingUp, Map, CheckCircle, MessageSquare, FileText, Wallet, Info, LayoutGrid, List, User } from "lucide-react";
+import { useState, useCallback, memo } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { loadFromStorage, saveToStorage, INITIAL_CUSTOMERS } from "@/utils/storage";
+import { useCurrency } from "@/hooks/useCurrency";
 
 interface Customer {
     id: number;
@@ -15,24 +16,20 @@ interface Customer {
     balance: string;
     email?: string;
     address?: string;
-    zone?: string;
 }
 
 export default function CustomersPage() {
-    // Initial load from storage or fallback
-    const [customers, setCustomers] = useState<Customer[]>([]);
-
-    useEffect(() => {
-        const storedCustomers = loadFromStorage("customers", INITIAL_CUSTOMERS);
-        setCustomers(storedCustomers);
-    }, []);
-
-    // Save to storage whenever customers change
-    useEffect(() => {
-        if (customers.length > 0) {
-            saveToStorage("customers", customers);
-        }
-    }, [customers]);
+    const [customers, setCustomers] = useState<Customer[]>([
+        { id: 1, name: "Shiv Shakti Traders", contact: "Rajesh Bhai", phone: "+91 98765 11223", city: "Ahmedabad", status: "Active", balance: "15,200", email: "shivshakti@gmail.com", address: "123, Market Yard, Naroda" },
+        { id: 2, name: "Jay Mataji Store", contact: "Vikram Sinh", phone: "+91 91234 99887", city: "Surat", status: "Active", balance: "8,500", email: "jaymataji@gmail.com", address: "45, Varachha Road" },
+        { id: 3, name: "Om Enterprise", contact: "Amit Shah", phone: "+91 99887 55443", city: "Vadodara", status: "Inactive", balance: "0", email: "om.ent@gmail.com", address: "88, Alkapuri" },
+        { id: 4, name: "Ganesh Provision", contact: "Suresh Patel", phone: "+91 98980 12345", city: "Rajkot", status: "Active", balance: "12,500", email: "ganesh.prov@gmail.com", address: "12, Soni Bazar" },
+        { id: 5, name: "Maruti Nandan", contact: "Vikram Solanki", phone: "+91 97654 32109", city: "Surat", status: "Active", balance: "2,100", email: "maruti@gmail.com", address: "Ring Road, Surat" },
+        { id: 6, name: "Khodiyar General", contact: "Ketan Bhai", phone: "+91 99000 88777", city: "Ahmedabad", status: "Inactive", balance: "45,000", email: "khodiyar@gmail.com", address: "Gota, Ahmedabad" },
+        { id: 7, name: "Umiya Traders", contact: "Praveen Patel", phone: "+91 88776 65544", city: "Mehsana", status: "Active", balance: "8,900", email: "umiya@gmail.com", address: "Highway Road" },
+        { id: 8, name: "Balaji Kirana", contact: "Ramesh Gupta", phone: "+91 77665 54433", city: "Vadodara", status: "Active", balance: "5,600", email: "balaji@gmail.com", address: "Manjalpur" },
+        { id: 9, name: "Sardar Stores", contact: "Manish Singh", phone: "+91 66554 43322", city: "Rajkot", status: "Inactive", balance: "0", email: "sardar@gmail.com", address: "Yagnik Road" },
+    ]);
 
     const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -44,7 +41,10 @@ export default function CustomersPage() {
 
     // State for Editing
     const [editingId, setEditingId] = useState<number | null>(null);
-    const [formData, setFormData] = useState({ name: "", contact: "", phone: "", city: "", balance: "", email: "", address: "", zone: "" });
+    const [formData, setFormData] = useState({ name: "", contact: "", phone: "", city: "", balance: "", email: "", address: "" });
+
+    // View Mode State
+    const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
     // Filter Options
     const filterOptions = ["All", "Active", "Inactive", "Ahmedabad", "Surat", "Rajkot", "Vadodara"];
@@ -73,18 +73,18 @@ export default function CustomersPage() {
             setCustomers(customers.map(c => c.id === editingId ? { ...c, ...formData, status: c.status } : c));
         } else {
             // Add New
-            setCustomers([{
+            setCustomers([...customers, {
                 id: Date.now(),
                 ...formData,
                 status: "Active",
                 balance: formData.balance || "0",
                 city: formData.city || "Unknown"
-            }, ...customers]); // Add to top
+            }]);
         }
 
         setIsAddModalOpen(false);
         setEditingId(null);
-        setFormData({ name: "", contact: "", phone: "", city: "", balance: "", email: "", address: "", zone: "" });
+        setFormData({ name: "", contact: "", phone: "", city: "", balance: "", email: "", address: "" });
     };
 
     const handleEditClick = (customer: Customer) => {
@@ -96,8 +96,7 @@ export default function CustomersPage() {
             city: customer.city,
             balance: customer.balance,
             email: customer.email || "",
-            address: customer.address || "",
-            zone: customer.zone || ""
+            address: customer.address || ""
         });
         setIsAddModalOpen(true);
     };
@@ -110,7 +109,7 @@ export default function CustomersPage() {
 
     const openAddModal = () => {
         setEditingId(null);
-        setFormData({ name: "", contact: "", phone: "", city: "", balance: "", email: "", address: "", zone: "" });
+        setFormData({ name: "", contact: "", phone: "", city: "", balance: "", email: "", address: "" });
         setIsAddModalOpen(true);
     };
 
@@ -137,7 +136,7 @@ export default function CustomersPage() {
                 </button>
             </div>
 
-            {/* Filters & Search */}
+            {/* Filters & Search & View Toggle */}
             <div className="flex flex-col md:flex-row gap-4">
                 <div className="bg-[#1e293b]/60 p-2 rounded-2xl shadow-xl border border-white/5 flex gap-4 flex-1 backdrop-blur-xl">
                     <div className="relative flex-1">
@@ -151,61 +150,158 @@ export default function CustomersPage() {
                         />
                     </div>
                 </div>
-                <div className="relative">
-                    <button
-                        onClick={() => setIsFilterOpen(!isFilterOpen)}
-                        className={`p-4 rounded-xl transition-colors border flex items-center gap-2 font-bold ${activeFilter !== 'All' ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-[#1e293b]/60 border-white/5 text-slate-300 hover:text-white hover:bg-white/5'}`}
-                    >
-                        <Filter size={20} />
-                        <span className="hidden md:inline">{activeFilter === 'All' ? 'Filters' : activeFilter}</span>
-                    </button>
-                    <AnimatePresence>
-                        {isFilterOpen && (
-                            <motion.div
-                                initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                                animate={{ opacity: 1, y: 0, scale: 1 }}
-                                exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                                className="absolute top-full right-0 mt-2 w-48 bg-[#1e293b] border border-white/10 rounded-2xl shadow-xl z-50 overflow-hidden p-1"
-                            >
-                                {filterOptions.map(opt => (
-                                    <button
-                                        key={opt}
-                                        onClick={() => { setActiveFilter(opt); setIsFilterOpen(false); }}
-                                        className={`w-full text-left px-4 py-3 rounded-xl text-sm font-bold transition-colors ${activeFilter === opt ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:bg-white/5 hover:text-white'}`}
-                                    >
-                                        {opt}
-                                    </button>
-                                ))}
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
+
+                <div className="flex items-center gap-3">
+                    {/* View Toggle */}
+                    <div className="bg-[#1e293b]/60 p-1.5 rounded-xl border border-white/5 flex items-center backdrop-blur-xl">
+                        <button
+                            onClick={() => setViewMode('grid')}
+                            className={`p-3 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}
+                            title="Grid View"
+                        >
+                            <LayoutGrid size={20} />
+                        </button>
+                        <button
+                            onClick={() => setViewMode('list')}
+                            className={`p-3 rounded-lg transition-all ${viewMode === 'list' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}
+                            title="List View"
+                        >
+                            <List size={20} />
+                        </button>
+                    </div>
+
+                    <div className="relative">
+                        <button
+                            onClick={() => setIsFilterOpen(!isFilterOpen)}
+                            className={`p-4 rounded-xl transition-colors border flex items-center gap-2 font-bold ${activeFilter !== 'All' ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-[#1e293b]/60 border-white/5 text-slate-300 hover:text-white hover:bg-white/5'}`}
+                        >
+                            <Filter size={20} />
+                            <span className="hidden md:inline">{activeFilter === 'All' ? 'Filters' : activeFilter}</span>
+                        </button>
+                        <AnimatePresence>
+                            {isFilterOpen && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                                    className="absolute top-full right-0 mt-2 w-48 bg-[#1e293b] border border-white/10 rounded-2xl shadow-xl z-50 overflow-hidden p-1"
+                                >
+                                    {filterOptions.map(opt => (
+                                        <button
+                                            key={opt}
+                                            onClick={() => { setActiveFilter(opt); setIsFilterOpen(false); }}
+                                            className={`w-full text-left px-4 py-3 rounded-xl text-sm font-bold transition-colors ${activeFilter === opt ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:bg-white/5 hover:text-white'}`}
+                                        >
+                                            {opt}
+                                        </button>
+                                    ))}
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </div>
                 </div>
             </div>
 
-            {/* Customers Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-6">
-                {filteredCustomers.length > 0 ? (
-                    filteredCustomers.map((customer) => (
-                        <CustomerCard
-                            key={customer.id}
-                            customer={customer}
-                            onClick={() => setSelectedCustomer(customer)}
-                            onEdit={() => handleEditClick(customer)}
-                            onDelete={() => handleDeleteClick(customer.id)}
-                        />
-                    ))
-                ) : (
-                    <div className="col-span-full py-20 text-center text-slate-500">
-                        <Search size={48} className="mx-auto mb-4 opacity-30" />
-                        <p className="text-xl font-bold">No customers found</p>
+            {/* Customers View (Grid vs List) */}
+            {viewMode === 'grid' ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-6">
+                    {filteredCustomers.length > 0 ? (
+                        filteredCustomers.map((customer) => (
+                            <CustomerCard
+                                key={customer.id}
+                                customer={customer}
+                                onViewHistory={() => setSelectedCustomer(customer)}
+                                onEdit={() => handleEditClick(customer)}
+                                onDelete={() => handleDeleteClick(customer.id)}
+                            />
+                        ))
+                    ) : (
+                        <div className="col-span-full py-20 text-center text-slate-500">
+                            <Search size={48} className="mx-auto mb-4 opacity-30" />
+                            <p className="text-xl font-bold">No customers found</p>
+                        </div>
+                    )}
+                </div>
+            ) : (
+                <div className="bg-[#1e293b]/60 backdrop-blur-xl rounded-[2.5rem] border border-white/5 shadow-2xl overflow-hidden">
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left border-collapse">
+                            <thead className="bg-[#0f172a]/50 text-slate-400 font-bold text-sm uppercase tracking-wider border-b border-white/5">
+                                <tr>
+                                    <th className="px-8 py-6">Customer Name</th>
+                                    <th className="px-6 py-6">Contact Info</th>
+                                    <th className="px-6 py-6">Status</th>
+                                    <th className="px-6 py-6">City</th>
+                                    <th className="px-6 py-6 text-right">Balance</th>
+                                    <th className="px-8 py-6 text-center">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-white/5 text-base">
+                                {filteredCustomers.map((customer) => (
+                                    <tr key={customer.id} className="hover:bg-white/5 transition-colors group cursor-pointer" onClick={() => setSelectedCustomer(customer)}>
+                                        <td className="px-8 py-5">
+                                            <div className="flex items-center gap-4">
+                                                <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-indigo-600 to-blue-600 flex items-center justify-center text-white font-bold shadow-lg shadow-indigo-500/20">
+                                                    {customer.name[0]}
+                                                </div>
+                                                <span className="font-bold text-white text-lg group-hover:text-indigo-400 transition-colors">{customer.name}</span>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-5">
+                                            <div className="flex flex-col gap-1">
+                                                <div className="flex items-center gap-2 text-slate-300">
+                                                    <User size={16} className="text-slate-500" />
+                                                    <span className="font-medium">{customer.contact}</span>
+                                                </div>
+                                                <div className="flex items-center gap-2 text-slate-400">
+                                                    <Phone size={16} className="text-slate-500" />
+                                                    <span>{customer.phone}</span>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-5">
+                                            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${customer.status === 'Active' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border-rose-500/20'}`}>
+                                                <span className={`w-1.5 h-1.5 rounded-full ${customer.status === 'Active' ? 'bg-emerald-500' : 'bg-rose-500'}`}></span>
+                                                {customer.status}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-5">
+                                            <span className="text-slate-300 font-medium">{customer.city}</span>
+                                        </td>
+                                        <td className="px-6 py-5 text-right">
+                                            <span className="font-bold text-blue-400 text-xl">₹ {customer.balance}</span>
+                                        </td>
+                                        <td className="px-8 py-5 text-center" onClick={(e) => e.stopPropagation()}>
+                                            <div className="flex items-center justify-center gap-2 opacity-60 group-hover:opacity-100 transition-opacity">
+                                                <button onClick={() => handleEditClick(customer)} className="p-2 hover:bg-white/10 rounded-lg text-amber-400 hover:text-amber-300 transition-colors" title="Edit">
+                                                    <Edit size={16} />
+                                                </button>
+                                                <button onClick={() => handleDeleteClick(customer.id)} className="p-2 hover:bg-white/10 rounded-lg text-rose-400 hover:text-rose-300 transition-colors" title="Delete">
+                                                    <Trash2 size={16} />
+                                                </button>
+                                                <button onClick={() => setSelectedCustomer(customer)} className="p-2 hover:bg-white/10 rounded-lg text-indigo-400 hover:text-indigo-300 transition-colors" title="View History">
+                                                    <History size={16} />
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                        {filteredCustomers.length === 0 && (
+                            <div className="py-20 text-center text-slate-500">
+                                <Search size={48} className="mx-auto mb-4 opacity-30" />
+                                <p className="text-xl font-bold">No customers found</p>
+                            </div>
+                        )}
                     </div>
-                )}
-            </div>
+                </div>
+            )}
 
-            {/* Customer Details Modal (Deep Dive) */}
+            {/* Customer Ledger Modal */}
             <AnimatePresence>
                 {selectedCustomer && (
-                    <CustomerDetailsModal
+                    <CustomerLedgerModal
                         customer={selectedCustomer}
                         onClose={() => setSelectedCustomer(null)}
                     />
@@ -301,24 +397,9 @@ export default function CustomersPage() {
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Zone</label>
-                                        <select
-                                            value={formData.zone}
-                                            onChange={(e) => setFormData({ ...formData, zone: e.target.value })}
-                                            className="w-full bg-[#0f172a] border border-white/10 rounded-2xl px-5 py-4 text-white outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-bold"
-                                        >
-                                            <option value="">Select Zone</option>
-                                            <option value="North">North</option>
-                                            <option value="South">South</option>
-                                            <option value="East">East</option>
-                                            <option value="West">West</option>
-                                            <option value="Central">Central</option>
-                                        </select>
-                                    </div>
-                                    <div>
                                         <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Opening Balance (₹)</label>
                                         <input
-                                            type="number"
+                                            type="text"
                                             value={formData.balance}
                                             onChange={(e) => setFormData({ ...formData, balance: e.target.value })}
                                             placeholder="0"
@@ -344,14 +425,12 @@ export default function CustomersPage() {
     );
 }
 
-function CustomerCard({ customer, onClick, onEdit, onDelete }: { customer: Customer, onClick: () => void, onEdit: () => void, onDelete: () => void }) {
+function CustomerCard({ customer, onViewHistory, onEdit, onDelete }: { customer: Customer, onViewHistory: () => void, onEdit: () => void, onDelete: () => void }) {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const { formatCurrency } = useCurrency();
 
     return (
-        <div
-            onClick={onClick}
-            className="bg-[#1e293b]/60 backdrop-blur-md p-6 rounded-[2.5rem] shadow-xl border border-white/5 hover:bg-[#1e293b] hover:border-indigo-500/30 transition-all duration-300 relative group cursor-pointer active:scale-[0.98]"
-        >
+        <div className="bg-[#1e293b]/60 backdrop-blur-md p-6 rounded-[2rem] shadow-xl border border-white/5 hover:bg-[#1e293b] hover:border-indigo-500/30 transition-all duration-300 relative group">
 
             {/* Dropdown Menu */}
             <div className="absolute top-6 right-6 z-20">
@@ -396,12 +475,6 @@ function CustomerCard({ customer, onClick, onEdit, onDelete }: { customer: Custo
                     <Phone size={16} className="text-slate-500" />
                     {customer.phone}
                 </div>
-                {customer.zone && (
-                    <div className="flex items-center gap-3 text-sm font-medium text-slate-300">
-                        <MapPin size={16} className="text-slate-500" />
-                        {customer.zone} Zone
-                    </div>
-                )}
                 <div className="flex items-center gap-3 text-sm font-medium text-slate-300">
                     <MapPin size={16} className="text-slate-500" />
                     {customer.city}
@@ -417,320 +490,398 @@ function CustomerCard({ customer, onClick, onEdit, onDelete }: { customer: Custo
                 </div>
                 <div className="text-right">
                     <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">BALANCE</p>
-                    <p className="text-blue-400 font-bold text-lg mt-1">₹ {customer.balance}</p>
+                    <p className="text-blue-400 font-bold text-lg mt-1">{formatCurrency(parseFloat(customer.balance.replace(/,/g, '') || '0'))}</p>
                 </div>
             </div>
 
-            <div className="flex gap-2">
-                <button
-                    onClick={() => { }} // Placeholder for future use or trigger modal
-                    className="flex-1 bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white py-3 rounded-xl font-bold text-sm transition-colors border border-white/5 flex items-center justify-center gap-2"
-                >
-                    <History size={16} />
-                    History
-                </button>
-                <a
-                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(customer.address || `${customer.name} ${customer.city}`)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex-1 bg-white/5 hover:bg-indigo-600 text-slate-300 hover:text-white py-3 rounded-xl font-bold text-sm transition-colors border border-white/5 flex items-center justify-center gap-2"
-                    onClick={(e) => e.stopPropagation()}
-                >
-                    <MapPin size={16} />
-                    Navigate
-                </a>
-            </div>
+            <button
+                onClick={onViewHistory}
+                className="w-full bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white py-3 rounded-xl font-bold text-sm transition-colors border border-white/5 flex items-center justify-center gap-2 group-hover:bg-indigo-600 group-hover:text-white group-hover:border-indigo-500"
+            >
+                <History size={16} />
+                View History & Reports
+            </button>
         </div>
     )
 }
 
-function CustomerDetailsModal({ customer, onClose }: { customer: Customer, onClose: () => void }) {
+function CustomerLedgerModal({ customer, onClose }: { customer: Customer, onClose: () => void }) {
+    const [activeTab, setActiveTab] = useState("Transaction Timeline");
+    const [toast, setToast] = useState({ message: '', type: 'success', visible: false });
+    const { formatCurrency } = useCurrency();
 
-    const handleDownloadStatement = () => {
-        // ... (existing print logic)
-        const printWindow = window.open('', '', 'width=800,height=600');
-        if (!printWindow) return;
+    const showToast = useCallback((message: string, type: 'success' | 'info' = 'success') => {
+        setToast({ message, type, visible: true });
+        setTimeout(() => setToast(prev => ({ ...prev, visible: false })), 3000);
+    }, []);
 
-        const htmlContent = `
-            <html>
-            <head>
-                <title>Statement - ${customer.name}</title>
-                <style>
-                    @media print { @page { margin: 0; } body { margin: 1.6cm; } }
-                    body { font-family: 'Inter', sans-serif; padding: 40px; color: #1e293b; }
-                    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; }
-                    .logo-container { display: flex; align-items: center; gap: 12px; }
-                    .logo-text { font-size: 24px; font-weight: 800; color: #000000; letter-spacing: -0.5px; }
-                    .invoice-title { font-size: 20px; font-weight: bold; text-align: right; color: #64748b; }
-                    .details-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-bottom: 40px; }
-                    .label { font-size: 12px; font-weight: bold; color: #64748b; text-transform: uppercase; margin-bottom: 4px; }
-                    .value { font-size: 16px; font-weight: 600; }
-                    table { w-full; width: 100%; border-collapse: collapse; margin-bottom: 40px; }
-                    th { text-align: left; padding: 12px; background: #f1f5f9; border-bottom: 2px solid #cbd5e1; font-size: 12px; text-transform: uppercase; }
-                    td { padding: 12px; border-bottom: 1px solid #e2e8f0; font-size: 14px; }
-                    .amount { text-align: right; font-weight: bold; }
-                    .amount.credit { color: #10b981; }
-                    .amount.debit { color: #f43f5e; }
-                    .footer { text-align: center; font-size: 12px; color: #94a3b8; margin-top: 60px; }
-                </style>
-            </head>
-            <body>
-                <div class="header">
-                    <div class="logo-container">
-                        <div class="logo-text">AARYA TECHNOLOGIES</div>
-                    </div>
-                    <div class="invoice-title">STATEMENT OF ACCOUNTS</div>
-                </div>
+    if (typeof window === 'undefined') return null;
 
-                <div class="details-grid">
-                    <div>
-                        <div class="label">Billed To</div>
-                        <div class="value">${customer.name}</div>
-                        <div style="font-size: 14px; color: #475569; margin-top: 4px;">${customer.address || 'Address Not Provided'}</div>
-                        <div style="font-size: 14px; color: #475569;">${customer.city}, Gujarat</div>
-                        <div style="font-size: 14px; color: #475569; margin-top: 4px;">Ph: ${customer.phone}</div>
-                    </div>
-                    <div style="text-align: right;">
-                        <div class="label">Statement Date</div>
-                        <div class="value">${new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
-                        <div class="label" style="margin-top: 16px;">Total Outstanding</div>
-                        <div class="value" style="font-size: 24px; color: #ef4444;">₹ ${customer.balance}</div>
-                    </div>
-                </div>
-
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Date</th>
-                            <th>Description</th>
-                            <th>Mode</th>
-                            <th style="text-align: right;">Amount</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                         <tr>
-                            <td>Jan 02, 2026</td>
-                            <td>Payment Received (Rahul Varma)</td>
-                            <td>Cash</td>
-                            <td class="amount credit">+ 5,000</td>
-                        </tr>
-                         <tr>
-                            <td>Dec 28, 2025</td>
-                            <td>Invoice #INV-2025-001</td>
-                            <td>Bill</td>
-                            <td class="amount">12,000</td>
-                        </tr>
-                         <tr>
-                            <td>Dec 25, 2025</td>
-                            <td>Payment Received (Amit Kumar)</td>
-                            <td>UPI</td>
-                            <td class="amount credit">+ 2,000</td>
-                        </tr>
-                         <tr>
-                            <td>Dec 20, 2025</td>
-                            <td>Cheque Bounce Charges</td>
-                            <td>Fee</td>
-                            <td class="amount debit">- 500</td>
-                        </tr>
-                    </tbody>
-                </table>
-
-                <div class="footer">
-                    This is a computer generated statement and does not require a signature.<br>
-                    Generated by Aarya Technologies.
-                </div>
-                
-                <script>
-                    window.onload = function() { window.print(); }
-                </script>
-            </body>
-            </html>
-        `;
-
-        printWindow.document.write(htmlContent);
-        printWindow.document.close();
-    };
-
-    return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                onClick={onClose}
-                className="absolute inset-0 bg-black/80 backdrop-blur-md"
-            />
+    return createPortal(
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
             <motion.div
                 initial={{ scale: 0.95, opacity: 0, y: 20 }}
                 animate={{ scale: 1, opacity: 1, y: 0 }}
                 exit={{ scale: 0.95, opacity: 0, y: 20 }}
-                className="bg-[#050505] w-full max-w-6xl rounded-[3rem] border border-white/10 shadow-2xl relative z-10 overflow-hidden max-h-[95vh] flex flex-col"
+                className="bg-[#0b0c10] w-full max-w-7xl rounded-[2.5rem] border border-white/5 shadow-2xl relative z-10 overflow-hidden h-[90vh] max-h-[900px] flex flex-col"
             >
                 {/* Modal Header */}
-                <div className="p-8 border-b border-white/5 flex justify-between items-center bg-[#0f172a]/30 shrink-0 backdrop-blur-3xl">
+                <div className="px-8 py-6 border-b border-white/5 flex justify-between items-center bg-[#0b0c10] shrink-0">
                     <div className="flex items-center gap-6">
-                        <div className="h-16 w-16 rounded-[1.5rem] bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center text-white text-3xl font-bold shadow-2xl shadow-indigo-500/20">
+                        <div className="h-16 w-16 rounded-3xl bg-[#4f46e5] flex items-center justify-center text-white text-3xl font-bold shadow-2xl shadow-indigo-500/20">
                             {customer.name[0]}
                         </div>
                         <div>
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-4">
                                 <h3 className="text-3xl font-bold text-white tracking-tight">{customer.name}</h3>
-                                <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border ${customer.status === 'Active' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border-rose-500/20'}`}>
-                                    {customer.status}
-                                </span>
+                                <span className="bg-[#059669] text-white border border-emerald-400/20 text-[10px] font-extrabold px-3 py-1 rounded-full uppercase tracking-wider shadow-lg shadow-emerald-900/20">Active</span>
                             </div>
-                            <div className="flex items-center gap-4 mt-1 text-slate-400 font-medium">
-                                <p className="flex items-center gap-1.5"><Phone size={14} className="text-indigo-400" /> {customer.phone}</p>
-                                <span className="w-1 h-1 bg-slate-700 rounded-full"></span>
-                                <p className="flex items-center gap-1.5"><MapPin size={14} className="text-indigo-400" /> {customer.city}, {customer.zone} Zone</p>
+                            <div className="flex items-center gap-6 text-slate-400 text-sm mt-2 font-medium">
+                                <span className="flex items-center gap-2"><Phone size={16} className="text-slate-500" /> {customer.phone}</span>
+                                <span className="w-1.5 h-1.5 rounded-full bg-slate-700"></span>
+                                <span className="flex items-center gap-2"><MapPin size={16} className="text-slate-500" /> {customer.city}, East Zone</span>
                             </div>
                         </div>
                     </div>
                     <div className="flex items-center gap-3">
-                        <button onClick={handleDownloadStatement} className="p-3 bg-white/5 hover:bg-white/10 rounded-2xl text-slate-300 transition-all border border-white/5">
+                        <button className="h-12 w-12 flex items-center justify-center bg-[#1c1f26] hover:bg-white/10 rounded-2xl transition-colors text-slate-400 hover:text-white border border-white/5">
                             <Download size={20} />
                         </button>
-                        <button onClick={onClose} className="p-3 bg-white/5 hover:bg-rose-500/20 hover:text-rose-400 rounded-2xl text-slate-400 transition-all border border-white/5">
+                        <button onClick={onClose} className="h-12 w-12 flex items-center justify-center bg-[#1c1f26] hover:bg-white/10 rounded-2xl transition-colors text-slate-400 hover:text-white border border-white/5">
                             <X size={20} />
                         </button>
                     </div>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-10 custom-scrollbar grid grid-cols-1 lg:grid-cols-3 gap-10">
-
-                    {/* LEFT COLUMN: Insights & Actions */}
-                    <div className="lg:col-span-1 space-y-8">
-                        <div>
-                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-4">Financial Status</p>
-                            <div className="space-y-4">
-                                <div className="bg-[#111] p-6 rounded-[2rem] border border-white/5 relative overflow-hidden group hover:border-emerald-500/30 transition-all">
-                                    <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                                        <ArrowUpRight size={48} className="text-emerald-500" />
-                                    </div>
-                                    <p className="text-slate-500 text-xs font-bold uppercase mb-1">Total Collections</p>
-                                    <h4 className="text-3xl font-bold text-white">₹ 1,25,000</h4>
-                                    <div className="flex items-center gap-2 mt-4">
-                                        <TrendingUp size={14} className="text-emerald-500" />
-                                        <span className="text-emerald-500 text-xs font-bold">+12% from last month</span>
-                                    </div>
-                                </div>
-                                <div className="bg-[#111] p-6 rounded-[2rem] border border-white/5 relative overflow-hidden group hover:border-rose-500/30 transition-all">
-                                    <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                                        <ArrowDownRight size={48} className="text-rose-500" />
-                                    </div>
-                                    <p className="text-slate-500 text-xs font-bold uppercase mb-1">Current Balance</p>
-                                    <h4 className="text-3xl font-bold text-white">₹ {customer.balance}</h4>
-                                    <p className="text-slate-500 text-[10px] font-bold mt-4 italic">Next expected collection: Jan 05</p>
-                                </div>
+                {/* Toast Notification (Global) */}
+                <AnimatePresence>
+                    {toast.visible && (
+                        <motion.div
+                            initial={{ opacity: 0, y: 50, scale: 0.9 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, y: 20, scale: 0.95 }}
+                            className="fixed bottom-10 left-1/2 -translate-x-1/2 bg-[#1e293b] border border-white/10 text-white px-6 py-4 rounded-2xl shadow-2xl z-[10000] flex items-center gap-4 min-w-[320px]"
+                        >
+                            <div className={`h-10 w-10 rounded-full flex items-center justify-center shrink-0 ${toast.type === 'success' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-blue-500/20 text-blue-400'}`}>
+                                {toast.type === 'success' ? <CheckCircle size={20} /> : <Info size={20} />}
                             </div>
+                            <div>
+                                <h4 className="font-bold text-sm">{toast.type === 'success' ? 'Success' : 'Information'}</h4>
+                                <p className="text-xs text-slate-400 mt-0.5">{toast.message}</p>
+                            </div>
+                            <button onClick={() => setToast(prev => ({ ...prev, visible: false }))} className="ml-auto text-slate-500 hover:text-white">
+                                <X size={16} />
+                            </button>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
+
+
+                <div className="flex-1 overflow-hidden flex flex-col md:flex-row">
+                    {/* LEFT PANEL - Financial Status */}
+                    {/* LEFT PANEL - Financial Status (Memoized) */}
+                    <CustomerFinancialPanel customer={customer} showToast={showToast} setActiveTab={setActiveTab} />
+
+                    {/* RIGHT PANEL - Timeline & Details */}
+                    <div className="flex-1 bg-[#050608] p-10 flex flex-col overflow-hidden relative border-l border-white/5">
+                        {/* Tabs */}
+                        <div className="flex items-center gap-10 border-b border-white/5 pb-0 mb-10 overflow-x-auto scrollbar-hide">
+                            {["Transaction Timeline", "Communication", "KYC Docs"].map((tab) => (
+                                <button
+                                    key={tab}
+                                    onClick={() => setActiveTab(tab)}
+                                    className={`relative pb-4 text-sm font-bold transition-colors whitespace-nowrap tracking-wide ${activeTab === tab ? "text-white" : "text-slate-500 hover:text-slate-300"}`}
+                                >
+                                    {tab}
+                                    {tab === "Communication" && <span className="ml-3 bg-[#1e293b] text-slate-300 text-[10px] px-2 py-0.5 rounded-full">3</span>}
+                                    {activeTab === tab && (
+                                        <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-[3px] bg-[#6366f1] shadow-[0_0_20px_rgba(99,102,241,0.5)] rounded-full" />
+                                    )}
+                                </button>
+                            ))}
                         </div>
 
-                        {/* Collection Trend (SVG Sparkline) */}
-                        <div className="bg-[#111] p-6 rounded-[2rem] border border-white/5">
-                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-6 flex justify-between items-center">
-                                Collection Trend
-                                <span className="text-emerald-500">6 Months</span>
-                            </p>
-                            <div className="h-24 w-full flex items-end gap-1">
-                                {[35, 45, 30, 65, 85, 55, 75, 90, 60, 40, 70, 80].map((h, i) => (
+                        {/* Content */}
+                        <div className="flex-1 overflow-y-auto custom-scrollbar pr-6 pl-4">
+                            {/* Transaction Timeline Content */}
+                            {activeTab === "Transaction Timeline" && (
+                                <div className="space-y-10">
+
+
+                                    {/* Jan 02 */}
+                                    <div className="relative pl-10 border-l border-white/5 pb-2 last:pb-0 last:border-transparent group">
+                                        <div className="absolute -left-3.5 top-0 h-7 w-7 rounded-full bg-[#0b0c10] border border-emerald-500/30 flex items-center justify-center group-hover:border-emerald-500 transition-colors shadow-[0_0_15px_rgba(16,185,129,0.2)]">
+                                            <ShieldCheck size={14} className="text-emerald-500" />
+                                        </div>
+                                        <div className="flex justify-between items-start">
+                                            <div>
+                                                <p className="text-[10px] font-bold text-slate-500 tracking-wider uppercase mb-1.5">JAN 02, 2026</p>
+                                                <h4 className="text-xl font-bold text-white mb-1">Payment Received</h4>
+                                                <p className="text-sm text-slate-400 font-medium">Processed by <span className="text-slate-200">Rahul Varma</span></p>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="text-xl font-bold text-emerald-400 mb-1">+ {formatCurrency(5000)}</p>
+                                                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">CASH</p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Dec 28 */}
+                                    <div className="relative pl-10 border-l border-white/5 pb-2 last:pb-0 last:border-transparent group">
+                                        <div className="absolute -left-3.5 top-0 h-7 w-7 rounded-full bg-[#0b0c10] border border-blue-500/30 flex items-center justify-center group-hover:border-blue-500 transition-colors shadow-[0_0_15px_rgba(59,130,246,0.2)]">
+                                            <TrendingUp size={14} className="text-blue-500" />
+                                        </div>
+                                        <div className="flex justify-between items-start">
+                                            <div>
+                                                <p className="text-[10px] font-bold text-slate-500 tracking-wider uppercase mb-1.5">DEC 28, 2025</p>
+                                                <h4 className="text-xl font-bold text-white mb-1">Invoice Issued</h4>
+                                                <div className="flex items-center gap-3">
+                                                    <p className="text-sm text-slate-400 font-medium">Processed by <span className="text-slate-200">System Admin</span></p>
+
+                                                    {/* Download Button */}
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            showToast("Downloading Invoice #INV-2025-001.pdf...", "info");
+                                                        }}
+                                                        className="h-6 w-6 rounded bg-white/5 hover:bg-white/10 flex items-center justify-center text-slate-400 hover:text-white transition-colors"
+                                                        title="Download Invoice"
+                                                    >
+                                                        <Download size={12} />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="text-xl font-bold text-white mb-1">{formatCurrency(12000)}</p>
+                                                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">TAX BILL</p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Dec 22 */}
+                                    <div className="relative pl-10 border-l border-white/5 pb-2 last:pb-0 last:border-transparent group">
+                                        <div className="absolute -left-3.5 top-0 h-7 w-7 rounded-full bg-[#0b0c10] border border-amber-500/30 flex items-center justify-center group-hover:border-amber-500 transition-colors shadow-[0_0_15px_rgba(245,158,11,0.2)]">
+                                            <Map size={14} className="text-amber-500" />
+                                        </div>
+                                        <div className="flex justify-between items-start">
+                                            <div>
+                                                <p className="text-[10px] font-bold text-slate-500 tracking-wider uppercase mb-1.5">DEC 22, 2025</p>
+                                                <h4 className="text-xl font-bold text-white mb-1">Site Visit Confirmed</h4>
+                                                <p className="text-sm text-slate-400 font-medium">Processed by <span className="text-slate-200">Amit Kumar</span></p>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="text-sm font-bold text-white mb-1">Details Updated</p>
+                                                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">CHECK-IN</p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Dec 15 */}
+                                    <div className="relative pl-10 border-l border-white/5 pb-2 last:pb-0 last:border-transparent group">
+                                        <div className="absolute -left-3.5 top-0 h-7 w-7 rounded-full bg-[#0b0c10] border border-emerald-500/30 flex items-center justify-center group-hover:border-emerald-500 transition-colors shadow-[0_0_15px_rgba(16,185,129,0.2)]">
+                                            <CheckCircle size={14} className="text-emerald-500" />
+                                        </div>
+                                        <div className="flex justify-between items-start">
+                                            <div>
+                                                <p className="text-[10px] font-bold text-slate-500 tracking-wider uppercase mb-1.5">DEC 15, 2025</p>
+                                                <h4 className="text-xl font-bold text-white mb-1">Payment Received</h4>
+                                                <p className="text-sm text-slate-400 font-medium">Processed by <span className="text-slate-200">Rahul Varma</span></p>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="text-xl font-bold text-emerald-400 mb-1">+ {formatCurrency(2000)}</p>
+                                                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">UPI</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Communication Content */}
+                            {activeTab === "Communication" && (
+                                <div className="space-y-6">
                                     <div
-                                        key={i}
-                                        style={{ height: `${h}%` }}
-                                        className={`flex-1 rounded-t-sm transition-all duration-500 ${i === 11 ? 'bg-indigo-500' : 'bg-white/10'}`}
-                                    />
-                                ))}
-                            </div>
-                            <div className="flex justify-between mt-4 text-[10px] font-bold text-slate-600 uppercase">
-                                <span>July</span>
-                                <span>Today</span>
-                            </div>
-                        </div>
-
-                        {/* Quick Action Buttons */}
-                        <div className="grid grid-cols-3 gap-3">
-                            <button className="flex flex-col items-center justify-center p-4 bg-indigo-600/10 hover:bg-indigo-600/20 border border-indigo-500/20 rounded-2xl transition-all">
-                                <Bell size={20} className="text-indigo-400 mb-2" />
-                                <span className="text-[10px] font-bold text-white uppercase tracking-wider">Send Alert</span>
-                            </button>
-                            <a
-                                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(customer.address || `${customer.name} ${customer.city}`)}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex flex-col items-center justify-center p-4 bg-emerald-600/10 hover:bg-emerald-600/20 border border-emerald-500/20 rounded-2xl transition-all"
-                            >
-                                <MapPin size={20} className="text-emerald-400 mb-2" />
-                                <span className="text-[10px] font-bold text-white uppercase tracking-wider">Navigate</span>
-                            </a>
-                            <button className="flex flex-col items-center justify-center p-4 bg-white/5 hover:bg-white/10 border border-white/5 rounded-2xl transition-all">
-                                <ExternalLink size={20} className="text-slate-400 mb-2" />
-                                <span className="text-[10px] font-bold text-white uppercase tracking-wider">KYC Link</span>
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* RIGHT COLUMN: Transaction Timeline & Activity */}
-                    <div className="lg:col-span-2 space-y-8">
-
-                        {/* Tabs Placeholder (Transaction History only for now) */}
-                        <div>
-                            <div className="flex gap-8 border-b border-white/5 mb-8">
-                                <button className="pb-4 border-b-2 border-indigo-500 text-white font-bold text-sm tracking-tight text-left">Transaction Timeline</button>
-                                <button className="pb-4 text-slate-500 font-bold text-sm tracking-tight text-left hover:text-slate-400 flex items-center gap-2">Communication <span className="px-2 py-0.5 bg-white/5 rounded-full text-[10px]">3</span></button>
-                                <button className="pb-4 text-slate-500 font-bold text-sm tracking-tight text-left hover:text-slate-400">KYC Docs</button>
-                            </div>
-
-                            <div className="space-y-6">
-                                {[
-                                    { date: "JAN 02, 2026", type: "PAYMENT", label: "Payment Received", amount: "+ ₹ 5,000", staff: "Rahul Varma", mode: "Cash", icon: <ShieldCheck size={18} className="text-emerald-400" />, color: "bg-emerald-500/20", line: "border-emerald-500/20" },
-                                    { date: "DEC 28, 2025", type: "INVOICE", label: "Invoice Issued", amount: "₹ 12,000", staff: "System Admin", mode: "Tax Bill", icon: <TrendingUp size={18} className="text-blue-400" />, color: "bg-blue-500/20", line: "border-blue-500/20" },
-                                    { date: "DEC 22, 2025", type: "LOG", label: "Site Visit Confirmed", amount: "Details Updated", staff: "Amit Kumar", mode: "Check-in", icon: <Map size={18} className="text-amber-400" />, color: "bg-amber-500/20", line: "border-amber-500/20" },
-                                    { date: "DEC 15, 2025", type: "PAYMENT", label: "Payment Received", amount: "+ ₹ 2,000", staff: "Rahul Varma", mode: "UPI", icon: <ShieldCheck size={18} className="text-emerald-400" />, color: "bg-emerald-500/20", line: "border-emerald-500/20" },
-                                ].map((item, idx) => (
-                                    <div key={idx} className="flex gap-6 group">
-                                        <div className="flex flex-col items-center">
-                                            <div className={`w-10 h-10 rounded-full ${item.color} flex items-center justify-center relative z-10 border border-white/10`}>
-                                                {item.icon}
-                                            </div>
-                                            {idx !== 3 && <div className={`flex-1 w-0.5 border-l-2 ${item.line} my-2 border-dashed group-hover:border-solid transition-all`}></div>}
+                                        onClick={() => showToast("Message Status: Delivered (10:30 AM)", "info")}
+                                        className="bg-[#151921] hover:bg-[#1f2937] cursor-pointer transition-colors p-5 rounded-2xl border border-white/5 flex gap-4 group"
+                                    >
+                                        <div className="h-10 w-10 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500 shrink-0 group-hover:scale-110 transition-transform">
+                                            <MessageSquare size={18} />
                                         </div>
-                                        <div className="flex-1 pb-4">
+                                        <div className="flex-1">
                                             <div className="flex justify-between items-start mb-1">
-                                                <div>
-                                                    <p className="text-[10px] font-bold text-slate-500 tracking-[0.15em] mb-1">{item.date}</p>
-                                                    <h5 className="font-bold text-white text-lg">{item.label}</h5>
-                                                </div>
-                                                <div className="text-right">
-                                                    <p className={`font-bold text-lg ${item.amount.includes('+') ? 'text-emerald-400' : 'text-white'}`}>{item.amount}</p>
-                                                    <p className="text-[10px] font-bold text-slate-500 uppercase">{item.mode}</p>
-                                                </div>
+                                                <h4 className="font-bold text-white text-sm group-hover:text-emerald-400 transition-colors">Payment Reminder Sent</h4>
+                                                <span className="text-[10px] font-bold text-slate-500">Yesterday</span>
                                             </div>
-                                            <p className="text-sm text-slate-400 font-medium flex items-center gap-2">
-                                                Processed by <span className="text-slate-200 font-bold">{item.staff}</span>
-                                            </p>
+                                            <p className="text-slate-400 text-xs leading-relaxed">Automated reminder sent via WhatsApp regarding overdue balance of ₹ 15,200.</p>
                                         </div>
                                     </div>
-                                ))}
-                            </div>
+
+                                    <div
+                                        onClick={() => showToast("Showing Call Recording & Logs...", "info")}
+                                        className="bg-[#151921] hover:bg-[#1f2937] cursor-pointer transition-colors p-5 rounded-2xl border border-white/5 flex gap-4 group"
+                                    >
+                                        <div className="h-10 w-10 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-500 shrink-0 group-hover:scale-110 transition-transform">
+                                            <Phone size={18} />
+                                        </div>
+                                        <div className="flex-1">
+                                            <div className="flex justify-between items-start mb-1">
+                                                <h4 className="font-bold text-white text-sm group-hover:text-blue-400 transition-colors">Call with Owner</h4>
+                                                <span className="text-[10px] font-bold text-slate-500">3 Days ago</span>
+                                            </div>
+                                            <p className="text-slate-400 text-xs leading-relaxed">Spoke to Mr. Rajesh. He promised to clear the pending dues by Monday evening.</p>
+                                        </div>
+                                    </div>
+
+                                    <div
+                                        onClick={() => showToast("Statement resent to billing@shivshakti.com", "success")}
+                                        className="bg-[#151921] hover:bg-[#1f2937] cursor-pointer transition-colors p-5 rounded-2xl border border-white/5 flex gap-4 group"
+                                    >
+                                        <div className="h-10 w-10 rounded-full bg-white/5 flex items-center justify-center text-slate-400 shrink-0 group-hover:scale-110 transition-transform">
+                                            <Mail size={18} />
+                                        </div>
+                                        <div className="flex-1">
+                                            <div className="flex justify-between items-start mb-1">
+                                                <h4 className="font-bold text-white text-sm group-hover:text-slate-200 transition-colors">Monthly Statement</h4>
+                                                <span className="text-[10px] font-bold text-slate-500">Dec 31</span>
+                                            </div>
+                                            <p className="text-slate-400 text-xs leading-relaxed">December 2025 statement generated and emailed to billing@shivshakti.com</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* KYC Docs Content */}
+                            {activeTab === "KYC Docs" && (
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="bg-[#151921] p-4 rounded-2xl border border-white/5 hover:border-white/10 transition-colors group">
+                                        <div className="flex justify-between items-start mb-4">
+                                            <div className="h-10 w-10 rounded-xl bg-purple-500/10 flex items-center justify-center text-purple-400">
+                                                <FileText size={20} />
+                                            </div>
+                                            <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-bold px-2 py-0.5 rounded-full">VERIFIED</span>
+                                        </div>
+                                        <h4 className="font-bold text-white text-sm mb-1">GST Certificate</h4>
+                                        <p className="text-slate-500 text-[10px] mb-4">Uploaded on Jan 10, 2025</p>
+                                        <button className="w-full bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white py-2 rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-2">
+                                            <Download size={14} /> Download PDF
+                                        </button>
+                                    </div>
+
+                                    <div className="bg-[#151921] p-4 rounded-2xl border border-white/5 hover:border-white/10 transition-colors group">
+                                        <div className="flex justify-between items-start mb-4">
+                                            <div className="h-10 w-10 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-400">
+                                                <FileText size={20} />
+                                            </div>
+                                            <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-bold px-2 py-0.5 rounded-full">VERIFIED</span>
+                                        </div>
+                                        <h4 className="font-bold text-white text-sm mb-1">PAN Card</h4>
+                                        <p className="text-slate-500 text-[10px] mb-4">Uploaded on Jan 10, 2025</p>
+                                        <button className="w-full bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white py-2 rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-2">
+                                            <Download size={14} /> Download Image
+                                        </button>
+                                    </div>
+
+                                    <div className="bg-[#151921] p-4 rounded-2xl border border-white/5 hover:border-white/10 transition-colors group">
+                                        <div className="flex justify-between items-start mb-4">
+                                            <div className="h-10 w-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-400">
+                                                <FileText size={20} />
+                                            </div>
+                                            <span className="bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[10px] font-bold px-2 py-0.5 rounded-full">PENDING</span>
+                                        </div>
+                                        <h4 className="font-bold text-white text-sm mb-1">Shop License</h4>
+                                        <p className="text-slate-500 text-[10px] mb-4">Expired on Dec 31, 2025</p>
+                                        <button className="w-full bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white py-2 rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-2">
+                                            <Download size={14} /> View Details
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
-                        {/* Bottom Actions Card */}
-                        <div className="bg-indigo-600/10 rounded-[2.5rem] p-8 border border-white/10 flex flex-col md:flex-row items-center justify-between gap-6">
-                            <div className="flex items-center gap-5">
-                                <div className="p-4 bg-indigo-600 rounded-3xl shadow-2xl shadow-indigo-600/30">
-                                    <MessageSquare size={32} className="text-white" />
+                        {/* Custom Report Banner */}
+                        <div className="mt-8 pt-0">
+                            <div className="bg-gradient-to-r from-[#1e1b4b] to-[#1e1b4b] border border-indigo-500/30 rounded-[2rem] p-6 flex items-center justify-between relative overflow-hidden group hover:border-indigo-500/50 transition-colors shadow-2xl">
+                                <div className="absolute inset-0 bg-[#4f46e5]/10 blur-2xl group-hover:bg-[#4f46e5]/20 transition-colors"></div>
+                                <div className="flex items-center gap-6 relative z-10">
+                                    <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-[#4f46e5] to-[#4338ca] flex items-center justify-center shadow-lg shadow-indigo-500/30 group-hover:scale-110 transition-transform">
+                                        <FileText size={28} className="text-white" />
+                                    </div>
+                                    <div>
+                                        <h4 className="text-xl font-bold text-white">Need a custom report?</h4>
+                                        <p className="text-indigo-200 text-sm font-medium mt-1">Export specific filters as a PDF or Excel.</p>
+                                    </div>
                                 </div>
-                                <div>
-                                    <h4 className="text-xl font-bold text-white">Need a custom report?</h4>
-                                    <p className="text-slate-400 font-medium">Export specific filters as a PDF or Excel.</p>
-                                </div>
+                                <button
+                                    onClick={() => showToast("Generating Custom Report (PDF)... Download starting!", "success")}
+                                    className="bg-[#4f46e5] hover:bg-[#4338ca] text-white font-bold py-4 px-8 rounded-xl shadow-lg shadow-indigo-600/30 transition-all active:scale-95 relative z-10 text-sm"
+                                >
+                                    Generate Custom PDF
+                                </button>
                             </div>
-                            <button className="px-8 py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-2xl transition-all shadow-xl shadow-indigo-600/20 active:scale-95 text-left border border-indigo-500">
-                                Generate Custom PDF
-                            </button>
                         </div>
                     </div>
                 </div>
+
             </motion.div>
+        </div>,
+        document.body
+    );
+}
+
+function CustomerFinancialPanel({ customer, showToast, setActiveTab }: { customer: Customer, showToast: (msg: string, type: 'success' | 'info') => void, setActiveTab: (tab: string) => void }) {
+    return (
+        <div className="w-full md:w-[350px] bg-[#0b0c10] p-8 border-r border-white/5 flex flex-col shrink-0">
+            <div className="mb-8 text-center">
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">OUTSTANDING BALANCE</p>
+                <div className="relative inline-block">
+                    <h2 className="text-5xl font-extrabold text-white tracking-tight">₹ {customer.balance}</h2>
+                    <span className="absolute -top-2 -right-6 flex h-3 w-3">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-3 w-3 bg-rose-500"></span>
+                    </span>
+                </div>
+                <p className="text-rose-400 text-xs font-bold mt-3 bg-rose-500/10 inline-block px-3 py-1 rounded-full border border-rose-500/20">Overdue by 15 Days</p>
+            </div>
+
+            <div className="space-y-4 mb-8">
+                <div className="bg-[#151921] p-4 rounded-2xl border border-white/5 flex justify-between items-center group hover:border-white/10 transition-colors">
+                    <div>
+                        <p className="text-[10px] font-bold text-slate-500 uppercase">Credit Limit</p>
+                        <p className="text-lg font-bold text-slate-300">₹ 50,000</p>
+                    </div>
+                    <div className="h-10 w-10 rounded-full bg-indigo-500/10 flex items-center justify-center text-indigo-500">
+                        <Wallet size={18} />
+                    </div>
+                </div>
+                <div className="bg-[#151921] p-4 rounded-2xl border border-white/5 flex justify-between items-center group hover:border-white/10 transition-colors">
+                    <div>
+                        <p className="text-[10px] font-bold text-slate-500 uppercase">Last Payment</p>
+                        <p className="text-lg font-bold text-emerald-400">₹ 5,000</p>
+                    </div>
+                    <div className="text-[10px] font-bold text-slate-500 text-right">
+                        <p>Jan 02</p>
+                        <p>Cash</p>
+                    </div>
+                </div>
+            </div>
+
+            <div className="space-y-3 mt-auto">
+                <button
+                    onClick={() => { showToast("Payment Reminder Sent via WhatsApp!", "success"); setActiveTab("Communication"); }}
+                    className="w-full bg-white text-indigo-950 hover:bg-indigo-50 py-4 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-white/5 transition-transform active:scale-95"
+                >
+                    <MessageSquare size={18} strokeWidth={2.5} />
+                    Send Reminder
+                </button>
+                <div className="grid grid-cols-2 gap-3">
+                    <button className="bg-[#151921] hover:bg-white/10 text-white py-3 rounded-xl font-bold text-sm border border-white/5 hover:border-white/20 transition-all flex items-center justify-center gap-2">
+                        <Phone size={16} /> Call
+                    </button>
+                    <button className="bg-[#151921] hover:bg-white/10 text-white py-3 rounded-xl font-bold text-sm border border-white/5 hover:border-white/20 transition-all flex items-center justify-center gap-2">
+                        <Map size={16} /> Locate
+                    </button>
+                </div>
+            </div>
         </div>
-    )
+    );
 }

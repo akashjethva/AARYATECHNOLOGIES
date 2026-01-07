@@ -1,6 +1,10 @@
 "use client";
 
-import { Save, User, Bell, Shield, Database, Layout, Building2, Smartphone, Lock, History, Upload, Mail, Globe, CreditCard, MapPin, Plus, Trash2, CheckCircle } from "lucide-react";
+import {
+    Save, Building2, Bell, Shield, Database, Mail, Globe, Lock, Upload,
+    CheckCircle, X, AlertCircle, Info, LayoutGrid, Users, MapPin, CreditCard,
+    LayoutDashboard, Plus, Trash2, FileText, ShieldCheck, LogOut, Phone
+} from "lucide-react";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -8,7 +12,7 @@ export default function SettingsPage() {
     const [activeTab, setActiveTab] = useState('general');
 
     const tabs = [
-        { id: 'general', label: 'General', icon: Layout },
+        { id: 'general', label: 'General', icon: LayoutDashboard },
         { id: 'company', label: 'Company Profile', icon: Building2 },
         { id: 'zones', label: 'Zones & Areas', icon: MapPin },
         { id: 'notifications', label: 'Notifications', icon: Bell },
@@ -20,27 +24,8 @@ export default function SettingsPage() {
         <div className="max-w-[1600px] mx-auto pb-20">
             <div className="flex flex-col md:flex-row gap-8">
 
-                {/* Mobile Tabs (Horizontal Scroll) */}
-                <div className="md:hidden w-full sticky top-0 z-30 pt-4 pb-2 bg-[#0f172a]/80 backdrop-blur-xl">
-                    <div className="flex overflow-x-auto gap-3 pb-2 scrollbar-hide snap-x px-1">
-                        {tabs.map((tab) => (
-                            <button
-                                key={tab.id}
-                                onClick={() => setActiveTab(tab.id)}
-                                className={`flex items-center gap-2 px-5 py-2.5 rounded-full font-bold text-sm whitespace-nowrap transition-all shadow-sm snap-start border ${activeTab === tab.id
-                                    ? 'bg-[#1e293b] border-indigo-500 text-indigo-400 shadow-indigo-500/10'
-                                    : 'bg-[#1e293b] border-white/10 text-slate-400'
-                                    }`}
-                            >
-                                <tab.icon size={16} />
-                                {tab.label}
-                            </button>
-                        ))}
-                    </div>
-                </div>
-
-                {/* Desktop Sidebar Navigation */}
-                <div className="hidden md:block w-80 shrink-0">
+                {/* Sidebar Navigation */}
+                <div className="w-full md:w-80 shrink-0">
                     <div className="sticky top-8">
                         <div className="bg-[#1e293b]/60 backdrop-blur-xl rounded-[2.5rem] p-6 border border-white/5 shadow-2xl overflow-hidden relative">
                             <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-[80px]"></div>
@@ -63,14 +48,8 @@ export default function SettingsPage() {
                         </div>
 
                         {/* Quick Status */}
-                        <div className="mt-8 bg-gradient-to-br from-indigo-900/50 to-blue-900/50 backdrop-blur-xl rounded-[2.5rem] p-8 border border-white/5 shadow-2xl text-center">
-                            <div className="w-16 h-16 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-4 text-emerald-400">
-                                <Shield size={32} />
-                            </div>
-                            <h3 className="text-white font-bold text-lg">System Status</h3>
-                            <p className="text-emerald-400 font-bold mt-1 text-sm">All Systems Operational</p>
-                            <p className="text-slate-400 text-xs mt-4">Last checked: Just now</p>
-                        </div>
+                        {/* Quick Status */}
+                        <SystemStatusCard />
                     </div>
                 </div>
 
@@ -84,7 +63,6 @@ export default function SettingsPage() {
                         transition={{ duration: 0.3 }}
                         className="bg-[#1e293b]/60 backdrop-blur-xl rounded-[2.5rem] p-8 md:p-12 border border-white/5 shadow-2xl relative overflow-hidden"
                     >
-
 
                         {activeTab === 'general' && <GeneralSettings />}
                         {activeTab === 'company' && <CompanySettings />}
@@ -102,270 +80,193 @@ export default function SettingsPage() {
 
 function GeneralSettings() {
     const [settings, setSettings] = useState({
-        appName: "Payment Soft Admin",
-        currency: "INR (₹)",
-        language: "English",
-        timezone: "(GMT+05:30) India Standard Time",
-        dateFormat: "DD/MM/YYYY",
-        financialYear: "April 1st",
-        theme: "Dark Mode",
-        rowsPerPage: "10"
+        appName: 'Akashohk1 Admin',
+        currency: 'INR (₹)',
+        language: 'English',
+        timezone: '(GMT+05:30) India Standard Time',
+        dateFormat: 'DD/MM/YYYY',
+        financialYear: 'April 1st',
+        theme: 'Dark Mode',
+        rowsPerPage: '10',
+        lowBalanceThreshold: '5000'
     });
-
     const [loading, setLoading] = useState(false);
-    const [notification, setNotification] = useState<string | null>(null);
+    const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
 
-    // Load from LocalStorage on mount
     useEffect(() => {
-        const saved = localStorage.getItem('payment_app_settings');
-        if (saved) {
-            try {
-                setSettings({ ...settings, ...JSON.parse(saved) });
-            } catch (e) {
-                console.error("Failed to parse settings", e);
-            }
+        if (toast.show) {
+            const timer = setTimeout(() => setToast(prev => ({ ...prev, show: false })), 3000);
+            return () => clearTimeout(timer);
         }
+    }, [toast.show]);
+
+    useEffect(() => {
+        const saved = localStorage.getItem('admin_general_settings');
+        if (saved) setSettings(JSON.parse(saved));
     }, []);
 
-    const handleChange = (key: string, value: string) => {
-        setSettings(prev => ({ ...prev, [key]: value }));
+    const handleChange = (field: string, value: string) => {
+        setSettings(prev => ({ ...prev, [field]: value }));
     };
 
     const handleSave = () => {
         setLoading(true);
-        // Simulate API call
         setTimeout(() => {
-            localStorage.setItem('payment_app_settings', JSON.stringify(settings));
+            localStorage.setItem('admin_general_settings', JSON.stringify(settings));
+            // Dispatch event for instant update across app
+            window.dispatchEvent(new Event('currency-change'));
+            setToast({ show: true, message: 'General Settings Saved Successfully!', type: 'success' });
             setLoading(false);
-            setNotification("Settings saved successfully!");
-            setTimeout(() => setNotification(null), 3000);
         }, 800);
     };
 
     return (
-        <div className="space-y-8 relative">
-            <AnimatePresence>
-                {notification && (
-                    <motion.div
-                        initial={{ opacity: 0, y: -20, x: "-50%" }}
-                        animate={{ opacity: 1, y: 0, x: "-50%" }}
-                        exit={{ opacity: 0, y: -20, x: "-50%" }}
-                        className="absolute top-0 left-1/2 -translate-x-1/2 bg-emerald-500 text-white px-6 py-3 rounded-xl shadow-2xl z-50 flex items-center gap-3 font-bold"
-                    >
-                        <CheckCircle size={20} />
-                        {notification}
-                    </motion.div>
-                )}
-            </AnimatePresence>
-
+        <div className="space-y-8">
             <div>
                 <h3 className="text-2xl font-bold text-white mb-2">General Settings</h3>
                 <p className="text-slate-400">Configure basic application preferences.</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <InputGroup
-                    label="Application Name"
-                    value={settings.appName}
-                    onChange={(e: any) => handleChange('appName', e.target.value)}
-                    placeholder="Enter app name"
-                />
-                <SelectGroup
-                    label="Currency"
-                    options={['INR (₹)', 'USD ($)', 'EUR (€)']}
-                    value={settings.currency}
-                    onChange={(e: any) => handleChange('currency', e.target.value)}
-                />
-                <SelectGroup
-                    label="Language"
-                    options={['English', 'Gujarati', 'Hindi']}
-                    value={settings.language}
-                    onChange={(e: any) => handleChange('language', e.target.value)}
-                />
-                <SelectGroup
-                    label="Timezone"
-                    options={['(GMT+05:30) India Standard Time', '(GMT+00:00) UTC', '(GMT-05:00) Eastern Time']}
-                    value={settings.timezone}
-                    onChange={(e: any) => handleChange('timezone', e.target.value)}
-                />
-                <SelectGroup
-                    label="Date Format"
-                    options={['DD/MM/YYYY', 'MM/DD/YYYY', 'YYYY-MM-DD']}
-                    value={settings.dateFormat}
-                    onChange={(e: any) => handleChange('dateFormat', e.target.value)}
-                />
-                <SelectGroup
-                    label="Financial Year Start"
-                    options={['April 1st', 'January 1st']}
-                    value={settings.financialYear}
-                    onChange={(e: any) => handleChange('financialYear', e.target.value)}
-                />
-                <SelectGroup
-                    label="Theme Preference"
-                    options={['Dark Mode', 'Light Mode', 'System Default']}
-                    value={settings.theme}
-                    onChange={(e: any) => handleChange('theme', e.target.value)}
-                />
-                <SelectGroup
-                    label="Default Rows Per Page"
-                    options={['10', '25', '50', '100']}
-                    value={settings.rowsPerPage}
-                    onChange={(e: any) => handleChange('rowsPerPage', e.target.value)}
-                />
+                <InputGroup label="Application Name" value={settings.appName} onChange={(e: any) => handleChange('appName', e.target.value)} placeholder="Enter app name" />
+                <SelectGroup label="Currency" options={['INR (₹)', 'USD ($)', 'EUR (€)']} value={settings.currency} onChange={(e: any) => handleChange('currency', e.target.value)} />
+                <SelectGroup label="Language" options={['English', 'Gujarati', 'Hindi']} value={settings.language} onChange={(e: any) => handleChange('language', e.target.value)} />
+                <SelectGroup label="Timezone" options={['(GMT+05:30) India Standard Time', '(GMT+00:00) UTC', '(GMT-05:00) Eastern Time']} value={settings.timezone} onChange={(e: any) => handleChange('timezone', e.target.value)} />
+                <SelectGroup label="Date Format" options={['DD/MM/YYYY', 'MM/DD/YYYY', 'YYYY-MM-DD']} value={settings.dateFormat} onChange={(e: any) => handleChange('dateFormat', e.target.value)} />
+                <SelectGroup label="Financial Year Start" options={['April 1st', 'January 1st']} value={settings.financialYear} onChange={(e: any) => handleChange('financialYear', e.target.value)} />
+                <SelectGroup label="Theme Preference" options={['Dark Mode', 'Light Mode', 'System Default']} value={settings.theme} onChange={(e: any) => handleChange('theme', e.target.value)} />
+                <SelectGroup label="Default Rows Per Page" options={['10', '25', '50', '100']} value={settings.rowsPerPage} onChange={(e: any) => handleChange('rowsPerPage', e.target.value)} />
+                <InputGroup label="Low Balance Threshold (₹)" value={settings.lowBalanceThreshold} onChange={(e: any) => handleChange('lowBalanceThreshold', e.target.value)} placeholder="Ex. 5000" />
             </div>
 
-            <div className="pt-8 border-t border-white/5 flex justify-center">
+            <div className="pt-8 border-t border-white/5 flex justify-end">
                 <SaveChangesButton onClick={handleSave} loading={loading} />
             </div>
+
+            <AnimatePresence>
+                {toast.show && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 20, scale: 0.95 }}
+                        className="fixed bottom-10 right-10 z-[100] bg-[#1e293b] border border-white/10 shadow-2xl rounded-2xl p-4 flex items-center gap-4 min-w-[320px]"
+                    >
+                        <div className={`h-10 w-10 rounded-xl flex items-center justify-center shrink-0 ${toast.type === 'success' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
+                            {toast.type === 'success' ? <CheckCircle size={20} /> : <AlertCircle size={20} />}
+                        </div>
+                        <div>
+                            <h4 className="font-bold text-white text-sm">{toast.type === 'success' ? 'Success' : 'Error'}</h4>
+                            <p className="text-slate-400 text-xs mt-0.5">{toast.message}</p>
+                        </div>
+                        <button onClick={() => setToast(prev => ({ ...prev, show: false }))} className="ml-auto text-slate-500 hover:text-white transition-colors">
+                            <X size={18} />
+                        </button>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }
 
 function CompanySettings() {
-    const [settings, setSettings] = useState({
-        companyName: "Aarya Technologies",
-        gstNumber: "24ABCDE1234F1Z5",
-        email: "admin@aaryatech.com",
-        website: "www.aaryatech.com",
-        address: "405, Silicon Valley, Near Shivranjani Cross Roads, Satellite, Ahmedabad - 380015",
-        logo: "" // Store Base64 string
+    const [company, setCompany] = useState({
+        name: 'Akashohk1',
+        gst: '24ABCDE1234F1Z5',
+        email: 'admin@aaryatech.com',
+        mobile: '+91 98765 43210',
+        website: 'www.aaryatech.com',
+        address: '405, Silicon Valley, Near Shivranjani Cross Roads, Satellite, Ahmedabad - 380015'
     });
-
     const [loading, setLoading] = useState(false);
-    const [notification, setNotification] = useState<string | null>(null);
+    const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
 
-    // Load from LocalStorage
     useEffect(() => {
-        const saved = localStorage.getItem('payment_app_company_settings');
-        if (saved) {
-            try {
-                setSettings({ ...settings, ...JSON.parse(saved) });
-            } catch (e) {
-                console.error("Failed to parse company settings", e);
-            }
+        if (toast.show) {
+            const timer = setTimeout(() => setToast(prev => ({ ...prev, show: false })), 3000);
+            return () => clearTimeout(timer);
         }
+    }, [toast.show]);
+
+    useEffect(() => {
+        const saved = localStorage.getItem('admin_company_settings');
+        if (saved) setCompany(JSON.parse(saved));
     }, []);
 
-    const handleChange = (key: string, value: string) => {
-        setSettings(prev => ({ ...prev, [key]: value }));
-    };
-
-    const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (file) {
-            if (file.size > 2 * 1024 * 1024) {
-                alert("File size too large! Please upload a file smaller than 2MB.");
-                return;
-            }
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setSettings(prev => ({ ...prev, logo: reader.result as string }));
-            };
-            reader.readAsDataURL(file);
-        }
+    const handleChange = (field: string, value: string) => {
+        setCompany(prev => ({ ...prev, [field]: value }));
     };
 
     const handleSave = () => {
         setLoading(true);
         setTimeout(() => {
-            try {
-                localStorage.setItem('payment_app_company_settings', JSON.stringify(settings));
-                setNotification("Company profile updated!");
-            } catch (e) {
-                console.error("Storage limit exceeded", e);
-                setNotification("Error: Image too large for local storage.");
-            }
+            localStorage.setItem('admin_company_settings', JSON.stringify(company));
+            setToast({ show: true, message: 'Company Profile Saved Successfully!', type: 'success' });
             setLoading(false);
-            setTimeout(() => setNotification(null), 3000);
         }, 800);
     };
 
     return (
-        <div className="space-y-8 relative">
-            <AnimatePresence>
-                {notification && (
-                    <motion.div
-                        initial={{ opacity: 0, y: -20, x: "-50%" }}
-                        animate={{ opacity: 1, y: 0, x: "-50%" }}
-                        exit={{ opacity: 0, y: -20, x: "-50%" }}
-                        className="absolute top-0 left-1/2 -translate-x-1/2 bg-emerald-500 text-white px-6 py-3 rounded-xl shadow-2xl z-50 flex items-center gap-3 font-bold"
-                    >
-                        <CheckCircle size={20} />
-                        {notification}
-                    </motion.div>
-                )}
-            </AnimatePresence>
-
+        <div className="space-y-8">
             <div>
                 <h3 className="text-2xl font-bold text-white mb-2">Company Profile</h3>
                 <p className="text-slate-400">Manage your business details and branding.</p>
             </div>
 
             <div className="flex items-center gap-6 p-6 bg-[#0f172a]/50 rounded-2xl border border-white/5">
-                <label className="h-24 w-24 rounded-full bg-white/10 flex items-center justify-center border-2 border-dashed border-slate-600 relative overflow-hidden group cursor-pointer hover:border-indigo-500 transition-colors">
-                    <input type="file" className="hidden" accept="image/*" onChange={handleLogoUpload} />
-
-                    {settings.logo ? (
-                        <img src={settings.logo} alt="Logo" className="w-full h-full object-cover" />
-                    ) : (
-                        <Upload size={24} className="text-slate-400 group-hover:text-white transition-colors" />
-                    )}
-
+                <div className="h-24 w-24 rounded-full bg-white/10 flex items-center justify-center border-2 border-dashed border-slate-600 relative overflow-hidden group cursor-pointer">
+                    <Upload size={24} className="text-slate-400 group-hover:text-white transition-colors" />
                     <div className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                        <span className="text-xs font-bold text-white">Change</span>
+                        <span className="text-xs font-bold text-white">Upload</span>
                     </div>
-                </label>
+                </div>
                 <div>
                     <h4 className="text-white font-bold text-lg">Company Logo</h4>
                     <p className="text-slate-400 text-sm mt-1">Recommended size: 512x512px. Max 2MB.</p>
-                    {settings.logo && (
-                        <button
-                            onClick={() => setSettings(prev => ({ ...prev, logo: "" }))}
-                            className="text-rose-400 text-xs font-bold mt-2 hover:text-rose-300"
-                        >
-                            Remove Logo
-                        </button>
-                    )}
                 </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <InputGroup
-                    label="Company Name"
-                    value={settings.companyName}
-                    onChange={(e: any) => handleChange('companyName', e.target.value)}
-                />
-                <InputGroup
-                    label="GST / VAT Number"
-                    value={settings.gstNumber}
-                    onChange={(e: any) => handleChange('gstNumber', e.target.value)}
-                />
-                <InputGroup
-                    label="Email Address"
-                    value={settings.email}
-                    onChange={(e: any) => handleChange('email', e.target.value)}
-                    icon={<Mail size={16} />}
-                />
-                <InputGroup
-                    label="Website"
-                    value={settings.website}
-                    onChange={(e: any) => handleChange('website', e.target.value)}
-                    icon={<Globe size={16} />}
-                />
+                <InputGroup label="Company Name" value={company.name} onChange={(e: any) => handleChange('name', e.target.value)} />
+                <InputGroup label="GST / VAT Number" value={company.gst} onChange={(e: any) => handleChange('gst', e.target.value)} />
+                <InputGroup label="Email Address" value={company.email} onChange={(e: any) => handleChange('email', e.target.value)} icon={<Mail size={16} />} />
+                <InputGroup label="Mobile Number" value={company.mobile} onChange={(e: any) => handleChange('mobile', e.target.value)} icon={<Phone size={16} />} />
+                <InputGroup label="Website" value={company.website} onChange={(e: any) => handleChange('website', e.target.value)} icon={<Globe size={16} />} />
                 <div className="md:col-span-2">
                     <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Business Address</label>
                     <textarea
                         rows={3}
                         className="w-full bg-[#0f172a] border border-white/10 rounded-xl px-5 py-4 text-white outline-none focus:border-indigo-500 transition-all font-medium placeholder:text-slate-600 resize-none"
-                        value={settings.address}
+                        value={company.address}
                         onChange={(e) => handleChange('address', e.target.value)}
                     ></textarea>
                 </div>
             </div>
 
-            <div className="pt-8 border-t border-white/5 flex justify-center">
+            <div className="pt-8 border-t border-white/5 flex justify-end">
                 <SaveChangesButton onClick={handleSave} loading={loading} />
             </div>
+
+            <AnimatePresence>
+                {toast.show && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 20, scale: 0.95 }}
+                        className="fixed bottom-10 right-10 z-[100] bg-[#1e293b] border border-white/10 shadow-2xl rounded-2xl p-4 flex items-center gap-4 min-w-[320px]"
+                    >
+                        <div className={`h-10 w-10 rounded-xl flex items-center justify-center shrink-0 ${toast.type === 'success' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
+                            {toast.type === 'success' ? <CheckCircle size={20} /> : <AlertCircle size={20} />}
+                        </div>
+                        <div>
+                            <h4 className="font-bold text-white text-sm">{toast.type === 'success' ? 'Success' : 'Error'}</h4>
+                            <p className="text-slate-400 text-xs mt-0.5">{toast.message}</p>
+                        </div>
+                        <button onClick={() => setToast(prev => ({ ...prev, show: false }))} className="ml-auto text-slate-500 hover:text-white transition-colors">
+                            <X size={18} />
+                        </button>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }
@@ -378,15 +279,36 @@ function ZoneSettings() {
         { id: 4, name: 'Rajkot Hub', active_staff: 4, collections: '₹ 85k' },
     ]);
     const [newZone, setNewZone] = useState('');
+    const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+
+    useEffect(() => {
+        if (toast.show) {
+            const timer = setTimeout(() => setToast(prev => ({ ...prev, show: false })), 3000);
+            return () => clearTimeout(timer);
+        }
+    }, [toast.show]);
+
+    useEffect(() => {
+        const saved = localStorage.getItem('admin_zones');
+        if (saved) setZones(JSON.parse(saved));
+    }, []);
+
+    const saveZones = (updatedZones: any[]) => {
+        setZones(updatedZones);
+        localStorage.setItem('admin_zones', JSON.stringify(updatedZones));
+    };
 
     const handleAddZone = () => {
         if (!newZone.trim()) return;
-        setZones([...zones, { id: Date.now(), name: newZone, active_staff: 0, collections: '₹ 0' }]);
+        const updated = [...zones, { id: Date.now(), name: newZone, active_staff: 0, collections: '₹ 0' }];
+        saveZones(updated);
         setNewZone('');
+        setToast({ show: true, message: 'New Zone Added Successfully!', type: 'success' });
     };
 
     const handleDeleteZone = (id: number) => {
-        setZones(zones.filter(z => z.id !== id));
+        saveZones(zones.filter(z => z.id !== id));
+        setToast({ show: true, message: 'Zone Deleted Successfully!', type: 'success' });
     };
 
     return (
@@ -447,205 +369,193 @@ function ZoneSettings() {
                 </div>
             )}
 
-            <div className="pt-8 border-t border-white/5 flex justify-center">
-                <SaveChangesButton />
-            </div>
+            <AnimatePresence>
+                {toast.show && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 20, scale: 0.95 }}
+                        className="fixed bottom-10 right-10 z-[100] bg-[#1e293b] border border-white/10 shadow-2xl rounded-2xl p-4 flex items-center gap-4 min-w-[320px]"
+                    >
+                        <div className={`h-10 w-10 rounded-xl flex items-center justify-center shrink-0 ${toast.type === 'success' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
+                            {toast.type === 'success' ? <CheckCircle size={20} /> : <AlertCircle size={20} />}
+                        </div>
+                        <div>
+                            <h4 className="font-bold text-white text-sm">{toast.type === 'success' ? 'Success' : 'Error'}</h4>
+                            <p className="text-slate-400 text-xs mt-0.5">{toast.message}</p>
+                        </div>
+                        <button onClick={() => setToast(prev => ({ ...prev, show: false }))} className="ml-auto text-slate-500 hover:text-white transition-colors">
+                            <X size={18} />
+                        </button>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }
 
-// ... existing NotificationSettings, SecuritySettings, BackupSettings etc.
 
 function NotificationSettings() {
-    const [notifications, setNotifications] = useState({
+    const [notifs, setNotifs] = useState({
         dailyReport: true,
-        newPayment: true,
+        paymentAlerts: true,
         staffLogin: false,
         lowBalance: true,
-        systemUpdates: true
+        updates: true
     });
-
     const [loading, setLoading] = useState(false);
-    const [notification, setNotification] = useState<string | null>(null);
+    const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
 
-    // Load from LocalStorage
     useEffect(() => {
-        const saved = localStorage.getItem('payment_app_notification_settings');
-        if (saved) {
-            try {
-                setNotifications({ ...notifications, ...JSON.parse(saved) });
-            } catch (e) {
-                console.error("Failed to parse notification settings", e);
-            }
+        if (toast.show) {
+            const timer = setTimeout(() => setToast(prev => ({ ...prev, show: false })), 3000);
+            return () => clearTimeout(timer);
         }
+    }, [toast.show]);
+
+    useEffect(() => {
+        const saved = localStorage.getItem('admin_notification_settings');
+        if (saved) setNotifs(JSON.parse(saved));
     }, []);
 
     const handleToggle = (key: string) => {
-        setNotifications(prev => ({ ...prev, [key]: !prev[key as keyof typeof prev] }));
+        setNotifs(prev => ({ ...prev, [key]: !prev[key as keyof typeof prev] }));
     };
 
     const handleSave = () => {
         setLoading(true);
         setTimeout(() => {
-            localStorage.setItem('payment_app_notification_settings', JSON.stringify(notifications));
+            localStorage.setItem('admin_notification_settings', JSON.stringify(notifs));
+            setToast({ show: true, message: 'Notification Preferences Saved!', type: 'success' });
             setLoading(false);
-            setNotification("Notification preferences saved!");
-            setTimeout(() => setNotification(null), 3000);
         }, 800);
     };
 
-    return (
-        <div className="space-y-8 relative">
-            <AnimatePresence>
-                {notification && (
-                    <motion.div
-                        initial={{ opacity: 0, y: -20, x: "-50%" }}
-                        animate={{ opacity: 1, y: 0, x: "-50%" }}
-                        exit={{ opacity: 0, y: -20, x: "-50%" }}
-                        className="absolute top-0 left-1/2 -translate-x-1/2 bg-emerald-500 text-white px-6 py-3 rounded-xl shadow-2xl z-50 flex items-center gap-3 font-bold"
-                    >
-                        <CheckCircle size={20} />
-                        {notification}
-                    </motion.div>
-                )}
-            </AnimatePresence>
+    const handleTestNotification = () => {
+        setToast({ show: true, message: 'Test Notification Sent Successfully!', type: 'success' });
+        window.dispatchEvent(new Event('test-notification'));
+    };
 
-            <div>
-                <h3 className="text-2xl font-bold text-white mb-2">Notifications</h3>
-                <p className="text-slate-400">Control how and when you receive alerts.</p>
+    return (
+        <div className="space-y-8">
+            <div className="flex items-start justify-between">
+                <div>
+                    <h3 className="text-2xl font-bold text-white mb-2">Notifications</h3>
+                    <p className="text-slate-400">Control how and when you receive alerts.</p>
+                </div>
+                <button
+                    onClick={handleTestNotification}
+                    className="flex items-center gap-2 px-4 py-2 bg-indigo-500/10 text-indigo-400 rounded-xl hover:bg-indigo-500/20 transition-colors font-bold text-sm"
+                >
+                    <Bell size={16} />
+                    Test Alerts
+                </button>
             </div>
 
             <div className="space-y-4">
                 <ToggleItem
+                    icon={<FileText size={24} />}
                     title="Daily Collection Report"
                     description="Receive a daily summary of total collections via SMS/Email."
-                    checked={notifications.dailyReport}
+                    checked={notifs.dailyReport}
                     onChange={() => handleToggle('dailyReport')}
                 />
                 <ToggleItem
+                    icon={<CreditCard size={24} />}
                     title="New Payment Alerts"
                     description="Get notified instantly when a staff member adds a new entry."
-                    checked={notifications.newPayment}
-                    onChange={() => handleToggle('newPayment')}
+                    checked={notifs.paymentAlerts}
+                    onChange={() => handleToggle('paymentAlerts')}
                 />
                 <ToggleItem
+                    icon={<Users size={24} />}
                     title="Staff Login Alerts"
                     description="Notify admin when staff members log in to their app."
-                    checked={notifications.staffLogin}
+                    checked={notifs.staffLogin}
                     onChange={() => handleToggle('staffLogin')}
                 />
                 <ToggleItem
+                    icon={<AlertCircle size={24} />}
                     title="Low Balance Warnings"
                     description="Alert when customer credit limit is exceeded."
-                    checked={notifications.lowBalance}
+                    checked={notifs.lowBalance}
                     onChange={() => handleToggle('lowBalance')}
                 />
                 <ToggleItem
+                    icon={<Database size={24} />}
                     title="System Updates"
                     description="Receive notifications about software updates and maintenance."
-                    checked={notifications.systemUpdates}
-                    onChange={() => handleToggle('systemUpdates')}
+                    checked={notifs.updates}
+                    onChange={() => handleToggle('updates')}
                 />
             </div>
 
-            <div className="pt-8 border-t border-white/5 flex justify-center">
+            <div className="pt-8 border-t border-white/5 flex justify-end">
                 <SaveChangesButton onClick={handleSave} loading={loading} />
             </div>
+
+            <AnimatePresence>
+                {toast.show && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 20, scale: 0.95 }}
+                        className="fixed bottom-10 right-10 z-[100] bg-[#1e293b] border border-white/10 shadow-2xl rounded-2xl p-4 flex items-center gap-4 min-w-[320px]"
+                    >
+                        <div className={`h-10 w-10 rounded-xl flex items-center justify-center shrink-0 ${toast.type === 'success' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
+                            {toast.type === 'success' ? <CheckCircle size={20} /> : <AlertCircle size={20} />}
+                        </div>
+                        <div>
+                            <h4 className="font-bold text-white text-sm">{toast.type === 'success' ? 'Success' : 'Error'}</h4>
+                            <p className="text-slate-400 text-xs mt-0.5">{toast.message}</p>
+                        </div>
+                        <button onClick={() => setToast(prev => ({ ...prev, show: false }))} className="ml-auto text-slate-500 hover:text-white transition-colors">
+                            <X size={18} />
+                        </button>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     )
 }
 
 function SecuritySettings() {
-    const [passwords, setPasswords] = useState({
-        current: "",
-        new: "",
-        confirm: ""
-    });
-    const [securityPrefs, setSecurityPrefs] = useState({
+    const [security, setSecurity] = useState({
         twoFactor: false,
         forceLogout: true
     });
-    const [recoveryEmail, setRecoveryEmail] = useState("");
+    const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
     const [loading, setLoading] = useState(false);
-    const [notification, setNotification] = useState<string | null>(null);
 
-    // Load from LocalStorage
     useEffect(() => {
-        const saved = localStorage.getItem('payment_app_security_settings');
-        if (saved) {
-            try {
-                setSecurityPrefs(JSON.parse(saved));
-            } catch (e) {
-                console.error("Failed to parse security settings", e);
-            }
+        if (toast.show) {
+            const timer = setTimeout(() => setToast(prev => ({ ...prev, show: false })), 3000);
+            return () => clearTimeout(timer);
         }
-        const savedRecovery = localStorage.getItem('payment_app_recovery_settings');
-        if (savedRecovery) setRecoveryEmail(savedRecovery);
+    }, [toast.show]);
+
+    useEffect(() => {
+        const saved = localStorage.getItem('admin_security_settings');
+        if (saved) setSecurity(JSON.parse(saved));
     }, []);
 
-    const handleSaveRecovery = () => {
-        if (!recoveryEmail) return;
-        setLoading(true);
-        setTimeout(() => {
-            localStorage.setItem('payment_app_recovery_settings', recoveryEmail);
-            setLoading(false);
-            setNotification("Recovery contact updated!");
-            setTimeout(() => setNotification(null), 3000);
-        }, 800);
-    };
-
     const handleToggle = (key: string) => {
-        const newPrefs = { ...securityPrefs, [key]: !securityPrefs[key as keyof typeof securityPrefs] };
-        setSecurityPrefs(newPrefs);
-        localStorage.setItem('payment_app_security_settings', JSON.stringify(newPrefs));
+        const updated = { ...security, [key]: !security[key as keyof typeof security] };
+        setSecurity(updated);
+        localStorage.setItem('admin_security_settings', JSON.stringify(updated));
+        setToast({ show: true, message: `${key === 'twoFactor' ? '2FA' : 'Force Logout'} setting updated!`, type: 'success' });
     };
 
-    const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setPasswords({ ...passwords, [e.target.name]: e.target.value });
-    };
-
-    const handleUpdatePassword = () => {
-        if (!passwords.current || !passwords.new || !passwords.confirm) {
-            setNotification("Error: All fields are required.");
-            setTimeout(() => setNotification(null), 3000);
-            return;
-        }
-        if (passwords.new !== passwords.confirm) {
-            setNotification("Error: Passwords do not match.");
-            setTimeout(() => setNotification(null), 3000);
-            return;
-        }
-        if (passwords.new.length < 6) {
-            setNotification("Error: Password must be at least 6 chars.");
-            setTimeout(() => setNotification(null), 3000);
-            return;
-        }
-
+    const handlePasswordUpdate = () => {
         setLoading(true);
         setTimeout(() => {
             setLoading(false);
-            setNotification("Password updated successfully!");
-            setPasswords({ current: "", new: "", confirm: "" });
-            setTimeout(() => setNotification(null), 3000);
-        }, 1500);
+            setToast({ show: true, message: 'Password Updated Successfully!', type: 'success' });
+        }, 1000);
     };
 
     return (
-        <div className="space-y-8 relative">
-            <AnimatePresence>
-                {notification && (
-                    <motion.div
-                        initial={{ opacity: 0, y: -20, x: "-50%" }}
-                        animate={{ opacity: 1, y: 0, x: "-50%" }}
-                        exit={{ opacity: 0, y: -20, x: "-50%" }}
-                        className={`absolute top-0 left-1/2 -translate-x-1/2 px-6 py-3 rounded-xl shadow-2xl z-50 flex items-center gap-3 font-bold text-white ${notification.startsWith('Error') ? 'bg-rose-500' : 'bg-emerald-500'}`}
-                    >
-                        {notification.startsWith('Error') ? <Lock size={20} /> : <CheckCircle size={20} />}
-                        {notification}
-                    </motion.div>
-                )}
-            </AnimatePresence>
-
+        <div className="space-y-8">
             <div>
                 <h3 className="text-2xl font-bold text-white mb-2">Security</h3>
                 <p className="text-slate-400">Protect your account and data.</p>
@@ -657,125 +567,82 @@ function SecuritySettings() {
                     <h4 className="text-lg font-bold text-orange-100">Change Password</h4>
                 </div>
                 <div className="space-y-4">
-                    <input
-                        type="password"
-                        name="current"
-                        value={passwords.current}
-                        onChange={handlePasswordChange}
-                        placeholder="Current Password"
-                        className="w-full bg-[#0f172a] border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-orange-500/50 transition-all"
-                    />
-                    <input
-                        type="password"
-                        name="new"
-                        value={passwords.new}
-                        onChange={handlePasswordChange}
-                        placeholder="New Password (min 6 chars)"
-                        className="w-full bg-[#0f172a] border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-orange-500/50 transition-all"
-                    />
-                    <input
-                        type="password"
-                        name="confirm"
-                        value={passwords.confirm}
-                        onChange={handlePasswordChange}
-                        placeholder="Confirm New Password"
-                        className="w-full bg-[#0f172a] border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-orange-500/50 transition-all"
-                    />
+                    <input type="password" placeholder="Current Password" className="w-full bg-[#0f172a] border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-orange-500/50 transition-all font-bold placeholder:font-normal" />
+                    <input type="password" placeholder="New Password" className="w-full bg-[#0f172a] border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-orange-500/50 transition-all font-bold placeholder:font-normal" />
+                    <input type="password" placeholder="Confirm New Password" className="w-full bg-[#0f172a] border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-orange-500/50 transition-all font-bold placeholder:font-normal" />
                     <button
-                        onClick={handleUpdatePassword}
+                        onClick={handlePasswordUpdate}
                         disabled={loading}
-                        className="bg-orange-600 hover:bg-orange-500 text-white px-6 py-2 rounded-xl font-bold text-sm shadow-lg shadow-orange-600/20 transition-all flex items-center gap-2"
+                        className="bg-orange-600 hover:bg-orange-500 text-white px-6 py-3 rounded-xl font-bold text-sm shadow-lg shadow-orange-600/20 transition-all flex items-center gap-2 disabled:opacity-50"
                     >
-                        {loading && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>}
-                        Update Password
+                        {loading ? 'Updating...' : 'Update Password'}
                     </button>
-                </div>
-            </div>
-
-            <div className="bg-blue-500/10 border border-blue-500/20 p-6 rounded-2xl md:w-2/3">
-                <div className="flex items-center gap-3 mb-4">
-                    <Mail className="text-blue-400" size={24} />
-                    <h4 className="text-lg font-bold text-blue-100">Account Recovery</h4>
-                </div>
-                <div className="space-y-4">
-                    <p className="text-slate-400 text-sm">If you forget your password, we'll send instructions to this contact.</p>
-                    <div className="flex gap-4">
-                        <input
-                            type="text"
-                            value={recoveryEmail}
-                            onChange={(e) => setRecoveryEmail(e.target.value)}
-                            placeholder="Enter Recovery Email or Phone"
-                            className="flex-1 bg-[#0f172a] border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-blue-500/50 transition-all placeholder:text-slate-600"
-                        />
-                        <button
-                            onClick={handleSaveRecovery}
-                            disabled={loading}
-                            className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded-xl font-bold text-sm shadow-lg shadow-blue-600/20 transition-all shrink-0"
-                        >
-                            Save
-                        </button>
-                    </div>
                 </div>
             </div>
 
             <div className="space-y-4">
                 <ToggleItem
+                    icon={<ShieldCheck size={24} />}
                     title="Two-Factor Authentication (2FA)"
                     description="Require an OTP code in addition to password for login."
-                    checked={securityPrefs.twoFactor}
+                    checked={security.twoFactor}
                     onChange={() => handleToggle('twoFactor')}
                 />
                 <ToggleItem
+                    icon={<LogOut size={24} />}
                     title="Force Logout Inactive Staff"
                     description="Automatically logout staff apps after 1 hour of inactivity."
-                    checked={securityPrefs.forceLogout}
+                    checked={security.forceLogout}
                     onChange={() => handleToggle('forceLogout')}
                 />
             </div>
+
+            <AnimatePresence>
+                {toast.show && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 20, scale: 0.95 }}
+                        className="fixed bottom-10 right-10 z-[100] bg-[#1e293b] border border-white/10 shadow-2xl rounded-2xl p-4 flex items-center gap-4 min-w-[320px]"
+                    >
+                        <div className={`h-10 w-10 rounded-xl flex items-center justify-center shrink-0 ${toast.type === 'success' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
+                            {toast.type === 'success' ? <CheckCircle size={20} /> : <AlertCircle size={20} />}
+                        </div>
+                        <div>
+                            <h4 className="font-bold text-white text-sm">{toast.type === 'success' ? 'Success' : 'Error'}</h4>
+                            <p className="text-slate-400 text-xs mt-0.5">{toast.message}</p>
+                        </div>
+                        <button onClick={() => setToast(prev => ({ ...prev, show: false }))} className="ml-auto text-slate-500 hover:text-white transition-colors">
+                            <X size={18} />
+                        </button>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     )
 }
 
 function BackupSettings() {
-    const [lastBackup, setLastBackup] = useState("Never");
     const [loading, setLoading] = useState(false);
-    const [notification, setNotification] = useState<string | null>(null);
+    const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
 
-    // Load Last Backup Date
     useEffect(() => {
-        const saved = localStorage.getItem('payment_app_last_backup');
-        if (saved) setLastBackup(saved);
-    }, []);
+        if (toast.show) {
+            const timer = setTimeout(() => setToast(prev => ({ ...prev, show: false })), 3000);
+            return () => clearTimeout(timer);
+        }
+    }, [toast.show]);
 
     const handleBackup = () => {
         setLoading(true);
-        // Simulate backup process
         setTimeout(() => {
-            const date = new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: 'numeric', hour12: true });
-            localStorage.setItem('payment_app_last_backup', date);
-            setLastBackup(date);
             setLoading(false);
-            setNotification("Manual backup completed successfully!");
-            setTimeout(() => setNotification(null), 3000);
+            setToast({ show: true, message: 'Backup Created Successfully!', type: 'success' });
         }, 2000);
     };
 
     return (
-        <div className="space-y-8 relative">
-            <AnimatePresence>
-                {notification && (
-                    <motion.div
-                        initial={{ opacity: 0, y: -20, x: "-50%" }}
-                        animate={{ opacity: 1, y: 0, x: "-50%" }}
-                        exit={{ opacity: 0, y: -20, x: "-50%" }}
-                        className="absolute top-0 left-1/2 -translate-x-1/2 bg-emerald-500 text-white px-6 py-3 rounded-xl shadow-2xl z-50 flex items-center gap-3 font-bold"
-                    >
-                        <CheckCircle size={20} />
-                        {notification}
-                    </motion.div>
-                )}
-            </AnimatePresence>
-
+        <div className="space-y-8">
             <div>
                 <h3 className="text-2xl font-bold text-white mb-2">Data Management</h3>
                 <p className="text-slate-400">Backup and restore your application data.</p>
@@ -785,8 +652,8 @@ function BackupSettings() {
                 <div className="bg-[#0f172a] p-6 rounded-2xl border border-white/5 flex flex-col justify-between h-40">
                     <div>
                         <p className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">Last Backup</p>
-                        <h4 className="text-2xl font-bold text-white">{lastBackup}</h4>
-                        <p className="text-slate-500 text-sm">{lastBackup === "Never" ? "No backup found" : "Manual Backup"}</p>
+                        <h4 className="text-2xl font-bold text-white">Jan 03, 2026</h4>
+                        <p className="text-slate-500 text-sm">10:00 AM (Auto)</p>
                     </div>
                     <div className="flex items-center gap-2 text-emerald-400 text-sm font-bold">
                         <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
@@ -803,23 +670,44 @@ function BackupSettings() {
                 </div>
             </div>
 
-            <div className="pt-6 flex justify-center">
+            <div className="pt-6">
                 <button
                     onClick={handleBackup}
                     disabled={loading}
-                    className="bg-indigo-600 hover:bg-indigo-500 text-white px-8 py-4 rounded-2xl font-bold text-lg shadow-xl shadow-indigo-500/20 transition-transform active:scale-95 flex items-center gap-3"
+                    className="bg-indigo-600 hover:bg-indigo-500 text-white px-8 py-4 rounded-2xl font-bold text-lg shadow-xl shadow-indigo-500/20 transition-transform active:scale-95 flex items-center gap-3 disabled:opacity-50 disabled:scale-100"
                 >
-                    {loading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> : <Upload size={20} />}
-                    {loading ? "Backing up..." : "Backup Now"}
+                    <Upload size={20} className={loading ? 'animate-bounce' : ''} />
+                    {loading ? 'Creating Backup...' : 'Backup Now'}
                 </button>
+                <p className="text-slate-500 mt-4 text-sm">Manual backups are saved to your local server storage.</p>
             </div>
-            <p className="text-slate-500 mt-4 text-sm">Manual backups are saved to your local server storage.</p>
+            <AnimatePresence>
+                {toast.show && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 20, scale: 0.95 }}
+                        className="fixed bottom-10 right-10 z-[100] bg-[#1e293b] border border-white/10 shadow-2xl rounded-2xl p-4 flex items-center gap-4 min-w-[320px]"
+                    >
+                        <div className={`h-10 w-10 rounded-xl flex items-center justify-center shrink-0 ${toast.type === 'success' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
+                            {toast.type === 'success' ? <CheckCircle size={20} /> : <AlertCircle size={20} />}
+                        </div>
+                        <div>
+                            <h4 className="font-bold text-white text-sm">{toast.type === 'success' ? 'Success' : 'Error'}</h4>
+                            <p className="text-slate-400 text-xs mt-0.5">{toast.message}</p>
+                        </div>
+                        <button onClick={() => setToast(prev => ({ ...prev, show: false }))} className="ml-auto text-slate-500 hover:text-white transition-colors">
+                            <X size={18} />
+                        </button>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     )
 }
 
 /* Helper Components */
-function InputGroup({ label, value, onChange, placeholder, icon, defaultValue }: any) {
+function InputGroup({ label, value, onChange, placeholder, icon }: any) {
     return (
         <div className="relative">
             <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">{label}</label>
@@ -827,8 +715,7 @@ function InputGroup({ label, value, onChange, placeholder, icon, defaultValue }:
                 {icon && <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500">{icon}</div>}
                 <input
                     type="text"
-                    value={value}
-                    defaultValue={defaultValue}
+                    value={value || ''}
                     onChange={onChange}
                     placeholder={placeholder}
                     className={`w-full bg-[#0f172a] border border-white/10 rounded-xl px-5 py-4 text-white outline-none focus:border-indigo-500 transition-all font-bold text-lg placeholder:text-slate-600 ${icon ? 'pl-12' : ''}`}
@@ -838,14 +725,13 @@ function InputGroup({ label, value, onChange, placeholder, icon, defaultValue }:
     );
 }
 
-function SelectGroup({ label, options, value, onChange, defaultValue }: any) {
+function SelectGroup({ label, options, value, onChange }: any) {
     return (
         <div>
             <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">{label}</label>
             <div className="relative">
                 <select
                     value={value}
-                    defaultValue={defaultValue}
                     onChange={onChange}
                     className="w-full bg-[#0f172a] border border-white/10 rounded-xl px-5 py-4 text-white outline-none focus:border-indigo-500 transition-all font-bold text-lg appearance-none cursor-pointer"
                 >
@@ -859,15 +745,24 @@ function SelectGroup({ label, options, value, onChange, defaultValue }: any) {
     );
 }
 
-function ToggleItem({ title, description, checked, onChange }: any) {
+function ToggleItem({ title, description, checked, onChange, icon }: any) {
     return (
-        <div className="flex items-center justify-between p-4 bg-[#0f172a] rounded-xl border border-white/5">
-            <div>
-                <h4 className="font-bold text-white">{title}</h4>
-                <p className="text-slate-400 text-xs mt-1">{description}</p>
+        <div
+            onClick={onChange}
+            className="flex items-center justify-between p-5 bg-[#0f172a] rounded-2xl border border-white/5 hover:bg-[#1e293b] transition-colors group cursor-pointer"
+        >
+            <div className="flex items-center gap-4">
+                {icon && (
+                    <div className="h-12 w-12 rounded-full bg-indigo-500/10 flex items-center justify-center text-indigo-400 group-hover:text-indigo-300 transition-colors">
+                        {icon}
+                    </div>
+                )}
+                <div>
+                    <h4 className="font-bold text-white text-lg">{title}</h4>
+                    <p className="text-slate-400 text-xs font-bold mt-1">{description}</p>
+                </div>
             </div>
             <button
-                onClick={onChange}
                 className={`w-14 h-8 rounded-full transition-colors relative ${checked ? 'bg-emerald-500' : 'bg-slate-700'}`}
             >
                 <div className={`w-6 h-6 bg-white rounded-full absolute top-1 transition-transform ${checked ? 'left-7' : 'left-1'}`}></div>
@@ -881,14 +776,61 @@ function SaveChangesButton({ onClick, loading }: any) {
         <button
             onClick={onClick}
             disabled={loading}
-            className={`bg-indigo-600 hover:bg-indigo-500 text-white px-8 py-4 rounded-2xl font-bold flex items-center gap-3 shadow-xl shadow-indigo-500/20 transition-all active:scale-95 group ${loading ? 'opacity-70 cursor-wait' : ''}`}
+            className={`bg-indigo-600 hover:bg-indigo-500 text-white px-8 py-4 rounded-2xl font-bold flex items-center gap-3 shadow-xl shadow-indigo-500/20 transition-transform active:scale-95 group ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
         >
-            {loading ? (
-                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-            ) : (
-                <Save size={20} className="group-hover:animate-bounce" />
-            )}
+            <Save size={20} className={loading ? 'animate-spin' : 'group-hover:animate-bounce'} />
             {loading ? 'Saving...' : 'Save Changes'}
         </button>
     )
+}
+
+function SystemStatusCard() {
+    const [status, setStatus] = useState('operational'); // operational, offline
+    const [lastChecked, setLastChecked] = useState('Just now');
+
+    useEffect(() => {
+        // Ensure this only runs on the client
+        if (typeof window === 'undefined') return;
+
+        const updateStatus = () => {
+            if (navigator.onLine) {
+                setStatus('operational');
+            } else {
+                setStatus('offline');
+            }
+            setLastChecked(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+        };
+
+        window.addEventListener('online', updateStatus);
+        window.addEventListener('offline', updateStatus);
+
+        // Initial check
+        updateStatus();
+
+        // Periodic check simulation
+        const interval = setInterval(() => {
+            setLastChecked(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+        }, 60000);
+
+        return () => {
+            window.removeEventListener('online', updateStatus);
+            window.removeEventListener('offline', updateStatus);
+            clearInterval(interval);
+        };
+    }, []);
+
+    return (
+        <div className={`mt-8 bg-gradient-to-br backdrop-blur-xl rounded-[2.5rem] p-8 border border-white/5 shadow-2xl text-center transition-colors duration-500
+            ${status === 'operational' ? 'from-indigo-900/50 to-blue-900/50' : 'from-rose-900/50 to-red-900/50'}`}>
+            <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 transition-colors duration-500
+                ${status === 'operational' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}`}>
+                {status === 'operational' ? <Shield size={32} /> : <AlertCircle size={32} />}
+            </div>
+            <h3 className="text-white font-bold text-lg">System Status</h3>
+            <p className={`font-bold mt-1 text-sm transition-colors duration-500 ${status === 'operational' ? 'text-emerald-400' : 'text-rose-400'}`}>
+                {status === 'operational' ? 'All Systems Operational' : 'System Offline / Disconnected'}
+            </p>
+            <p className="text-slate-400 text-xs mt-4">Last checked: {lastChecked}</p>
+        </div>
+    );
 }
