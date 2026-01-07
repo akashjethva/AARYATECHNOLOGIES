@@ -330,7 +330,7 @@ export default function AdminLayout({
                                             <button
                                                 onClick={() => {
                                                     if (confirm("Are you sure you want to logout?")) {
-                                                        localStorage.removeItem('payment_app_admin_auth');
+                                                        localStorage.removeItem('payment_app_session');
                                                         router.push('/');
                                                     }
                                                 }}
