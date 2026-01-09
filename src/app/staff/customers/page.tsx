@@ -5,7 +5,9 @@ import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { loadFromStorage, INITIAL_CUSTOMERS } from "@/utils/storage";
+import { db } from "@/services/db";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 export default function StaffCustomers() {
     const [searchQuery, setSearchQuery] = useState("");
@@ -15,12 +17,18 @@ export default function StaffCustomers() {
     const [customers, setCustomers] = useState<any[]>([]);
 
     useEffect(() => {
-        setCustomers(loadFromStorage("customers", INITIAL_CUSTOMERS));
+        // Initial load
+        setCustomers(db.getCustomers());
+
+        // Real-time listener
+        const handleUpdate = () => setCustomers(db.getCustomers());
+        window.addEventListener('customer-updated', handleUpdate);
+        return () => window.removeEventListener('customer-updated', handleUpdate);
     }, []);
 
     const filtered = customers.filter(c =>
-        c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        c.city.toLowerCase().includes(searchQuery.toLowerCase())
+        (c.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (c.city || '').toLowerCase().includes(searchQuery.toLowerCase())
     );
 
     return (
@@ -113,9 +121,170 @@ export default function StaffCustomers() {
     )
 }
 
-
 function CustomerDetailsModal({ customer, onClose }: { customer: any, onClose: () => void }) {
     const [activeTab, setActiveTab] = useState("Transaction Timeline");
+    const [isGenerating, setIsGenerating] = useState(false);
+    const [stats, setStats] = useState({ totalCollections: 0, timeline: [] as any[], trend: [] as number[], lastMonthGrowth: 0 });
+
+    // Helper for robust date parsing
+    const parseDate = (dateStr: string) => {
+        if (!dateStr) return new Date();
+        // Handle DD/MM/YYYY format which is common in India
+        if (dateStr.includes('/')) {
+            const parts = dateStr.split('/');
+            if (parts.length === 3) {
+                // Check if first part is year (YYYY/MM/DD) or day (DD/MM/YYYY)
+                if (parts[0].length === 4) return new Date(dateStr); // YYYY/MM/DD
+                return new Date(`${parts[2]}-${parts[1]}-${parts[0]}`); // Convert DD/MM/YYYY to YYYY-MM-DD
+            }
+        }
+        return new Date(dateStr);
+    };
+
+    const [trendPeriod, setTrendPeriod] = useState<"1M" | "3M" | "6M" | "1Y">("6M");
+
+    useEffect(() => {
+        if (!customer) return;
+
+        // Fetch Real Data
+        const allCollections = db.getCollections();
+
+        // Filter for this customer (case insensitive check recommended)
+        const customerTxns = allCollections.filter(c =>
+            c.customer.toLowerCase().trim() === customer.name.toLowerCase().trim()
+        ).sort((a, b) => parseDate(b.date).getTime() - parseDate(a.date).getTime());
+
+        // 1. Total Collections
+        const total = customerTxns.reduce((sum, t) => sum + (parseFloat(String(t.amount).replace(/,/g, '')) || 0), 0);
+
+        // 2. Trend Data Calculation
+        const today = new Date();
+        let buckets = 6;
+        let isWeekly = false;
+
+        switch (trendPeriod) {
+            case '1M': buckets = 4; isWeekly = true; break;
+            case '3M': buckets = 3; break;
+            case '6M': buckets = 6; break;
+            case '1Y': buckets = 12; break;
+        }
+
+        const trendData = new Array(buckets).fill(0);
+
+        customerTxns.forEach(t => {
+            const tDate = parseDate(t.date);
+            const amount = parseFloat(String(t.amount).replace(/,/g, '')) || 0;
+
+            if (isWeekly) {
+                // Weekly logic (Last 4 weeks)
+                const diffTime = today.getTime() - tDate.getTime();
+                const diffWeeks = Math.floor(diffTime / (1000 * 60 * 60 * 24 * 7));
+
+                if (diffWeeks >= 0 && diffWeeks < buckets) {
+                    trendData[buckets - 1 - diffWeeks] += amount;
+                }
+            } else {
+                // Monthly logic
+                const monthDiff = (today.getFullYear() - tDate.getFullYear()) * 12 + (today.getMonth() - tDate.getMonth());
+
+                if (monthDiff >= 0 && monthDiff < buckets) {
+                    trendData[buckets - 1 - monthDiff] += amount;
+                }
+            }
+        });
+
+        // Normalize trend for graph height (max 100%)
+        const maxVal = Math.max(...trendData, 1);
+        const normalizedTrend = trendData.map(v => Math.round((v / maxVal) * 100));
+
+        setStats({
+            totalCollections: total,
+            timeline: customerTxns,
+            trend: normalizedTrend,
+            lastMonthGrowth: 0
+        });
+
+    }, [customer, trendPeriod]);
+
+    const handleDownloadPDF = () => {
+        setIsGenerating(true);
+        try {
+            const doc = new jsPDF();
+            const appSettings = db.getAppSettings();
+            const companyDetails = db.getCompanyDetails();
+
+            // 1. Logo & Header
+            doc.setFillColor(31, 41, 55); // Dark Slate BG
+            doc.rect(0, 0, 210, 40, 'F');
+
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(22);
+            doc.setFont("helvetica", "bold");
+            doc.text(companyDetails.name || appSettings.appName, 15, 20);
+
+            doc.setFontSize(10);
+            doc.setFont("helvetica", "normal");
+            doc.text("Customer Account Statement", 15, 30);
+
+            doc.setTextColor(200, 200, 200);
+            doc.text(`Generated: ${new Date().toLocaleDateString()}`, 195, 20, { align: 'right' });
+
+            // 2. Customer Details
+            doc.setTextColor(0, 0, 0);
+            doc.setFontSize(14);
+            doc.setFont("helvetica", "bold");
+            doc.text("Customer Profile", 15, 55);
+
+            doc.setFontSize(11);
+            doc.setTextColor(80, 80, 80);
+            doc.text(`Name: ${customer.name}`, 15, 65);
+            doc.text(`Contact: ${customer.phone || customer.contact}`, 15, 72);
+            doc.text(`City: ${customer.city}`, 15, 79);
+
+            // Financials (Right Side)
+            doc.setFontSize(14);
+            doc.setTextColor(0, 0, 0);
+            doc.text("Financial Summary", 120, 55);
+
+            doc.setFontSize(11);
+            doc.setTextColor(80, 80, 80);
+            doc.text(`Current Balance: Rs. ${customer.balance}`, 120, 65);
+            doc.text(`Total Paid: Rs. ${stats.totalCollections.toLocaleString('en-IN')}`, 120, 72);
+
+            // 3. Transactions Table
+            const tableBody = stats.timeline.map((txn: any) => [
+                txn.date,
+                txn.time || "-",
+                txn.mode,
+                `Rs. ${txn.amount}`,
+                txn.staff || "Admin",
+                txn.status
+            ]);
+
+            autoTable(doc, {
+                startY: 90,
+                head: [['Date', 'Time', 'Mode', 'Amount', 'Received By', 'Status']],
+                body: tableBody,
+                headStyles: { fillColor: [79, 70, 229], textColor: 255, fontStyle: 'bold' }, // Indigo
+                alternateRowStyles: { fillColor: [245, 247, 250] },
+                styles: { fontSize: 10, cellPadding: 4 },
+                margin: { top: 90 }
+            });
+
+            // Footer
+            const finalY = (doc as any).lastAutoTable.finalY + 20;
+            doc.setFontSize(9);
+            doc.setTextColor(150, 150, 150);
+            doc.text("This is a computer-generated report.", 105, finalY, { align: 'center' });
+
+            doc.save(`${customer.name}_Legder.pdf`);
+        } catch (error) {
+            console.error("PDF Generate Error", error);
+            alert("Failed to generate PDF");
+        } finally {
+            setIsGenerating(false);
+        }
+    };
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
@@ -134,7 +303,11 @@ function CustomerDetailsModal({ customer, onClose }: { customer: any, onClose: (
                         <div>
                             <div className="flex items-center gap-4">
                                 <h3 className="text-3xl font-bold text-white tracking-tight">{customer.name}</h3>
-                                <span className="bg-[#059669] text-white border border-emerald-400/20 text-[10px] font-extrabold px-3 py-1 rounded-full uppercase tracking-wider shadow-lg shadow-emerald-900/20">Active</span>
+                                <div className="flex items-center gap-2">
+                                    <span className={`text-white border text-[10px] font-extrabold px-3 py-1 rounded-full uppercase tracking-wider shadow-lg ${parseFloat(customer.balance) > 0 ? 'bg-rose-600 border-rose-400/20 shadow-rose-900/20' : 'bg-[#059669] border-emerald-400/20 shadow-emerald-900/20'}`}>
+                                        {parseFloat(customer.balance) > 0 ? 'Pending' : 'Active'}
+                                    </span>
+                                </div>
                             </div>
                             <div className="flex items-center gap-6 text-slate-400 text-sm mt-2 font-medium">
                                 <span className="flex items-center gap-2"><Phone size={16} className="text-slate-500" /> {customer.phone || customer.contact}</span>
@@ -144,8 +317,11 @@ function CustomerDetailsModal({ customer, onClose }: { customer: any, onClose: (
                         </div>
                     </div>
                     <div className="flex items-center gap-3">
-                        <button className="h-12 w-12 flex items-center justify-center bg-[#1c1f26] hover:bg-white/10 rounded-2xl transition-colors text-slate-400 hover:text-white border border-white/5">
-                            <Download size={20} />
+                        <button
+                            onClick={handleDownloadPDF}
+                            className={`h-12 w-12 flex items-center justify-center bg-[#1c1f26] hover:bg-white/10 rounded-2xl transition-colors ${isGenerating ? 'text-indigo-500' : 'text-slate-400 hover:text-white'} border border-white/5`}
+                        >
+                            {isGenerating ? <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-indigo-500"></div> : <Download size={20} />}
                         </button>
                         <button onClick={onClose} className="h-12 w-12 flex items-center justify-center bg-[#1c1f26] hover:bg-white/10 rounded-2xl transition-colors text-slate-400 hover:text-white border border-white/5">
                             <X size={20} />
@@ -153,67 +329,209 @@ function CustomerDetailsModal({ customer, onClose }: { customer: any, onClose: (
                     </div>
                 </div>
 
-                <div className="flex-1 overflow-hidden flex flex-col md:flex-row">
+                <div className="flex-1 overflow-hidden flex flex-col md:flex-row" id="report-content">
                     {/* LEFT PANEL - Financial Status */}
                     <div className="w-full md:w-[450px] bg-[#0b0c10] p-8 border-r border-white/5 flex flex-col gap-5 overflow-y-auto custom-scrollbar">
                         <p className="text-[11px] font-extrabold text-[#64748b] uppercase tracking-[0.2em] mb-2">Financial Status</p>
 
-                        {/* Total Collections Card */}
-                        <div className="bg-[#151921] p-6 rounded-[2rem] border border-white/5 relative overflow-hidden group hover:border-white/10 transition-colors">
+                        {/* Total Collections Card - ADDED MIN HEIGHT */}
+                        <div className="bg-[#151921] p-6 rounded-[2rem] border border-white/5 relative overflow-hidden group hover:border-white/10 transition-colors min-h-[140px] flex flex-col justify-center">
                             <div className="absolute top-4 right-4 opacity-[0.05] group-hover:opacity-[0.1] transition-opacity duration-500">
                                 <ArrowUpRight size={120} />
                             </div>
                             <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider mb-2">Total Collections</p>
-                            <h4 className="text-[2.75rem] leading-none font-extrabold text-white tracking-tight">₹ 1,25,000</h4>
+                            <h4 className="text-[2.75rem] leading-none font-extrabold text-white tracking-tight">₹ {(stats.totalCollections || 0).toLocaleString('en-IN')}</h4>
                             <div className="flex items-center gap-2 mt-4">
                                 <TrendingUp size={16} className="text-emerald-500" />
-                                <span className="text-emerald-500 text-xs font-bold">+12% from last month</span>
+                                <span className="text-emerald-500 text-xs font-bold">Lifetime Collections</span>
                             </div>
                         </div>
 
-                        {/* Current Balance Card */}
-                        <div className="bg-[#151921] p-6 rounded-[2rem] border border-white/5 relative overflow-hidden group hover:border-white/10 transition-colors">
+                        {/* Current Balance Card - ADDED MIN HEIGHT */}
+                        <div className="bg-[#151921] p-6 rounded-[2rem] border border-white/5 relative overflow-hidden group hover:border-white/10 transition-colors min-h-[140px] flex flex-col justify-center">
                             <div className="absolute top-4 right-4 opacity-[0.05] group-hover:opacity-[0.1] transition-opacity duration-500">
                                 <ArrowDownRight size={120} className="text-rose-500" />
                             </div>
                             <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider mb-2">Current Balance</p>
-                            <h4 className="text-[2.75rem] leading-none font-extrabold text-white tracking-tight">₹ {customer.balance}</h4>
-                            <p className="text-slate-600 text-[10px] font-bold mt-4 uppercase tracking-wide">Next expected collection: Jan 05</p>
+                            <h4 className="text-[2.75rem] leading-none font-extrabold text-white tracking-tight">₹ {customer.balance || '0'}</h4>
+                            <p className="text-slate-600 text-[10px] font-bold mt-4 uppercase tracking-wide">
+                                {parseFloat(customer.balance) > 0 ? 'Payment Outstanding' : 'All Clear'}
+                            </p>
                         </div>
 
-                        {/* Collection Trend */}
-                        <div className="bg-[#151921] p-6 rounded-[2rem] border border-white/5 flex-1 min-h-[220px] flex flex-col">
-                            <div className="flex justify-between items-center mb-6">
-                                <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider">Collection Trend</p>
-                                <span className="text-white text-[10px] font-bold bg-[#059669] px-3 py-1 rounded-full shadow-lg shadow-emerald-900/20">6 MONTHS</span>
-                            </div>
-                            <div className="flex-1 flex items-end gap-3 justify-between px-1 pb-1">
-                                {[30, 45, 25, 60, 40, 75, 50, 80].map((h, i) => (
-                                    <div key={i} className={`w-full rounded-t-sm relative group overflow-hidden ${i === 7 ? 'bg-[#6366f1]' : 'bg-[#1e293b]/50'}`} style={{ height: `${h}%` }}>
-                                        <div className={`absolute bottom-0 left-0 right-0 top-0 bg-[#818cf8] opacity-0 group-hover:opacity-100 transition-opacity rounded-t-sm duration-300`}></div>
+                        {/* Collection Trend - High Density Neon Area Chart */}
+                        <div className="bg-gradient-to-b from-[#1a1f2e] to-[#0f1115] p-6 rounded-[2rem] border border-white/5 flex-1 min-h-[280px] flex flex-col relative overflow-hidden group">
+
+                            {/* Detailed Header */}
+                            <div className="flex justify-between items-center mb-2 relative z-20">
+                                <div>
+                                    <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider mb-1">Collection Trend</p>
+                                    <div className="flex items-baseline gap-2">
+                                        <h3 className="text-2xl font-bold text-white tracking-tight">
+                                            ₹ {(stats.trend.reduce((a, b) => a + b, 0) / (stats.trend.length || 1)).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                                        </h3>
+                                        <span className="text-[10px] font-bold text-emerald-500">AVG / MONTH</span>
                                     </div>
-                                ))}
+                                </div>
+
+                                {/* Time Range Selector */}
+                                <div className="flex bg-[#0b0c10] rounded-lg p-1 border border-white/5 shadow-inner">
+                                    {(['1M', '3M', '6M', '1Y'] as const).map((period) => (
+                                        <button
+                                            key={period}
+                                            onClick={() => setTrendPeriod(period)}
+                                            className={`
+                                                px-3 py-1.5 rounded-md text-[10px] font-bold transition-all duration-300
+                                                ${trendPeriod === period
+                                                    ? 'bg-[#4f46e5] text-white shadow-lg shadow-indigo-500/30'
+                                                    : 'text-slate-500 hover:text-white hover:bg-white/5'}
+                                            `}
+                                        >
+                                            {period}
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
-                            <div className="flex justify-between mt-4 px-1">
-                                <span className="text-[10px] font-bold text-slate-500 tracking-wider">JULY</span>
-                                <span className="text-[10px] font-bold text-slate-500 tracking-wider">TODAY</span>
+
+                            {/* Graph Container */}
+                            <div className="flex-1 w-full relative z-10 mt-4">
+                                {stats.trend.length > 0 ? (
+                                    <div className="absolute inset-0">
+                                        <svg className="w-full h-full overflow-visible" preserveAspectRatio="none" viewBox="0 0 100 100">
+                                            <defs>
+                                                <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
+                                                    <stop offset="0%" stopColor="#6366f1" stopOpacity="0.5" />
+                                                    <stop offset="100%" stopColor="#6366f1" stopOpacity="0" />
+                                                </linearGradient>
+                                                <pattern id="gridPattern" width="10" height="10" patternUnits="userSpaceOnUse">
+                                                    <path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(255,255,255,0.03)" strokeWidth="0.5" />
+                                                </pattern>
+                                                <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+                                                    <feGaussianBlur stdDeviation="2" result="coloredBlur" />
+                                                    <feMerge>
+                                                        <feMergeNode in="coloredBlur" />
+                                                        <feMergeNode in="SourceGraphic" />
+                                                    </feMerge>
+                                                </filter>
+                                            </defs>
+
+                                            {/* Background Grid Fill */}
+                                            <rect width="100" height="100" fill="url(#gridPattern)" />
+
+                                            {/* Vertical Reference Lines */}
+                                            {stats.trend.map((_, i) => (
+                                                <line
+                                                    key={`grid-v-${i}`}
+                                                    x1={(i / (stats.trend.length - 1)) * 100}
+                                                    y1="0"
+                                                    x2={(i / (stats.trend.length - 1)) * 100}
+                                                    y2="100"
+                                                    stroke="rgba(255,255,255,0.05)"
+                                                    strokeWidth="0.2"
+                                                />
+                                            ))}
+
+                                            {/* Filled Area */}
+                                            <path
+                                                d={`
+                                                    M 0,100 
+                                                    ${stats.trend.map((val, i) => {
+                                                    const x = (i / (stats.trend.length - 1)) * 100;
+                                                    const y = 100 - (val > 0 ? Math.max(val, 10) : 0);
+                                                    return `L ${x},${y}`;
+                                                }).join(' ')}
+                                                    L 100,100 Z
+                                                `}
+                                                fill="url(#areaGradient)"
+                                            />
+
+                                            {/* Stroke Line with Glow */}
+                                            <path
+                                                d={`
+                                                    M 0,${100 - (stats.trend[0] > 0 ? Math.max(stats.trend[0], 10) : 0)}
+                                                    ${stats.trend.map((val, i) => {
+                                                    const x = (i / (stats.trend.length - 1)) * 100;
+                                                    const y = 100 - (val > 0 ? Math.max(val, 10) : 0);
+                                                    return `L ${x},${y}`;
+                                                }).join(' ')}
+                                                `}
+                                                fill="none"
+                                                stroke="#818cf8"
+                                                strokeWidth="2"
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                filter="url(#glow)"
+                                            />
+
+                                            {/* Data Points & Tooltips (Interactive) */}
+                                            {stats.trend.map((val, i) => (
+                                                <g key={i} className="group/point">
+                                                    <circle
+                                                        cx={(i / (stats.trend.length - 1)) * 100}
+                                                        cy={100 - (val > 0 ? Math.max(val, 10) : 0)}
+                                                        r="3"
+                                                        className="fill-[#0b0c10] stroke-[#818cf8] stroke-[1.5px] transition-all duration-300 group-hover/point:scale-150 group-hover/point:fill-white cursor-pointer"
+                                                    />
+                                                    {/* Tooltip */}
+                                                    {val > 0 && (
+                                                        <foreignObject
+                                                            x={Math.min((i / (stats.trend.length - 1)) * 100 - 15, 70)}
+                                                            y={(100 - Math.max(val, 10)) - 25}
+                                                            width="40"
+                                                            height="25"
+                                                            className="opacity-0 group-hover/point:opacity-100 transition-opacity pointer-events-none"
+                                                        >
+                                                            <div className="bg-indigo-600 text-white text-[8px] font-bold py-1 px-1.5 rounded shadow-lg text-center transform scale-75 origin-bottom">
+                                                                {val}%
+                                                            </div>
+                                                        </foreignObject>
+                                                    )}
+                                                </g>
+                                            ))}
+                                        </svg>
+                                    </div>
+                                ) : (
+                                    <div className="h-full flex flex-col items-center justify-center text-slate-600 space-y-2">
+                                        <TrendingUp size={24} className="opacity-20" />
+                                        <span className="text-xs">No data for this period</span>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="flex justify-between mt-2 px-1 relative z-10 border-t border-white/5 pt-3">
+                                {trendPeriod === '1M' ? (
+                                    <>
+                                        <span className="text-[10px] font-bold text-slate-500">Week 1</span>
+                                        <span className="text-[10px] font-bold text-slate-500">Week 2</span>
+                                        <span className="text-[10px] font-bold text-slate-500">Week 3</span>
+                                        <span className="text-[10px] font-bold text-indigo-400">Current</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <span className="text-[10px] font-bold text-slate-500 tracking-wider">
+                                            {trendPeriod === '1Y' ? 'LAST YEAR' : 'PAST'}
+                                        </span>
+                                        <div className="flex-1 mx-4 h-px bg-white/5 self-center"></div>
+                                        <span className="text-[10px] font-bold text-indigo-400 tracking-wider">NOW</span>
+                                    </>
+                                )}
                             </div>
                         </div>
 
                         {/* Action Buttons */}
                         <div className="grid grid-cols-3 gap-4 mt-2">
-                            <button className="bg-[#151921] hover:bg-[#1f2937] border border-white/5 rounded-2xl py-4 px-2 flex flex-col items-center justify-center gap-2 transition-all active:scale-95 group shadow-lg shadow-black/20">
+                            <a href={`https://wa.me/91${customer.phone || customer.contact}?text=Hello ${customer.name}, your current outstanding balance is ₹${customer.balance}.`} target="_blank" className="bg-[#151921] hover:bg-[#1f2937] border border-white/5 rounded-2xl py-4 px-2 flex flex-col items-center justify-center gap-2 transition-all active:scale-95 group shadow-lg shadow-black/20">
                                 <Bell size={20} className="text-[#818cf8] group-hover:scale-110 transition-transform" />
                                 <span className="text-[10px] font-bold text-slate-300 text-center leading-tight tracking-wide">SEND<br />ALERT</span>
-                            </button>
-                            <button className="bg-[#064e3b] hover:bg-[#065f46] border border-white/5 rounded-2xl py-4 px-2 flex flex-col items-center justify-center gap-2 transition-all active:scale-95 group shadow-lg shadow-emerald-900/20">
+                            </a>
+                            <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(customer.address || `${customer.name} ${customer.city}`)}`} target="_blank" className="bg-[#064e3b] hover:bg-[#065f46] border border-white/5 rounded-2xl py-4 px-2 flex flex-col items-center justify-center gap-2 transition-all active:scale-95 group shadow-lg shadow-emerald-900/20">
                                 <MapPin size={20} className="text-white group-hover:scale-110 transition-transform" />
                                 <span className="text-[10px] font-bold text-white text-center leading-tight tracking-wide">NAVIGATE</span>
-                            </button>
-                            <button className="bg-[#151921] hover:bg-[#1f2937] border border-white/5 rounded-2xl py-4 px-2 flex flex-col items-center justify-center gap-2 transition-all active:scale-95 group shadow-lg shadow-black/20">
+                            </a>
+                            <a href={`https://wa.me/91${customer.phone || customer.contact}?text=Hello ${customer.name}, please submit your KYC documents for verification.`} target="_blank" className="bg-[#151921] hover:bg-[#1f2937] border border-white/5 rounded-2xl py-4 px-2 flex flex-col items-center justify-center gap-2 transition-all active:scale-95 group shadow-lg shadow-black/20">
                                 <LinkIcon size={20} className="text-slate-400 group-hover:scale-110 transition-transform" />
                                 <span className="text-[10px] font-bold text-slate-300 text-center leading-tight tracking-wide">KYC<br />LINK</span>
-                            </button>
+                            </a>
                         </div>
                     </div>
 
@@ -238,77 +556,37 @@ function CustomerDetailsModal({ customer, onClose }: { customer: any, onClose: (
 
                         {/* Content */}
                         <div className="flex-1 overflow-y-auto custom-scrollbar pr-6 space-y-10">
-                            {/* Jan 02 */}
-                            <div className="relative pl-10 border-l border-white/5 pb-2 last:pb-0 last:border-transparent group">
-                                <div className="absolute -left-3.5 top-0 h-7 w-7 rounded-full bg-[#0b0c10] border border-emerald-500/30 flex items-center justify-center group-hover:border-emerald-500 transition-colors shadow-[0_0_15px_rgba(16,185,129,0.2)]">
-                                    <ShieldCheck size={14} className="text-emerald-500" />
+                            {activeTab === 'Transaction Timeline' && (
+                                <div className="space-y-10">
+                                    {stats.timeline.length > 0 ? stats.timeline.map((txn: any) => (
+                                        <div key={txn.id} className="relative pl-10 border-l border-white/5 pb-2 last:pb-0 last:border-transparent group">
+                                            <div className="absolute -left-3.5 top-0 h-7 w-7 rounded-full bg-[#0b0c10] border border-emerald-500/30 flex items-center justify-center group-hover:border-emerald-500 transition-colors shadow-[0_0_15px_rgba(16,185,129,0.2)]">
+                                                <ShieldCheck size={14} className="text-emerald-500" />
+                                            </div>
+                                            <div className="flex justify-between items-start">
+                                                <div>
+                                                    <p className="text-[10px] font-bold text-slate-500 tracking-wider uppercase mb-1.5">{txn.date}</p>
+                                                    <h4 className="text-xl font-bold text-white mb-1">Payment Received</h4>
+                                                    <p className="text-sm text-slate-400 font-medium">Processed by <span className="text-slate-200">{txn.staff || 'Staff'}</span></p>
+                                                </div>
+                                                <div className="text-right">
+                                                    <p className="text-xl font-bold text-emerald-400 mb-1">+ ₹ {txn.amount}</p>
+                                                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{txn.mode}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )) : (
+                                        <div className="text-center py-10 text-slate-500">
+                                            No transactions found for this customer.
+                                        </div>
+                                    )}
                                 </div>
-                                <div className="flex justify-between items-start">
-                                    <div>
-                                        <p className="text-[10px] font-bold text-slate-500 tracking-wider uppercase mb-1.5">JAN 02, 2026</p>
-                                        <h4 className="text-xl font-bold text-white mb-1">Payment Received</h4>
-                                        <p className="text-sm text-slate-400 font-medium">Processed by <span className="text-slate-200">Rahul Varma</span></p>
-                                    </div>
-                                    <div className="text-right">
-                                        <p className="text-xl font-bold text-emerald-400 mb-1">+ ₹ 5,000</p>
-                                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">CASH</p>
-                                    </div>
-                                </div>
-                            </div>
+                            )}
 
-                            {/* Dec 28 */}
-                            <div className="relative pl-10 border-l border-white/5 pb-2 last:pb-0 last:border-transparent group">
-                                <div className="absolute -left-3.5 top-0 h-7 w-7 rounded-full bg-[#0b0c10] border border-blue-500/30 flex items-center justify-center group-hover:border-blue-500 transition-colors shadow-[0_0_15px_rgba(59,130,246,0.2)]">
-                                    <TrendingUp size={14} className="text-blue-500" />
-                                </div>
-                                <div className="flex justify-between items-start">
-                                    <div>
-                                        <p className="text-[10px] font-bold text-slate-500 tracking-wider uppercase mb-1.5">DEC 28, 2025</p>
-                                        <h4 className="text-xl font-bold text-white mb-1">Invoice Issued</h4>
-                                        <p className="text-sm text-slate-400 font-medium">Processed by <span className="text-slate-200">System Admin</span></p>
-                                    </div>
-                                    <div className="text-right">
-                                        <p className="text-xl font-bold text-white mb-1">₹ 12,000</p>
-                                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">TAX BILL</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Dec 22 */}
-                            <div className="relative pl-10 border-l border-white/5 pb-2 last:pb-0 last:border-transparent group">
-                                <div className="absolute -left-3.5 top-0 h-7 w-7 rounded-full bg-[#0b0c10] border border-amber-500/30 flex items-center justify-center group-hover:border-amber-500 transition-colors shadow-[0_0_15px_rgba(245,158,11,0.2)]">
-                                    <Map size={14} className="text-amber-500" />
-                                </div>
-                                <div className="flex justify-between items-start">
-                                    <div>
-                                        <p className="text-[10px] font-bold text-slate-500 tracking-wider uppercase mb-1.5">DEC 22, 2025</p>
-                                        <h4 className="text-xl font-bold text-white mb-1">Site Visit Confirmed</h4>
-                                        <p className="text-sm text-slate-400 font-medium">Processed by <span className="text-slate-200">Amit Kumar</span></p>
-                                    </div>
-                                    <div className="text-right">
-                                        <p className="text-sm font-bold text-white mb-1">Details Updated</p>
-                                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">CHECK-IN</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Dec 15 */}
-                            <div className="relative pl-10 border-l border-white/5 pb-2 last:pb-0 last:border-transparent group">
-                                <div className="absolute -left-3.5 top-0 h-7 w-7 rounded-full bg-[#0b0c10] border border-emerald-500/30 flex items-center justify-center group-hover:border-emerald-500 transition-colors shadow-[0_0_15px_rgba(16,185,129,0.2)]">
-                                    <CheckCircle size={14} className="text-emerald-500" />
-                                </div>
-                                <div className="flex justify-between items-start">
-                                    <div>
-                                        <p className="text-[10px] font-bold text-slate-500 tracking-wider uppercase mb-1.5">DEC 15, 2025</p>
-                                        <h4 className="text-xl font-bold text-white mb-1">Payment Received</h4>
-                                        <p className="text-sm text-slate-400 font-medium">Processed by <span className="text-slate-200">Rahul Varma</span></p>
-                                    </div>
-                                    <div className="text-right">
-                                        <p className="text-xl font-bold text-emerald-400 mb-1">+ ₹ 2,000</p>
-                                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">UPI</p>
-                                    </div>
-                                </div>
-                            </div>
+                            {/* Other tabs can remain static placeholders for now if empty */}
+                            {activeTab === 'Communication' && (
+                                <div className="text-center text-slate-500 mt-10">No recent communication log.</div>
+                            )}
                         </div>
 
                         {/* Custom Report Banner */}

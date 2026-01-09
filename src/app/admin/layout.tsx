@@ -5,7 +5,7 @@ import { useState, useEffect, memo, useRef } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { loadFromStorage, INITIAL_TRANSACTIONS } from "@/utils/storage";
+import { db, setupFirebaseSync } from "@/services/db";
 import { useCurrency } from "@/hooks/useCurrency";
 
 export default function AdminLayout({
@@ -18,6 +18,43 @@ export default function AdminLayout({
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [isMobile, setIsMobile] = useState(false);
     const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+    const [adminProfile, setAdminProfile] = useState({ name: 'Jayesh Bhai', role: 'Administrator', avatar: '' });
+
+    useEffect(() => {
+        const loadProfile = () => setAdminProfile(db.getAdminProfile());
+        loadProfile();
+        window.addEventListener('admin-profile-updated', loadProfile);
+        return () => window.removeEventListener('admin-profile-updated', loadProfile);
+    }, []);
+
+    // NEW Notification Listener
+    const [notifications, setNotifications] = useState<any[]>([]);
+    const [unreadCount, setUnreadCount] = useState(0);
+
+    const loadNotifications = () => {
+        const list = db.getNotifications();
+        setNotifications(list);
+        setUnreadCount(list.filter((n: any) => !n.read).length);
+    };
+
+    const markAllAsRead = () => {
+        db.markNotificationsRead();
+        loadNotifications();
+    };
+
+    useEffect(() => {
+        loadNotifications();
+        window.addEventListener('alerts-updated', loadNotifications);
+        window.addEventListener('storage', (e) => {
+            if (e.key === 'admin_alerts_v1') loadNotifications();
+        });
+        return () => {
+            window.removeEventListener('alerts-updated', loadNotifications);
+        };
+    }, []);
+
+
+
     const [isProfileOpen, setIsProfileOpen] = useState(false);
     const [totalBalance, setTotalBalance] = useState(0);
     const notificationRef = useRef<HTMLDivElement>(null);
@@ -25,14 +62,14 @@ export default function AdminLayout({
     const { formatCurrency } = useCurrency();
 
     const calculateBalance = () => {
-        // Guard for server-side or if storage is empty, though loadFromStorage handles fallback
+        // Guard for server-side
         if (typeof window === 'undefined') return 0;
 
-        const transactions = loadFromStorage('transactions', INITIAL_TRANSACTIONS);
-        if (!transactions || !Array.isArray(transactions)) return 0;
+        const collections = db.getCollections();
+        if (!collections || !Array.isArray(collections)) return 0;
 
-        const total = transactions
-            .filter((t: any) => t && t.status !== 'Failed')
+        const total = collections
+            .filter((t: any) => t && t.status === 'Paid') // Only count Paid
             .reduce((sum: number, t: any) => {
                 const amount = parseFloat(String(t.amount).replace(/,/g, ''));
                 return sum + (isNaN(amount) ? 0 : amount);
@@ -53,6 +90,10 @@ export default function AdminLayout({
         };
 
         document.addEventListener('mousedown', handleClickOutside);
+
+        // Start Firebase Sync
+        setupFirebaseSync();
+
         return () => {
             document.removeEventListener('mousedown', handleClickOutside);
         };
@@ -95,37 +136,9 @@ export default function AdminLayout({
         return () => window.removeEventListener('resize', checkMobile);
     }, []);
 
-    const [notifications, setNotifications] = useState([
-        { id: 1, title: "Payment Received", desc: "Received ₹5,000 from Shiv Shakti Traders", time: "2 min ago", type: "payment", path: "/admin/collections" },
-        { id: 2, title: "Daily Target Achieved", desc: "Rahul Varma crossed daily collection goal", time: "1 hour ago", type: "achievement", path: "/admin/reports" },
-        { id: 3, title: "System Update", desc: "Maintenance scheduled for tonight", time: "5 hours ago", type: "system", path: "/admin/settings" },
-    ]);
-
-    useEffect(() => {
-        const handleTestNotification = () => {
-            const newNotif = {
-                id: Date.now(),
-                title: "Test Notification",
-                desc: "This is a test alert from Notification Settings.",
-                time: "Just now",
-                type: "system",
-                path: "/admin/settings"
-            };
-            setNotifications(prev => [newNotif, ...prev]);
-        };
-
-        window.addEventListener('test-notification', handleTestNotification);
-        return () => window.removeEventListener('test-notification', handleTestNotification);
-    }, []);
-
     const handleNotificationClick = (path: string) => {
         setIsNotificationsOpen(false);
         router.push(path);
-    };
-
-    const markAllAsRead = () => {
-        setNotifications([]);
-        setIsNotificationsOpen(false);
     };
 
     return (
@@ -182,6 +195,21 @@ export default function AdminLayout({
 
                     <NavItem href="/admin/reports" icon={<FileText size={20} />} label="Reports" isOpen={isSidebarOpen || isMobile} isActive={pathname === '/admin/reports'} delay={0.4} onClick={() => isMobile && setIsSidebarOpen(false)} />
                     <NavItem href="/admin/settings" icon={<Settings size={20} />} label="Settings" isOpen={isSidebarOpen || isMobile} isActive={pathname === '/admin/settings'} delay={0.5} onClick={() => isMobile && setIsSidebarOpen(false)} />
+
+                    <div className="pt-4 border-t border-white/5 mt-4">
+                        <button
+                            onClick={() => {
+                                if (confirm("Are you sure you want to logout?")) {
+                                    localStorage.removeItem('payment_app_session');
+                                    router.push('/');
+                                }
+                            }}
+                            className={`flex items-center w-full px-4 py-4 rounded-2xl transition-all duration-200 relative group overflow-hidden text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 cursor-pointer`}
+                        >
+                            <span className={`relative z-10 transition-transform group-hover:scale-110 duration-200`}><LogOut size={20} /></span>
+                            {(isSidebarOpen || isMobile) && <span className="ml-4 text-lg font-bold relative z-10 tracking-wide">Logout</span>}
+                        </button>
+                    </div>
                 </nav>
 
                 <div className="p-6 relative z-10">
@@ -220,7 +248,7 @@ export default function AdminLayout({
                             <h2 className="text-2xl font-bold text-white tracking-tight capitalize">
                                 {pathname.split('/').pop() === 'staff' ? 'Agent Management' : pathname.split('/').pop()}
                             </h2>
-                            <p className="text-slate-400 text-sm font-medium hidden sm:block">Welcome back, Jayesh Bhai</p>
+                            <p className="text-slate-400 text-sm font-medium hidden sm:block">Welcome back, {adminProfile.name}</p>
                         </div>
                     </div>
 
@@ -234,7 +262,7 @@ export default function AdminLayout({
                                 className={`relative p-3 rounded-2xl transition-colors group ${isNotificationsOpen ? 'bg-white/10 text-white' : 'hover:bg-white/5 text-slate-400 hover:text-white'}`}
                             >
                                 <Bell size={20} />
-                                {notifications.length > 0 && <span className="absolute top-3 right-3 h-2 w-2 bg-rose-500 rounded-full ring-2 ring-[#0f172a]"></span>}
+                                {unreadCount > 0 && <span className="absolute top-3 right-3 h-2 w-2 bg-rose-500 rounded-full ring-2 ring-[#0f172a]"></span>}
                             </button>
 
                             {/* Notifications Dropdown */}
@@ -248,7 +276,7 @@ export default function AdminLayout({
                                     >
                                         <div className="p-4 border-b border-white/5 flex justify-between items-center">
                                             <h3 className="font-bold text-white">Notifications</h3>
-                                            {notifications.length > 0 && <span className="text-xs bg-indigo-500/10 text-indigo-400 px-2 py-1 rounded-lg font-bold">{notifications.length} New</span>}
+                                            {unreadCount > 0 && <span className="text-xs bg-indigo-500/10 text-indigo-400 px-2 py-1 rounded-lg font-bold">{unreadCount} New</span>}
                                         </div>
                                         <div className="max-h-[300px] overflow-y-auto">
                                             {notifications.length > 0 ? (
@@ -258,11 +286,11 @@ export default function AdminLayout({
                                                         onClick={() => handleNotificationClick(n.path)}
                                                         className="p-4 border-b border-white/5 hover:bg-white/5 transition-colors cursor-pointer flex gap-3"
                                                     >
-                                                        <div className={`h-8 w-8 rounded-full flex items-center justify-center ${n.type === 'payment' ? 'bg-emerald-500/10' : n.type === 'achievement' ? 'bg-blue-500/10' : 'bg-slate-500/10'} shrink-0`}>
+                                                        <div className={`h-8 w-8 rounded-full flex items-center justify-center ${n.type === 'payment' ? 'bg-emerald-500/10' : n.type === 'achievement' ? 'bg-blue-500/10' : 'bg-slate-500/10'} shrink-0 opacity-${n.read ? '50' : '100'}`}>
                                                             {n.type === 'payment' ? <Wallet size={14} className="text-emerald-400" /> : n.type === 'achievement' ? <TrendingUp size={14} className="text-blue-400" /> : <Settings size={14} className="text-slate-400" />}
                                                         </div>
-                                                        <div>
-                                                            <p className="text-sm font-bold text-white leading-tight">{n.title}</p>
+                                                        <div className={n.read ? 'opacity-60' : ''}>
+                                                            <p className={`text-sm leading-tight ${n.read ? 'font-medium text-slate-400' : 'font-bold text-white'}`}>{n.title}</p>
                                                             <p className="text-xs text-slate-400 mt-1">{n.desc}</p>
                                                             <p className="text-[10px] text-slate-500 mt-2 font-medium">{n.time}</p>
                                                         </div>
@@ -276,12 +304,23 @@ export default function AdminLayout({
                                             )}
                                         </div>
                                         {notifications.length > 0 && (
-                                            <div className="p-3 text-center border-t border-white/5">
+                                            <div className="p-3 border-t border-white/5 flex items-center justify-between gap-2">
+                                                {unreadCount > 0 ? (
+                                                    <button
+                                                        onClick={markAllAsRead}
+                                                        className="text-xs font-bold text-indigo-400 hover:text-indigo-300 flex-1 py-1"
+                                                    >
+                                                        Mark all as read
+                                                    </button>
+                                                ) : <span className="flex-1"></span>}
+
+                                                <div className="w-px h-3 bg-white/10"></div>
+
                                                 <button
-                                                    onClick={markAllAsRead}
-                                                    className="text-xs font-bold text-indigo-400 hover:text-indigo-300"
+                                                    onClick={() => db.clearNotifications()}
+                                                    className="text-xs font-bold text-rose-500 hover:text-rose-400 flex-1 py-1"
                                                 >
-                                                    Mark all as read
+                                                    Clear All
                                                 </button>
                                             </div>
                                         )}
@@ -310,8 +349,8 @@ export default function AdminLayout({
                                         className="absolute top-full right-0 mt-2 w-56 bg-[#1e293b] border border-white/10 rounded-2xl shadow-xl z-50 overflow-hidden"
                                     >
                                         <div className="p-4 border-b border-white/5">
-                                            <p className="font-bold text-white">Jayesh Bhai</p>
-                                            <p className="text-xs text-slate-400 font-medium">Administrator</p>
+                                            <p className="font-bold text-white">{adminProfile.name}</p>
+                                            <p className="text-xs text-slate-400 font-medium">{adminProfile.role}</p>
                                         </div>
                                         <div className="p-2 space-y-1">
                                             <button
@@ -379,6 +418,47 @@ export default function AdminLayout({
                 </div>
 
             </main>
+
+            <ConnectionStatus />
+        </div>
+    );
+}
+
+function ConnectionStatus() {
+    const [status, setStatus] = useState<'connecting' | 'connected' | 'error'>('connecting');
+
+    useEffect(() => {
+        // Simple heuristic to check connection
+        if (typeof window === 'undefined') return;
+
+        // Wait a bit for initial connect
+        const timer = setTimeout(() => {
+            if (navigator.onLine) {
+                setStatus('connected');
+            } else {
+                setStatus('error');
+            }
+        }, 2000);
+
+        const handleOnline = () => setStatus('connected');
+        const handleOffline = () => setStatus('error');
+
+        window.addEventListener('online', handleOnline);
+        window.addEventListener('offline', handleOffline);
+
+        return () => {
+            clearTimeout(timer);
+            window.removeEventListener('online', handleOnline);
+            window.removeEventListener('offline', handleOffline);
+        };
+    }, []);
+
+    if (status === 'connected') return null; // Hide if all good to keep UI clean
+
+    return (
+        <div className={`fixed bottom-4 right-4 z-[100] px-4 py-2 rounded-full font-bold text-xs shadow-xl flex items-center gap-2 border ${status === 'error' ? 'bg-rose-500 text-white border-rose-600' : 'bg-amber-500 text-white border-amber-600'}`}>
+            <div className={`w-2 h-2 rounded-full ${status === 'error' ? 'bg-white blink' : 'bg-white animate-pulse'}`}></div>
+            {status === 'error' ? 'Offline / Sync Error' : 'Connecting to Server...'}
         </div>
     );
 }

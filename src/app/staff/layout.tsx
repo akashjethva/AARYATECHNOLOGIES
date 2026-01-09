@@ -4,7 +4,10 @@ import { Home, Plus, History, User, Settings } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { useEffect } from "react";
+import { AnimatePresence } from "framer-motion";
+import { useEffect, useState } from "react";
+import { db, setupFirebaseSync } from '@/services/db';
+import { getFirestore, doc, onSnapshot } from "firebase/firestore"; // Import Firestore directly for status check
 
 export default function StaffLayout({
     children,
@@ -15,12 +18,107 @@ export default function StaffLayout({
     const router = useRouter();
     const isActive = (path: string) => pathname === path;
 
-    // Auth Check
+    // Auth Check & Sync
     useEffect(() => {
+        // Initialize Sync
+        setupFirebaseSync();
+
         const session = localStorage.getItem('payment_app_session');
         if (session !== 'staff') {
             router.push('/');
         }
+        // Start Sync (already called above)
+
+        // Heartbeat for Online Status
+        const userStr = localStorage.getItem('payment_app_user');
+        if (userStr) {
+            try {
+                const user = JSON.parse(userStr);
+                if (user && user.id) {
+                    // Initial update
+                    db.updateStaffLastSeen(user.id);
+
+                    // Periodic update every 30 seconds
+                    const interval = setInterval(() => {
+                        db.updateStaffLastSeen(user.id);
+                    }, 30000);
+
+                    return () => clearInterval(interval);
+                }
+            } catch (e) {
+                console.error("Error parsing staff user for heartbeat", e);
+            }
+        }
+    }, []);
+
+    // Session Validation (Force Logout if Deleted/Inactive)
+    useEffect(() => {
+        const validateSession = () => {
+            const userStr = localStorage.getItem('payment_app_user');
+            if (userStr) {
+                try {
+                    const user = JSON.parse(userStr);
+                    const staffList = db.getStaff();
+
+                    // Check if user still exists and is active
+                    // We check if ID matches AND status is Active.
+                    // If staff list is empty (initial load), skip check to avoid false logout before sync
+                    if (staffList.length > 0) {
+                        const isValid = staffList.find(s => s.id === user.id && s.status === 'Active');
+
+                        if (!isValid) {
+                            console.warn("User no longer valid or deleted. Forcing logout.");
+                            localStorage.removeItem('payment_app_session');
+                            localStorage.removeItem('payment_app_user');
+                            router.push('/');
+                        }
+                    }
+                } catch (e) {
+                    // JSON error or other issue -> Invalid session
+                    localStorage.removeItem('payment_app_session');
+                    router.push('/');
+                }
+            }
+        };
+
+        // Run validation on mount and whenever staff data updates
+        validateSession();
+        window.addEventListener('staff-updated', validateSession);
+
+        return () => {
+            window.removeEventListener('staff-updated', validateSession);
+        };
+    }, []);
+
+    // Idle Timer (Force Logout)
+    useEffect(() => {
+        const security = db.getAdminSecurity();
+        if (!security.forceLogout) return;
+
+        let timeout: NodeJS.Timeout;
+        const TIMEOUT_DURATION = 60 * 60 * 1000; // 1 Hour
+
+        const resetTimer = () => {
+            clearTimeout(timeout);
+            timeout = setTimeout(() => {
+                // Logout Action
+                localStorage.removeItem('payment_app_session');
+                localStorage.removeItem('payment_app_user');
+                router.push('/');
+                // Optionally alert
+                // alert("Logged out due to inactivity");
+            }, TIMEOUT_DURATION);
+        };
+
+        const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];
+        events.forEach(event => window.addEventListener(event, resetTimer));
+
+        resetTimer(); // Start initial timer
+
+        return () => {
+            clearTimeout(timeout);
+            events.forEach(event => window.removeEventListener(event, resetTimer));
+        };
     }, []);
 
     // Theme Initialization - Default to Dark Mode for Premium Feel
@@ -37,9 +135,38 @@ export default function StaffLayout({
         }
     }, []);
 
+    // Notification Listener
+    const [notifToast, setNotifToast] = useState('');
+    useEffect(() => {
+        const checkNotifs = () => {
+            const list = db.getStaffNotifications();
+            if (list && list.length > 0) {
+                const latest = list[0];
+                // Check if new (within last 5 seconds) to avoid spam on reload
+                if (Date.now() - latest.timestamp < 5000) {
+                    setNotifToast(latest.message);
+                    setTimeout(() => setNotifToast(''), 5000);
+                    // Can play sound here
+                }
+            }
+        };
+
+        window.addEventListener('staff-notif-updated', checkNotifs);
+        window.addEventListener('storage', (e) => {
+            if (e.key === 'staff_notifications_list') checkNotifs();
+        });
+
+        return () => {
+            window.removeEventListener('staff-notif-updated', checkNotifs);
+            window.removeEventListener('storage', checkNotifs); // storage event handler ref mismatch fixed by inline or careful ref
+        };
+    }, []);
+
+
     return (
         <div className="min-h-screen w-full bg-white dark:bg-[#0f1115] font-sans transition-colors duration-300 flex flex-col">
             {/* Main Content Area */}
+            <OnlineStatus />
             <main className="flex-1 overflow-y-auto scrollbar-hide bg-white dark:bg-[#0f1115] text-slate-900 dark:text-white relative pb-28 transition-colors duration-300">
                 {children}
             </main>
@@ -63,6 +190,24 @@ export default function StaffLayout({
                     <NavItem href="/staff/history" icon={<History size={22} />} active={isActive('/staff/history')} />
                     <NavItem href="/staff/settings" icon={<Settings size={22} />} active={isActive('/staff/settings')} />
                 </nav>
+                <AnimatePresence>
+                    {notifToast && (
+                        <motion.div
+                            initial={{ opacity: 0, y: -50, x: '-50%' }}
+                            animate={{ opacity: 1, y: 0, x: '-50%' }}
+                            exit={{ opacity: 0, y: -50, x: '-50%' }}
+                            className="fixed top-6 left-1/2 z-[100] w-[90%] max-w-sm bg-[#1e293b] border border-white/10 text-white p-4 rounded-2xl shadow-2xl flex items-center gap-3 backdrop-blur-md"
+                        >
+                            <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-500 shrink-0">
+                                <span className="text-xl">🔔</span>
+                            </div>
+                            <div>
+                                <p className="font-bold text-sm">New Notification</p>
+                                <p className="text-xs text-slate-300">{notifToast}</p>
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
             </div>
         </div>
     );
@@ -83,4 +228,55 @@ function NavItem({ href, icon, active }: any) {
             </span>
         </Link>
     )
+}
+
+// Helper Component for Online Status
+function OnlineStatus() {
+    const [status, setStatus] = useState<'online' | 'offline'>('online'); // optimistic
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+
+        // 1. Browser Network Check
+        const updateOnlineStatus = () => {
+            setStatus(navigator.onLine ? 'online' : 'offline');
+        };
+        window.addEventListener('online', updateOnlineStatus);
+        window.addEventListener('offline', updateOnlineStatus);
+
+        // 2. Firestore Connection Check (More accurate for data sync)
+        /*
+        try {
+            const firestore = getFirestore();
+            const connectedRef = doc(firestore, ".info/connected");
+            const unsubscribe = onSnapshot(connectedRef, (snap) => {
+                const isConnected = snap.data()?.connected;
+                if (isConnected === false) {
+                     // Only override if browser is online but firestore is not
+                     if (navigator.onLine) setStatus('offline');
+                } else {
+                     setStatus('online');
+                }
+            });
+            return () => {
+                window.removeEventListener('online', updateOnlineStatus);
+                window.removeEventListener('offline', updateOnlineStatus);
+                unsubscribe();
+            }
+        } catch(e) { console.error(e); }
+        */
+
+        return () => {
+            window.removeEventListener('online', updateOnlineStatus);
+            window.removeEventListener('offline', updateOnlineStatus);
+        };
+    }, []);
+
+    if (status === 'online') return null; // Don't show if everything is good
+
+    return (
+        <div className="fixed top-0 left-0 right-0 bg-rose-600 text-white text-xs font-bold text-center py-1 z-[1000] shadow-md animate-pulse">
+            You are OFFLINE. Data will sync when connection returns.
+        </div>
+    );
 }

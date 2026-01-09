@@ -5,6 +5,8 @@ import { ArrowLeft, Globe, Mail, Phone, MapPin, Building2, ExternalLink } from "
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 
+import { db } from "@/services/db";
+
 export default function CompanyProfile() {
     const router = useRouter();
     const [company, setCompany] = useState({
@@ -13,26 +15,31 @@ export default function CompanyProfile() {
         website: "www.aaryatech.io",
         address: "Ahmedabad, Gujarat",
         logo: "",
-        gstNumber: ""
+        gstNumber: "",
+        mobile: "+91 98765 43210"
     });
 
     useEffect(() => {
-        const saved = localStorage.getItem('payment_app_company_settings');
-        if (saved) {
-            try {
-                const parsed = JSON.parse(saved);
-                setCompany(prev => ({
-                    ...prev,
-                    companyName: parsed.companyName || prev.companyName,
-                    email: parsed.email || prev.email,
-                    website: parsed.website || prev.website,
-                    address: parsed.address || prev.address,
-                    logo: parsed.logo || prev.logo
-                }));
-            } catch (e) {
-                console.error("Failed to load company settings", e);
-            }
-        }
+        const loadSettings = () => {
+            const details = db.getCompanyDetails();
+            setCompany({
+                companyName: details.name || "Aarya Technologies",
+                email: details.email || "contact@aaryatech.io",
+                website: details.website || "www.aaryatech.io",
+                address: details.address || "Ahmedabad, Gujarat",
+                logo: details.logo || "",
+                gstNumber: details.gst || "",
+                mobile: details.mobile || "+91 98765 43210"
+            });
+        };
+
+        loadSettings();
+        window.addEventListener('company-updated', loadSettings);
+        window.addEventListener('settings-updated', loadSettings); // Fallback if appName changes via general settings
+        return () => {
+            window.removeEventListener('company-updated', loadSettings);
+            window.removeEventListener('settings-updated', loadSettings);
+        };
     }, []);
 
     return (
@@ -61,13 +68,9 @@ export default function CompanyProfile() {
                 <div className="relative z-10 flex flex-col items-center text-center">
                     <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-blue-600 to-cyan-500 p-[1px] shadow-xl mb-6 overflow-hidden">
                         <div className="w-full h-full rounded-3xl bg-[#0a0a0a] flex items-center justify-center relative overflow-hidden">
-                            {company.logo ? (
-                                <img src={company.logo} alt="Logo" className="w-full h-full object-cover" />
-                            ) : (
-                                <span className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-br from-blue-500 to-cyan-400">
-                                    {company.companyName === "Aarya Technologies" ? "AT" : company.companyName.substring(0, 2).toUpperCase()}
-                                </span>
-                            )}
+                            <span className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-br from-blue-500 to-cyan-400">
+                                AT
+                            </span>
                         </div>
                     </div>
 
@@ -80,7 +83,7 @@ export default function CompanyProfile() {
             <div className="space-y-4">
                 <InfoCard icon={<Globe />} label="Website" value={company.website} color="text-blue-400" bg="bg-blue-400/10" />
                 <InfoCard icon={<Mail />} label="Email" value={company.email} color="text-purple-400" bg="bg-purple-400/10" />
-                <InfoCard icon={<Phone />} label="Support" value="+91 98765 43210" color="text-emerald-400" bg="bg-emerald-400/10" />
+                <InfoCard icon={<Phone />} label="Support" value={company.mobile} color="text-emerald-400" bg="bg-emerald-400/10" />
                 <InfoCard icon={<MapPin />} label="Headquarters" value={company.address} color="text-rose-400" bg="bg-rose-400/10" />
             </div>
 

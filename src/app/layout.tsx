@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Payment Soft - Admin & Staff",
+  title: "Aarya Technologies - Admin & Staff",
   description: "Advanced Payment Management System",
   manifest: "/manifest.json",
   appleWebApp: {

@@ -1,35 +1,21 @@
 "use client";
 
 import { UserPlus, Search, MoreVertical, Phone, MapPin, Filter, Mail, X, History, ArrowDownRight, ArrowUpRight, Check, AlertCircle, Save, Edit, Trash2, Download, Bell, Navigation, Link as LinkIcon, ShieldCheck, TrendingUp, Map, CheckCircle, MessageSquare, FileText, Wallet, Info, LayoutGrid, List, User } from "lucide-react";
-import { useState, useCallback, memo } from "react";
+import { useState, useCallback, memo, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCurrency } from "@/hooks/useCurrency";
-
-interface Customer {
-    id: number;
-    name: string;
-    contact: string;
-    phone: string;
-    city: string;
-    status: "Active" | "Inactive";
-    balance: string;
-    email?: string;
-    address?: string;
-}
+import { db, Customer } from "@/services/db";
+import jsPDF from "jspdf";
+import autoTable from 'jspdf-autotable';
 
 export default function CustomersPage() {
-    const [customers, setCustomers] = useState<Customer[]>([
-        { id: 1, name: "Shiv Shakti Traders", contact: "Rajesh Bhai", phone: "+91 98765 11223", city: "Ahmedabad", status: "Active", balance: "15,200", email: "shivshakti@gmail.com", address: "123, Market Yard, Naroda" },
-        { id: 2, name: "Jay Mataji Store", contact: "Vikram Sinh", phone: "+91 91234 99887", city: "Surat", status: "Active", balance: "8,500", email: "jaymataji@gmail.com", address: "45, Varachha Road" },
-        { id: 3, name: "Om Enterprise", contact: "Amit Shah", phone: "+91 99887 55443", city: "Vadodara", status: "Inactive", balance: "0", email: "om.ent@gmail.com", address: "88, Alkapuri" },
-        { id: 4, name: "Ganesh Provision", contact: "Suresh Patel", phone: "+91 98980 12345", city: "Rajkot", status: "Active", balance: "12,500", email: "ganesh.prov@gmail.com", address: "12, Soni Bazar" },
-        { id: 5, name: "Maruti Nandan", contact: "Vikram Solanki", phone: "+91 97654 32109", city: "Surat", status: "Active", balance: "2,100", email: "maruti@gmail.com", address: "Ring Road, Surat" },
-        { id: 6, name: "Khodiyar General", contact: "Ketan Bhai", phone: "+91 99000 88777", city: "Ahmedabad", status: "Inactive", balance: "45,000", email: "khodiyar@gmail.com", address: "Gota, Ahmedabad" },
-        { id: 7, name: "Umiya Traders", contact: "Praveen Patel", phone: "+91 88776 65544", city: "Mehsana", status: "Active", balance: "8,900", email: "umiya@gmail.com", address: "Highway Road" },
-        { id: 8, name: "Balaji Kirana", contact: "Ramesh Gupta", phone: "+91 77665 54433", city: "Vadodara", status: "Active", balance: "5,600", email: "balaji@gmail.com", address: "Manjalpur" },
-        { id: 9, name: "Sardar Stores", contact: "Manish Singh", phone: "+91 66554 43322", city: "Rajkot", status: "Inactive", balance: "0", email: "sardar@gmail.com", address: "Yagnik Road" },
-    ]);
+    const [customers, setCustomers] = useState<Customer[]>([]);
+
+    useEffect(() => {
+        // Load initial data
+        setCustomers(db.getCustomers());
+    }, []);
 
     const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -39,6 +25,46 @@ export default function CustomersPage() {
     const [isFilterOpen, setIsFilterOpen] = useState(false);
     const [activeFilter, setActiveFilter] = useState("All");
 
+     const handleDownloadPendingReport = () => {
+        const doc = new jsPDF();
+        
+        // Header
+        doc.setFontSize(22);
+        doc.setTextColor(40, 40, 40);
+        doc.text("Pending Dues Report", 14, 20);
+        
+        doc.setFontSize(10);
+        doc.setTextColor(100, 100, 100);
+        doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 28);
+
+        const pendingCustomers = customers.filter(c => (parseFloat(c.balance.replace(/,/g, '')) || 0) > 0);
+        const totalPending = pendingCustomers.reduce((sum, c) => sum + (parseFloat(c.balance.replace(/,/g, '')) || 0), 0);
+
+        doc.text(`Total Pending Amount: Rs. ${totalPending.toLocaleString('en-IN')}`, 14, 34);
+
+        // Table Data
+        const tableColumn = ["Customer Name", "City", "Mobile", "Pending Balance (Rs.)"];
+        const tableRows = pendingCustomers.map(c => [
+            c.name,
+            c.city,
+            c.phone,
+            c.balance
+        ]);
+
+        // @ts-ignore
+        doc.autoTable({
+            head: [tableColumn],
+            body: tableRows,
+            startY: 40,
+            theme: 'grid',
+            headStyles: { fillColor: [79, 70, 229] }, // Indigo color
+            styles: { fontSize: 10, cellPadding: 3 },
+            alternateRowStyles: { fillColor: [245, 247, 250] }
+        });
+
+        doc.save("pending_dues_report.pdf");
+    };
+
     // State for Editing
     const [editingId, setEditingId] = useState<number | null>(null);
     const [formData, setFormData] = useState({ name: "", contact: "", phone: "", city: "", balance: "", email: "", address: "" });
@@ -47,7 +73,7 @@ export default function CustomersPage() {
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
     // Filter Options
-    const filterOptions = ["All", "Active", "Inactive", "Ahmedabad", "Surat", "Rajkot", "Vadodara"];
+    const filterOptions = ["All", "Active", "Inactive", "Pending Dues", "Ahmedabad", "Surat", "Rajkot", "Vadodara"];
 
     // Filter Logic
     const filteredCustomers = customers.filter(c => {
@@ -60,27 +86,45 @@ export default function CustomersPage() {
             activeFilter === "All" ? true :
                 activeFilter === "Active" ? c.status === "Active" :
                     activeFilter === "Inactive" ? c.status === "Inactive" :
-                        c.city === activeFilter;
+                        activeFilter === "Pending Dues" ? (parseFloat(c.balance.replace(/,/g, '')) || 0) > 0 :
+                            c.city === activeFilter;
 
         return matchesSearch && matchesFilter;
     });
 
+    // Pagination
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = db.getRowsPerPage();
+
+    // Reset page on filter change
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchQuery, activeFilter]);
+
     const handleSaveCustomer = () => {
         if (!formData.name) return;
 
+        let updatedList;
         if (editingId) {
             // Edit Existing
-            setCustomers(customers.map(c => c.id === editingId ? { ...c, ...formData, status: c.status } : c));
+            const existing = customers.find(c => c.id === editingId);
+            if (existing) {
+                const updatedCustomer = { ...existing, ...formData };
+                updatedList = db.saveCustomer(updatedCustomer);
+            }
         } else {
             // Add New
-            setCustomers([...customers, {
+            const newCustomer: Customer = {
                 id: Date.now(),
                 ...formData,
-                status: "Active",
+                status: "Active" as const, // Fix type inference
                 balance: formData.balance || "0",
                 city: formData.city || "Unknown"
-            }]);
+            };
+            updatedList = db.saveCustomer(newCustomer);
         }
+
+        if (updatedList) setCustomers(updatedList);
 
         setIsAddModalOpen(false);
         setEditingId(null);
@@ -103,7 +147,8 @@ export default function CustomersPage() {
 
     const handleDeleteClick = (id: number) => {
         if (confirm("Are you sure you want to delete this customer?")) {
-            setCustomers(customers.filter(c => c.id !== id));
+            const updatedList = db.deleteCustomer(id);
+            setCustomers(updatedList);
         }
     };
 
@@ -120,9 +165,21 @@ export default function CustomersPage() {
             <div className="flex flex-col md:flex-row justify-between items-end gap-6 bg-gradient-to-r from-indigo-900/50 to-blue-900/50 p-8 rounded-[2rem] border border-white/10 relative overflow-hidden backdrop-blur-3xl shadow-2xl">
                 <div className="absolute top-0 right-0 w-[400px] h-full bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20"></div>
                 <div className="relative z-10">
-                    <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/10 border border-white/10 rounded-full text-xs font-bold text-indigo-200 mb-2 shadow-sm backdrop-blur-md">
-                        <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></span>
-                        Total Customers: {customers.length}
+                    <div className="flex flex-wrap gap-4 mb-4">
+                        <div
+                            onClick={() => setActiveFilter("All")}
+                            className={`inline-flex items-center gap-3 px-6 py-3 rounded-2xl text-base font-bold shadow-lg backdrop-blur-md cursor-pointer transition-transform active:scale-95 border ${activeFilter === 'All' ? 'bg-indigo-600/20 border-indigo-500/50 text-indigo-100 ring-2 ring-indigo-500/20' : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10'}`}
+                        >
+                            <span className={`w-3 h-3 rounded-full animate-pulse ${activeFilter === 'All' ? 'bg-indigo-400' : 'bg-slate-500'}`}></span>
+                            Total Customers: {customers.length}
+                        </div>
+                        <div
+                            onClick={() => setActiveFilter("Pending Dues")}
+                            className={`inline-flex items-center gap-3 px-6 py-3 rounded-2xl text-base font-bold shadow-lg backdrop-blur-md cursor-pointer transition-transform active:scale-95 border ${activeFilter === 'Pending Dues' ? 'bg-rose-500/20 border-rose-500/50 text-rose-100 ring-2 ring-rose-500/20' : 'bg-white/5 border-white/10 text-rose-300 hover:bg-white/10'}`}
+                        >
+                            <span className="w-3 h-3 rounded-full bg-rose-500 animate-pulse"></span>
+                            Total Pending: {customers.reduce((sum, c) => sum + (parseFloat(c.balance.replace(/,/g, '')) || 0), 0).toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })}
+                        </div>
                     </div>
                     <h1 className="text-4xl font-extrabold text-white tracking-tight">Customers</h1>
                     <p className="text-slate-300 mt-2 text-lg font-medium max-w-lg">Manage detailed customer profiles and collection history.</p>
@@ -136,7 +193,7 @@ export default function CustomersPage() {
                 </button>
             </div>
 
-            {/* Filters & Search & View Toggle */}
+            {/* Filters & Search & Download */}
             <div className="flex flex-col md:flex-row gap-4">
                 <div className="bg-[#1e293b]/60 p-2 rounded-2xl shadow-xl border border-white/5 flex gap-4 flex-1 backdrop-blur-xl">
                     <div className="relative flex-1">
@@ -152,6 +209,15 @@ export default function CustomersPage() {
                 </div>
 
                 <div className="flex items-center gap-3">
+                    {/* PDF Download Button */}
+                    <button
+                        onClick={handleDownloadPendingReport}
+                        className="p-4 rounded-xl bg-[#0f172a] border border-white/10 text-rose-400 hover:bg-rose-500/10 hover:text-rose-300 hover:border-rose-500/30 transition-all shadow-lg flex items-center justify-center"
+                        title="Download Pending Dues Report"
+                    >
+                        <Download size={20} />
+                    </button>
+
                     {/* View Toggle */}
                     <div className="bg-[#1e293b]/60 p-1.5 rounded-xl border border-white/5 flex items-center backdrop-blur-xl">
                         <button
@@ -237,7 +303,7 @@ export default function CustomersPage() {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-white/5 text-base">
-                                {filteredCustomers.map((customer) => (
+                                {filteredCustomers.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((customer) => (
                                     <tr key={customer.id} className="hover:bg-white/5 transition-colors group cursor-pointer" onClick={() => setSelectedCustomer(customer)}>
                                         <td className="px-8 py-5">
                                             <div className="flex items-center gap-4">
@@ -416,6 +482,19 @@ export default function CustomersPage() {
                                     {editingId ? 'Update Customer' : 'Save Customer'}
                                 </button>
                             </div>
+
+                            {/* Pagination Controls */}
+                            {filteredCustomers.length > 0 && (
+                                <div className="flex justify-between items-center mt-8 p-4 bg-[#1e293b]/40 rounded-2xl border border-white/5">
+                                    <div className="text-slate-400 text-sm font-medium">
+                                        Showing <span className="text-white font-bold">{Math.min((currentPage - 1) * itemsPerPage + 1, filteredCustomers.length)}</span> to <span className="text-white font-bold">{Math.min(currentPage * itemsPerPage, filteredCustomers.length)}</span> of <span className="text-white font-bold">{filteredCustomers.length}</span> results
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <button disabled={currentPage === 1} onClick={() => setCurrentPage(prev => prev - 1)} className="px-4 py-2 rounded-lg bg-[#0f172a] border border-white/10 text-white disabled:opacity-50 hover:bg-white/5 transition-colors">Previous</button>
+                                        <button disabled={currentPage * itemsPerPage >= filteredCustomers.length} onClick={() => setCurrentPage(prev => prev + 1)} className="px-4 py-2 rounded-lg bg-[#0f172a] border border-white/10 text-white disabled:opacity-50 hover:bg-white/5 transition-colors">Next</button>
+                                    </div>
+                                </div>
+                            )}
                         </motion.div>
                     </div>
                 )}

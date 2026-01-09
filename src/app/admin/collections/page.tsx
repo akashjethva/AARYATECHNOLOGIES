@@ -6,40 +6,34 @@ import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCurrency } from "@/hooks/useCurrency";
 
-interface Transaction {
-    id: string;
-    customer: string;
-    staff: string;
-    amount: string;
-    status: "Paid" | "Processing" | "Failed";
-    date: string; // Format: YYYY-MM-DD
-    mode: "Cash" | "UPI" | "Cheque";
-    time: string;
-    contact: string;
-    remarks: string;
-}
-
-import { loadFromStorage, saveToStorage, INITIAL_TRANSACTIONS } from "@/utils/storage";
+import { db, Collection } from "@/services/db";
 
 export default function CollectionsPage() {
     // Helper to get today's date in YYYY-MM-DD
     const getToday = () => new Date().toISOString().split('T')[0];
 
     // Initial Data with standard date format
-    const [transactions, setTransactions] = useState<Transaction[]>([]);
+    const [transactions, setTransactions] = useState<Collection[]>([]);
 
     useEffect(() => {
-        const saved = loadFromStorage('transactions', INITIAL_TRANSACTIONS);
-        if (saved && Array.isArray(saved)) {
-            setTransactions(saved as Transaction[]);
-        }
+        // Load from unified db service
+        setTransactions(db.getCollections());
+
+        // Listener for other components
+        const handleUpdate = () => setTransactions(db.getCollections());
+        window.addEventListener('transaction-updated', handleUpdate);
+        window.addEventListener('settings-updated', handleUpdate); // Re-render on settings change
+        return () => {
+            window.removeEventListener('transaction-updated', handleUpdate);
+            window.removeEventListener('settings-updated', handleUpdate);
+        };
     }, []);
 
     // View States
     const [isFilterOpen, setIsFilterOpen] = useState(false);
-    const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
+    const [selectedTransaction, setSelectedTransaction] = useState<Collection | null>(null);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-    const [newTransaction, setNewTransaction] = useState<Partial<Transaction>>({
+    const [newTransaction, setNewTransaction] = useState<Partial<Collection>>({
         customer: "", amount: "", mode: "Cash", date: getToday(), staff: "Admin", remarks: "", status: "Paid"
     });
 
@@ -47,51 +41,56 @@ export default function CollectionsPage() {
         if (!newTransaction.customer || !newTransaction.amount) return;
 
         const newId = `REC-${String(transactions.length + 1).padStart(3, '0')}`;
-        const newEntry: Transaction = {
+        const newEntry: Collection = {
             id: newId,
             customer: newTransaction.customer || "Unknown",
             staff: newTransaction.staff || "Admin",
             amount: newTransaction.amount || "0",
             status: "Paid",
             date: newTransaction.date || getToday(),
-            mode: newTransaction.mode as any || "Cash",
+            mode: (newTransaction.mode as any) || "Cash",
             time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-            contact: "+91 00000 00000", // Default for now
+            contact: "+91 00000 00000",
             remarks: newTransaction.remarks || ""
         };
 
-        const updatedTransactions = [newEntry, ...transactions];
+        const updatedTransactions = db.saveCollection(newEntry);
         setTransactions(updatedTransactions);
-        saveToStorage('transactions', updatedTransactions);
-        // Dispatch event for other listeners (AdminLayout balance etc)
-        if (typeof window !== 'undefined') {
-            window.dispatchEvent(new Event('transaction-updated'));
-            // Also manual dispatch for storage event if needed (though saveToStorage handles it if cross-tab)
-            // But same-tab listener needs this custom event often
-        }
+
+        // Dispatch event
+        if (typeof window !== 'undefined') window.dispatchEvent(new Event('transaction-updated'));
 
         setIsAddModalOpen(false);
         setNewTransaction({ customer: "", amount: "", mode: "Cash", date: getToday(), staff: "Admin", remarks: "", status: "Paid" });
     };
 
-    // Filter States
+    // ... (Filter states)
     const [searchQuery, setSearchQuery] = useState("");
     const [filterDate, setFilterDate] = useState("");
     const [statusFilter, setStatusFilter] = useState("All Status");
     const [staffFilter, setStaffFilter] = useState("All Staff");
+    const [modeFilter, setModeFilter] = useState("All Modes");
 
     const [showDropdown, setShowDropdown] = useState(false);
-    const mockCustomers = [
-        "Shiv Shakti Traders",
-        "Jay Mataji Store",
-        "Om Enterprise",
-        "Ganesh Provision",
-        "Maruti Nandan",
-        "Khodiyar General",
-        "Umiya Traders",
-        "Balaji Kirana",
-        "Sardar Stores"
-    ];
+
+    // Customer Sync Logic
+    const [customers, setCustomers] = useState<{ id: number, name: string }[]>([]);
+
+    // Staff Sync Logic
+    const [staffList, setStaffList] = useState<{ id: number, name: string, status?: string }[]>([]);
+    useEffect(() => {
+        const loadStaff = () => setStaffList(db.getStaff());
+        loadStaff();
+        window.addEventListener('staff-updated', loadStaff);
+        return () => window.removeEventListener('staff-updated', loadStaff);
+    }, []);
+
+    useEffect(() => {
+        setCustomers(db.getCustomers());
+        const handleCustUpdate = () => setCustomers(db.getCustomers());
+        window.addEventListener('customer-updated', handleCustUpdate);
+        return () => window.removeEventListener('customer-updated', handleCustUpdate);
+    }, []);
 
     // Action State
     const [activeActionId, setActiveActionId] = useState<string | null>(null);
@@ -99,16 +98,13 @@ export default function CollectionsPage() {
 
     const handleDelete = (id: string) => {
         if (confirm("Are you sure you want to delete this transaction?")) {
-            const updatedTransactions = transactions.filter(t => t.id !== id);
+            const updatedTransactions = db.deleteCollection(id);
             setTransactions(updatedTransactions);
-            saveToStorage('transactions', updatedTransactions);
-            if (typeof window !== 'undefined') {
-                window.dispatchEvent(new Event('transaction-updated'));
-            }
+
+            if (typeof window !== 'undefined') window.dispatchEvent(new Event('transaction-updated'));
+
             setActiveActionId(null);
-            if (selectedItems.includes(id)) {
-                setSelectedItems(prev => prev.filter(i => i !== id));
-            }
+            if (selectedItems.includes(id)) setSelectedItems(prev => prev.filter(i => i !== id));
         }
     };
 
@@ -120,7 +116,6 @@ export default function CollectionsPage() {
     // Selection Handlers
     const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.checked) {
-            // Select only currently visible filtered items
             const ids = filteredTransactions.map(t => t.id);
             setSelectedItems(ids);
         } else {
@@ -138,19 +133,21 @@ export default function CollectionsPage() {
 
     const handleBulkDelete = () => {
         if (confirm(`Are you sure you want to delete ${selectedItems.length} transactions?`)) {
-            const updatedTransactions = transactions.filter(t => !selectedItems.includes(t.id));
-            setTransactions(updatedTransactions);
-            saveToStorage('transactions', updatedTransactions);
-            if (typeof window !== 'undefined') {
-                window.dispatchEvent(new Event('transaction-updated'));
-            }
+            let current = transactions;
+            selectedItems.forEach(id => {
+                current = db.deleteCollection(id);
+            });
+            setTransactions(current); // Note: db.deleteCollection reads from storage every time, which is inefficient for bulk but safe.
+            // Optimized bulk delete would be better in db service, but this works for now.
+
+            if (typeof window !== 'undefined') window.dispatchEvent(new Event('transaction-updated'));
             setSelectedItems([]);
         }
     };
 
     // Pagination State
     const [currentPage, setCurrentPage] = useState(1);
-    const itemsPerPage = 7;
+    const itemsPerPage = db.getRowsPerPage();
 
     // Filter Logic
     const filteredTransactions = transactions.filter(t => {
@@ -162,8 +159,9 @@ export default function CollectionsPage() {
 
         const matchesStatus = statusFilter === "All Status" || t.status === statusFilter;
         const matchesStaff = staffFilter === "All Staff" || t.staff.includes(staffFilter.split(' ')[0]);
+        const matchesMode = modeFilter === "All Modes" || t.mode === modeFilter;
 
-        return matchesSearch && matchesDate && matchesStatus && matchesStaff;
+        return matchesSearch && matchesDate && matchesStatus && matchesStaff && matchesMode;
     });
 
     // Pagination Logic
@@ -193,7 +191,9 @@ export default function CollectionsPage() {
                 t.staff,
                 t.amount.replace(/,/g, ''), // Remove commas from amount for Excel
                 t.status,
-                t.date,
+                t.amount.replace(/,/g, ''), // Remove commas from amount for Excel
+                t.status,
+                db.formatDate(t.date),
                 t.mode,
                 t.time,
                 t.contact,
@@ -217,8 +217,7 @@ export default function CollectionsPage() {
 
     // Format Date for Display
     const formatDate = (dateStr: string) => {
-        const date = new Date(dateStr);
-        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        return db.formatDate(dateStr);
     };
 
     // Calculate Stats
@@ -382,10 +381,10 @@ export default function CollectionsPage() {
                                             className="w-full px-3 py-2 text-sm font-bold border border-white/5 rounded-xl bg-[#0f172a] text-white outline-none focus:border-indigo-500/50 cursor-pointer"
                                         >
                                             <option>All Staff</option>
-                                            <option>Rahul Varma</option>
-                                            <option>Amit Kumar</option>
-                                            <option>Suresh Patil</option>
-                                            <option>Vikram Singh</option>
+                                            <option value="Admin">Admin (Self)</option>
+                                            {staffList.map(s => (
+                                                <option key={s.id} value={s.name}>{s.name}</option>
+                                            ))}
                                         </select>
                                     </div>
                                     <div>
@@ -401,9 +400,22 @@ export default function CollectionsPage() {
                                             <option>Failed</option>
                                         </select>
                                     </div>
-                                    {(statusFilter !== 'All Status' || staffFilter !== 'All Staff') && (
+                                    <div>
+                                        <label className="text-xs font-bold text-slate-400 mb-2 block uppercase">Payment Mode</label>
+                                        <select
+                                            value={modeFilter}
+                                            onChange={(e) => { setModeFilter(e.target.value); setCurrentPage(1); }}
+                                            className="w-full px-3 py-2 text-sm font-bold border border-white/5 rounded-xl bg-[#0f172a] text-white outline-none focus:border-indigo-500/50 cursor-pointer"
+                                        >
+                                            <option>All Modes</option>
+                                            <option>Cash</option>
+                                            <option>UPI</option>
+                                            <option>Cheque</option>
+                                        </select>
+                                    </div>
+                                    {(statusFilter !== 'All Status' || staffFilter !== 'All Staff' || modeFilter !== 'All Modes') && (
                                         <button
-                                            onClick={() => { setStatusFilter('All Status'); setStaffFilter('All Staff'); }}
+                                            onClick={() => { setStatusFilter('All Status'); setStaffFilter('All Staff'); setModeFilter('All Modes'); }}
                                             className="w-full py-2 text-xs font-bold text-red-400 hover:bg-white/5 rounded-lg transition-colors"
                                         >
                                             Clear Filters
@@ -655,11 +667,28 @@ export default function CollectionsPage() {
                                         <span className="text-slate-400 font-medium text-sm">Collected By</span>
                                         <span className="text-indigo-300 font-bold">{selectedTransaction.staff}</span>
                                     </div>
+                                    {selectedTransaction.image && (
+                                        <div className="flex justify-between items-center border-b border-white/5 pb-2">
+                                            <span className="text-slate-400 font-medium text-sm flex items-center gap-2"><FileText size={14} /> Attachment</span>
+                                            <button
+                                                onClick={() => window.open(selectedTransaction.image, '_blank')}
+                                                className="text-indigo-400 hover:text-indigo-300 font-bold text-xs flex items-center gap-1"
+                                            >
+                                                View Image <ArrowUpRight size={12} />
+                                            </button>
+                                        </div>
+                                    )}
                                     <div className="flex flex-col gap-2 pt-2">
                                         <span className="text-slate-400 font-medium text-sm flex items-center gap-2"><FileText size={14} /> Remarks</span>
                                         <p className="text-slate-300 text-sm bg-[#0f172a] p-3 rounded-xl border border-white/5 leading-relaxed">
                                             {selectedTransaction.remarks || "No remarks added for this transaction."}
                                         </p>
+                                        {selectedTransaction.image && (
+                                            <div className="mt-2 rounded-xl overflow-hidden border border-white/10">
+                                                {/* Preview of the image */}
+                                                <img src={selectedTransaction.image} alt="Receipt Attachment" className="w-full h-32 object-cover opacity-80 hover:opacity-100 transition-opacity cursor-pointer" onClick={() => window.open(selectedTransaction.image, '_blank')} />
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
 
@@ -746,17 +775,17 @@ export default function CollectionsPage() {
                                         {/* Autocomplete Dropdown */}
                                         {showDropdown && (
                                             <div className="absolute top-full left-0 w-full mt-2 bg-[#1e293b] border border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden max-h-48 overflow-y-auto custom-scrollbar">
-                                                {mockCustomers.filter(c => c.toLowerCase().includes((newTransaction.customer || "").toLowerCase())).length > 0 ? (
-                                                    mockCustomers.filter(c => c.toLowerCase().includes((newTransaction.customer || "").toLowerCase())).map((c, i) => (
+                                                {customers.filter(c => c.name.toLowerCase().includes((newTransaction.customer || "").toLowerCase())).length > 0 ? (
+                                                    customers.filter(c => c.name.toLowerCase().includes((newTransaction.customer || "").toLowerCase())).map((c) => (
                                                         <div
-                                                            key={i}
+                                                            key={c.id}
                                                             onMouseDown={() => {
-                                                                setNewTransaction({ ...newTransaction, customer: c });
+                                                                setNewTransaction({ ...newTransaction, customer: c.name });
                                                                 setShowDropdown(false);
                                                             }}
                                                             className="px-5 py-3 hover:bg-white/5 cursor-pointer text-slate-300 hover:text-white font-bold transition-colors"
                                                         >
-                                                            {c}
+                                                            {c.name}
                                                         </div>
                                                     ))
                                                 ) : (
@@ -784,9 +813,10 @@ export default function CollectionsPage() {
                                     <div>
                                         <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Collected By</label>
                                         <select value={newTransaction.staff} onChange={(e) => setNewTransaction({ ...newTransaction, staff: e.target.value })} className="w-full bg-[#0f172a] border border-white/10 rounded-2xl px-5 py-4 text-white outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-bold text-lg cursor-pointer appearance-none">
-                                            <option value="Rahul Varma">Rahul Varma</option>
-                                            <option value="Amit Kumar">Amit Kumar</option>
                                             <option value="Admin">Admin (Self)</option>
+                                            {staffList.map(s => (
+                                                <option key={s.id} value={s.name}>{s.name}</option>
+                                            ))}
                                         </select>
                                     </div>
                                     <div className="md:col-span-2">

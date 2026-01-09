@@ -1,9 +1,12 @@
 "use client";
 
 import { UserPlus, Search, MoreVertical, Phone, X, Save, Edit, Trash2, Shield, Calendar, TrendingUp, LayoutGrid, List, CheckCircle, Clock } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCurrency } from "@/hooks/useCurrency";
+
+// ... imports
+import { db, Staff, Collection } from "@/services/db";
 
 export default function StaffPage() {
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -11,60 +14,108 @@ export default function StaffPage() {
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
     const [editingId, setEditingId] = useState<number | null>(null);
 
-    const [staffList, setStaffList] = useState([
-        { id: 1, name: "Rahul Varma", phone: "+91 98765 43210", status: "Active", collectedToday: 15400, role: "Senior Field Officer", joined: "Jan 2023" },
-        { id: 2, name: "Amit Kumar", phone: "+91 91234 56789", status: "Active", collectedToday: 8200, role: "Field Agent", joined: "Mar 2023" },
-        { id: 3, name: "Suresh Patel", phone: "+91 99887 77665", status: "On Leave", collectedToday: 0, role: "Collection Agent", joined: "Dec 2023" },
-        { id: 4, name: "Vikram Singh", phone: "+91 76543 21098", status: "Active", collectedToday: 12500, role: "Senior Field Officer", joined: "Feb 2023" },
-    ]);
+    const [staffList, setStaffList] = useState<Staff[]>([]);
+    const [collections, setCollections] = useState<Collection[]>([]);
 
-    const [formData, setFormData] = useState({ name: "", phone: "", role: "Field Agent", email: "", zone: "", address: "" });
+    useEffect(() => {
+        const loadData = () => {
+            setStaffList(db.getStaff());
+            setCollections(db.getCollections());
+        };
+        loadData();
 
+        const handleUpdate = () => loadData();
+        window.addEventListener('staff-updated', handleUpdate);
+        window.addEventListener('transaction-updated', handleUpdate); // Listen for sales too
+        return () => {
+            window.removeEventListener('staff-updated', handleUpdate);
+            window.removeEventListener('transaction-updated', handleUpdate);
+        };
+    }, []);
+
+    // Helper to calculate Today's Collection for a staff member (Minus Handovers)
+    const getCollectedToday = (staffName: string) => {
+        const today = new Date().toISOString().split('T')[0];
+
+        // 1. Sum up Collections (Cash + UPI) collected by this staff
+        const collected = collections
+            .filter(t => t.status === 'Paid' && t.date === today)
+            .filter(t => {
+                const txnStaffName = String(t.staff || '').replace(/\.$/, '').trim().toLowerCase();
+                const currentStaffName = String(staffName || '').trim().toLowerCase();
+                return txnStaffName === currentStaffName || txnStaffName.startsWith(currentStaffName) || currentStaffName.startsWith(txnStaffName);
+            })
+            .reduce((sum, t) => sum + (parseFloat(String(t.amount).replace(/,/g, '')) || 0), 0);
+
+        // 2. Subtract Handovers (Money given to Admin)
+        const handedOver = collections
+            .filter(t => t.status === 'Paid' && t.date === today && t.customer.startsWith('HANDOVER: '))
+            .filter(t => {
+                const handoverName = t.customer.replace('HANDOVER: ', '').trim().toLowerCase();
+                const currentStaffName = String(staffName || '').trim().toLowerCase();
+                return handoverName === currentStaffName || handoverName.startsWith(currentStaffName);
+            })
+            .reduce((sum, t) => sum + (parseFloat(String(t.amount).replace(/,/g, '')) || 0), 0);
+
+        return Math.max(0, collected - handedOver);
+    };
+
+    const [formData, setFormData] = useState({ name: "", phone: "", role: "Field Agent", email: "", zone: "", address: "", pin: "0000", employeeId: "" });
     // Filter Logic
     const filteredStaff = staffList.filter(staff =>
-        staff.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        staff.phone.includes(searchQuery)
+        String(staff.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        String(staff.phone || '').includes(searchQuery) ||
+        String(staff.employeeId || "").toLowerCase().includes(searchQuery.toLowerCase())
     );
+
+    // Pagination
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = db.getRowsPerPage();
+
+    // Reset page on search
+    useEffect(() => { setCurrentPage(1); }, [searchQuery]);
 
     const handleSaveStaff = () => {
         if (!formData.name || !formData.phone) return;
 
-        if (editingId) {
-            // Edit Mode
-            setStaffList(prev => prev.map(staff =>
-                staff.id === editingId ? { ...staff, ...formData } : staff
-            ));
-        } else {
-            // Add Mode
-            setStaffList(prev => [...prev, {
-                id: Date.now(),
-                name: formData.name,
-                phone: formData.phone,
-                role: formData.role,
-                status: "Active",
-                collectedToday: 0,
-                joined: new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
-            }]);
-        }
+        const newStaffMember: Staff = {
+            id: editingId || Date.now(),
+            name: formData.name,
+            phone: formData.phone,
+            role: formData.role,
+            status: "Active",
+            collectedToday: 0, // No longer used for display, can be ignored or removed
+            joined: editingId ? (staffList.find(s => s.id === editingId)?.joined || "") : new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+            email: formData.email,
+            zone: formData.zone,
+            address: formData.address,
+            pin: formData.pin || "0000",
+            employeeId: formData.employeeId
+        };
 
+        const updatedList = db.saveStaff(newStaffMember);
+        setStaffList(updatedList);
         closeModal();
     };
 
     const handleDelete = (id: number) => {
         if (confirm("Are you sure you want to remove this staff member?")) {
-            setStaffList(prev => prev.filter(s => s.id !== id));
+            const updatedList = db.deleteStaff(id);
+            setStaffList(updatedList);
         }
     };
 
-    const openEditModal = (staff: any) => {
+    const openEditModal = (staff: Staff) => {
         setEditingId(staff.id);
         setFormData({
             name: staff.name,
             phone: staff.phone,
             role: staff.role,
-            email: "staff@example.com", // Placeholder
-            zone: "North Zone",        // Placeholder
-            address: "123, Main Street, City" // Placeholder
+            email: staff.email || "",
+            zone: staff.zone || "",
+            address: staff.address || "",
+            pin: staff.pin || "0000",
+            employeeId: staff.employeeId || ""
         });
         setIsModalOpen(true);
     };
@@ -72,10 +123,13 @@ export default function StaffPage() {
     const closeModal = () => {
         setIsModalOpen(false);
         setEditingId(null);
-        setFormData({ name: "", phone: "", role: "Field Agent", email: "", zone: "", address: "" });
+        setFormData({ name: "", phone: "", role: "Field Agent", email: "", zone: "", address: "", pin: "0000", employeeId: "" });
     };
 
     const { formatCurrency } = useCurrency();
+
+    // Stats Logic using Dynamic Transactions
+    const totalDailyCollection = filteredStaff.reduce((sum, s) => sum + getCollectedToday(s.name), 0);
 
     return (
         <div className="max-w-[1600px] mx-auto space-y-8 relative pb-20">
@@ -128,7 +182,7 @@ export default function StaffPage() {
                     <div className="absolute top-4 right-4 opacity-10 group-hover:scale-110 transition-transform"><TrendingUp size={64} /></div>
                     <p className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">Total Collections Today</p>
                     <h3 className="text-3xl font-extrabold text-indigo-400">
-                        {formatCurrency(staffList.reduce((sum, s) => sum + s.collectedToday, 0))}
+                        {formatCurrency(totalDailyCollection)}
                     </h3>
                 </div>
             </div>
@@ -155,14 +209,24 @@ export default function StaffPage() {
                         initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
                         className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
                     >
-                        {filteredStaff.map((staff) => (
-                            <StaffCard
-                                key={staff.id}
-                                staff={staff}
-                                onEdit={() => openEditModal(staff)}
-                                onDelete={() => handleDelete(staff.id)}
-                            />
-                        ))}
+                        {/* Staff Grid */}
+                        <AnimatePresence>
+                            {filteredStaff.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((staff) => (
+                                <motion.div
+                                    layout
+                                    initial={{ opacity: 0, scale: 0.9 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    exit={{ opacity: 0, scale: 0.9 }}
+                                    key={staff.id}
+                                >
+                                    <StaffCard
+                                        staff={{ ...staff, collectedToday: getCollectedToday(staff.name) }}
+                                        onEdit={() => openEditModal(staff)}
+                                        onDelete={() => handleDelete(staff.id)}
+                                    />
+                                </motion.div>
+                            ))}
+                        </AnimatePresence>
                     </motion.div>
                 ) : (
                     <motion.div
@@ -188,7 +252,7 @@ export default function StaffPage() {
                                             <td className="px-8 py-5">
                                                 <div className="flex items-center gap-4">
                                                     <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-indigo-600 to-purple-700 flex items-center justify-center text-white text-lg font-bold shadow-lg shadow-indigo-500/20 shrink-0">
-                                                        {staff.name.split(' ').map((n) => n[0]).join('')}
+                                                        {String(staff.name || 'Unknown').split(' ').map((n) => n[0]).join('')}
                                                     </div>
                                                     <div>
                                                         <div className="font-bold text-lg text-white">{staff.name}</div>
@@ -202,13 +266,21 @@ export default function StaffPage() {
                                                 </div>
                                             </td>
                                             <td className="px-6 py-5">
-                                                <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${staff.status === 'Active' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border-amber-500/20'}`}>
-                                                    <span className={`w-1.5 h-1.5 rounded-full ${staff.status === 'Active' ? 'bg-emerald-500' : 'bg-amber-500'}`}></span>
-                                                    {staff.status}
-                                                </span>
+                                                {(() => {
+                                                    const isOnline = staff.lastSeen && (Date.now() - staff.lastSeen) < 120000; // 2 mins
+                                                    const statusLabel = staff.status === 'Inactive' ? 'Inactive' : (isOnline ? 'Online' : 'Offline');
+                                                    const statusColor = staff.status === 'Inactive' ? 'bg-rose-500/10 text-rose-500 border-rose-500/20' : (isOnline ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-slate-700/50 text-slate-400 border-slate-600/20');
+
+                                                    return (
+                                                        <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${statusColor}`}>
+                                                            <span className={`w-1.5 h-1.5 rounded-full ${statusLabel === 'Online' ? 'bg-emerald-500 animate-pulse' : (statusLabel === 'Inactive' ? 'bg-rose-500' : 'bg-slate-500')}`}></span>
+                                                            {statusLabel}
+                                                        </span>
+                                                    );
+                                                })()}
                                             </td>
                                             <td className="px-6 py-5 text-right">
-                                                <div className="font-mono font-bold text-indigo-300 text-lg">{formatCurrency(staff.collectedToday)}</div>
+                                                <div className="font-mono font-bold text-indigo-300 text-lg">{formatCurrency(getCollectedToday(staff.name))}</div>
                                             </td>
                                             <td className="px-6 py-5 text-slate-400 text-sm font-medium">
                                                 {staff.joined}
@@ -237,8 +309,6 @@ export default function StaffPage() {
                 )}
             </AnimatePresence>
 
-            {/* Add/Edit Staff Modal - Kept Original */}
-
             {/* Add/Edit Staff Modal */}
             <AnimatePresence>
                 {isModalOpen && (
@@ -264,6 +334,18 @@ export default function StaffPage() {
                             </div>
                             <div className="p-8 space-y-4 max-h-[70vh] overflow-y-auto custom-scrollbar">
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {/* Employee ID - NEW FIELD */}
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Employee ID</label>
+                                        <input
+                                            type="text"
+                                            value={formData.employeeId}
+                                            onChange={(e) => setFormData({ ...formData, employeeId: e.target.value })}
+                                            placeholder="e.g. EMP-001"
+                                            className="w-full bg-[#0f172a] border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-mono font-bold placeholder:text-slate-600"
+                                        />
+                                    </div>
+
                                     <div>
                                         <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Full Name</label>
                                         <input
@@ -314,6 +396,7 @@ export default function StaffPage() {
                                             <option>Field Agent</option>
                                             <option>Senior Field Officer</option>
                                             <option>Collection Agent</option>
+                                            <option>Account</option>
                                             <option>Manager</option>
                                         </select>
                                     </div>
@@ -322,6 +405,19 @@ export default function StaffPage() {
                                         <input
                                             type="date"
                                             className="w-full bg-[#0f172a] border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-medium placeholder:text-slate-600 cursor-pointer"
+                                        />
+                                    </div>
+                                    <div className="md:col-span-2">
+                                        <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Security PIN (4 Digits)</label>
+                                        <input
+                                            type="text"
+                                            value={formData.pin}
+                                            onChange={(e) => {
+                                                const val = e.target.value.replace(/\D/g, '').slice(0, 4);
+                                                setFormData({ ...formData, pin: val });
+                                            }}
+                                            placeholder="Enter 4-digit PIN"
+                                            className="w-full bg-[#0f172a] border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-mono font-bold tracking-widest text-center placeholder:text-slate-600"
                                         />
                                     </div>
                                     <div className="md:col-span-2">
@@ -348,7 +444,6 @@ export default function StaffPage() {
                     </div>
                 )}
             </AnimatePresence>
-
         </div>
     );
 }
@@ -400,7 +495,7 @@ function StaffCard({ staff, onEdit, onDelete }: any) {
 
             <div className="flex items-center gap-5 mb-6">
                 <div className="h-20 w-20 rounded-[1.2rem] bg-gradient-to-br from-indigo-600 to-purple-700 flex items-center justify-center text-white text-3xl font-bold shadow-lg shadow-indigo-500/20 group-hover:scale-105 transition-transform duration-300">
-                    {staff.name.split(' ').map((n: string) => n[0]).join('')}
+                    {String(staff.name || 'Unknown').split(' ').map((n: string) => n[0]).join('')}
                 </div>
                 <div>
                     <h3 className="font-bold text-xl text-white group-hover:text-indigo-300 transition-colors">{staff.name}</h3>
@@ -418,9 +513,18 @@ function StaffCard({ staff, onEdit, onDelete }: any) {
             <div className="flex items-center justify-between pt-6 border-t border-white/5">
                 <div>
                     <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-1">STATUS</p>
-                    <span className={`inline-flex px-3 py-1 rounded-full text-xs font-bold border ${staff.status === 'Active' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-slate-700/50 text-slate-400 border-slate-600/20'}`}>
-                        {staff.status}
-                    </span>
+                    {(() => {
+                        const isOnline = staff.lastSeen && (Date.now() - staff.lastSeen) < 120000; // 2 mins
+                        const statusLabel = staff.status === 'Inactive' ? 'Inactive' : (isOnline ? 'Online' : 'Offline');
+                        const statusColor = staff.status === 'Inactive' ? 'bg-rose-500/10 text-rose-500 border-rose-500/20' : (isOnline ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-slate-700/50 text-slate-400 border-slate-600/20');
+
+                        return (
+                            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${statusColor}`}>
+                                <span className={`w-1.5 h-1.5 rounded-full ${statusLabel === 'Online' ? 'bg-emerald-500 animate-pulse' : (statusLabel === 'Inactive' ? 'bg-rose-500' : 'bg-slate-500')}`}></span>
+                                {statusLabel}
+                            </span>
+                        );
+                    })()}
                 </div>
                 <div className="text-right">
                     <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-1 flex items-center justify-end gap-1"><TrendingUp size={12} /> COLLECTED TODAY</p>

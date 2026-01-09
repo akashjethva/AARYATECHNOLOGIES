@@ -44,7 +44,7 @@ export default function GoalTracker({ currentRevenue = 0 }: GoalTrackerProps) {
     const remaining = currentGoal ? Math.max(currentGoal.target - currentGoal.current, 0) : 0;
 
     const handleTargetUpdate = () => {
-        const targetValue = parseFloat(newTarget.replace(/,/g, ''));
+        const targetValue = parseFloat(String(newTarget).replace(/,/g, ''));
         if (!isNaN(targetValue) && targetValue > 0) {
             const updated = {
                 ...goals,

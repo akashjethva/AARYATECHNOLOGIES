@@ -15,6 +15,7 @@ interface Transaction {
     status: "Verified" | "Pending" | "Failed";
     date?: string;
     remarks?: string;
+    isExpense?: boolean;
 }
 
 interface TransactionProps extends Transaction {
@@ -94,8 +95,8 @@ export function EnhancedTransactionItem({ id, time, customer, amount, staff, mod
 
                 {/* Amount & Mode */}
                 <div className="text-right mr-4">
-                    <h4 className="font-bold text-white text-xl tracking-tight mb-1">
-                        {formatCurrency(parseFloat(amount.replace(/,/g, '') || '0'))}
+                    <h4 className={`font-bold text-xl tracking-tight mb-1 ${String(amount).startsWith('-') ? 'text-rose-400' : 'text-emerald-400'}`}>
+                        {formatCurrency(parseFloat(String(amount).replace(/,/g, '') || '0'))}
                     </h4>
                     <div className="flex items-center justify-end gap-2">
                         <span className={`text-[10px] font-bold uppercase px-2 py-1 rounded-lg border ${mode === 'Cash' ? 'text-green-400 bg-green-500/10 border-green-500/20' :
@@ -130,7 +131,8 @@ export function EnhancedTransactionItem({ id, time, customer, amount, staff, mod
                             >
                                 <button
                                     onClick={() => { onVerify?.(id); setIsActionMenuOpen(false); }}
-                                    className={`w-full text-left px-4 py-3 rounded-xl text-sm font-bold transition-colors flex items-center gap-3 ${status === 'Verified' ? 'text-amber-400 hover:bg-amber-500/10' : 'text-emerald-400 hover:bg-emerald-500/10'}`}
+                                    className={`w-full text-left px-4 py-3 rounded-xl text-sm font-bold transition-colors flex items-center gap-3 ${status === 'Verified' ? 'text-amber-400 hover:bg-amber-500/10' : 'text-emerald-400 hover:bg-emerald-500/10'} ${String(id).startsWith('EXP-') ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                    disabled={String(id).startsWith('EXP-')}
                                 >
                                     {status === 'Verified' ? <AlertCircle size={16} /> : <Check size={16} />}
                                     {status === 'Verified' ? 'Mark as Pending' : 'Mark as Verified'}
@@ -182,6 +184,6 @@ export function EnhancedTransactionItem({ id, time, customer, amount, staff, mod
                     </motion.div>
                 )}
             </AnimatePresence>
-        </motion.div>
+        </motion.div >
     );
 }

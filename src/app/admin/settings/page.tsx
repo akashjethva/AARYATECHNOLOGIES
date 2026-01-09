@@ -3,17 +3,37 @@
 import {
     Save, Building2, Bell, Shield, Database, Mail, Globe, Lock, Upload,
     CheckCircle, X, AlertCircle, Info, LayoutGrid, Users, MapPin, CreditCard,
-    LayoutDashboard, Plus, Trash2, FileText, ShieldCheck, LogOut, Phone
+    LayoutDashboard, Plus, Trash2, FileText, ShieldCheck, LogOut, Phone, User, Smartphone, Key, CalendarClock, ScanFace
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react"; // Added useRef
 import { motion, AnimatePresence } from "framer-motion";
+import { db } from "@/services/db";
+import { useCurrency } from "@/hooks/useCurrency";
+
+// Helper for Image Upload
+const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, callback: (base64: string) => void) => {
+    const file = e.target.files?.[0];
+    if (file) {
+        if (file.size > 1024 * 1024) { // 1MB Limit
+            alert("File size too large. Max 1MB allowed.");
+            return;
+        }
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            callback(reader.result as string);
+        };
+        reader.readAsDataURL(file);
+    }
+};
 
 export default function SettingsPage() {
     const [activeTab, setActiveTab] = useState('general');
 
     const tabs = [
         { id: 'general', label: 'General', icon: LayoutDashboard },
+        { id: 'admin', label: 'Admin Profile', icon: User },
         { id: 'company', label: 'Company Profile', icon: Building2 },
+        { id: 'mobile', label: 'Mobile App Controls', icon: Smartphone },
         { id: 'zones', label: 'Zones & Areas', icon: MapPin },
         { id: 'notifications', label: 'Notifications', icon: Bell },
         { id: 'security', label: 'Security', icon: Shield },
@@ -65,7 +85,9 @@ export default function SettingsPage() {
                     >
 
                         {activeTab === 'general' && <GeneralSettings />}
+                        {activeTab === 'admin' && <AdminProfileSettings />}
                         {activeTab === 'company' && <CompanySettings />}
+                        {activeTab === 'mobile' && <MobileAppControls />}
                         {activeTab === 'zones' && <ZoneSettings />}
                         {activeTab === 'notifications' && <NotificationSettings />}
                         {activeTab === 'security' && <SecuritySettings />}
@@ -101,8 +123,8 @@ function GeneralSettings() {
     }, [toast.show]);
 
     useEffect(() => {
-        const saved = localStorage.getItem('admin_general_settings');
-        if (saved) setSettings(JSON.parse(saved));
+        const saved = db.getAppSettings();
+        setSettings(prev => ({ ...prev, ...saved }));
     }, []);
 
     const handleChange = (field: string, value: string) => {
@@ -112,9 +134,9 @@ function GeneralSettings() {
     const handleSave = () => {
         setLoading(true);
         setTimeout(() => {
-            localStorage.setItem('admin_general_settings', JSON.stringify(settings));
-            // Dispatch event for instant update across app
-            window.dispatchEvent(new Event('currency-change'));
+            db.saveAppSettings(settings);
+            // specific events are already dispatched by db.saveAppSettings
+            window.dispatchEvent(new Event('currency-change')); // keep for currency specific listeners if any
             setToast({ show: true, message: 'General Settings Saved Successfully!', type: 'success' });
             setLoading(false);
         }, 800);
@@ -168,14 +190,12 @@ function GeneralSettings() {
     );
 }
 
-function CompanySettings() {
-    const [company, setCompany] = useState({
-        name: 'Akashohk1',
-        gst: '24ABCDE1234F1Z5',
+function AdminProfileSettings() {
+    const [profile, setProfile] = useState({
+        name: 'Jayesh Bhai',
+        role: 'Administrator',
         email: 'admin@aaryatech.com',
-        mobile: '+91 98765 43210',
-        website: 'www.aaryatech.com',
-        address: '405, Silicon Valley, Near Shivranjani Cross Roads, Satellite, Ahmedabad - 380015'
+        avatar: ''
     });
     const [loading, setLoading] = useState(false);
     const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
@@ -188,8 +208,104 @@ function CompanySettings() {
     }, [toast.show]);
 
     useEffect(() => {
-        const saved = localStorage.getItem('admin_company_settings');
-        if (saved) setCompany(JSON.parse(saved));
+        const saved = db.getAdminProfile();
+        setProfile(saved);
+    }, []);
+
+    const handleChange = (field: string, value: string) => {
+        setProfile(prev => ({ ...prev, [field]: value }));
+    };
+
+    const handleSave = () => {
+        if (!profile.name) {
+            setToast({ show: true, message: 'Name is required.', type: 'error' });
+            return;
+        }
+        setLoading(true);
+        setTimeout(() => {
+            db.saveAdminProfile(profile);
+            setToast({ show: true, message: 'Admin Profile Updated!', type: 'success' });
+            setLoading(false);
+        }, 800);
+    };
+
+    return (
+        <div className="space-y-8">
+            <div>
+                <h3 className="text-2xl font-bold text-white mb-2">Admin Profile</h3>
+                <p className="text-slate-400">Manage your administrator account details.</p>
+            </div>
+
+            <div className="flex items-center gap-6 p-6 bg-[#0f172a]/50 rounded-2xl border border-white/5">
+                <div className="h-24 w-24 rounded-2xl bg-gradient-to-tr from-indigo-500 to-purple-600 p-[2px] shadow-lg relative overflow-hidden group cursor-pointer">
+                    <div className="h-full w-full bg-[#0f172a] rounded-[14px] flex items-center justify-center relative overflow-hidden">
+                        <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="User" className="h-full w-full object-cover" />
+                        <div className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Upload size={24} className="text-white" />
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <h4 className="text-white font-bold text-lg">{profile.name}</h4>
+                    <p className="text-slate-400 text-sm mt-1">{profile.role}</p>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <InputGroup label="Full Name" value={profile.name} onChange={(e: any) => handleChange('name', e.target.value)} icon={<User size={16} />} />
+                <InputGroup label="Role / Designation" value={profile.role} onChange={(e: any) => handleChange('role', e.target.value)} icon={<ShieldCheck size={16} />} />
+                <InputGroup label="Email ID" value={profile.email} onChange={(e: any) => handleChange('email', e.target.value)} icon={<Mail size={16} />} />
+            </div>
+
+            <div className="pt-8 border-t border-white/5 flex justify-end">
+                <SaveChangesButton onClick={handleSave} loading={loading} />
+            </div>
+
+            <AnimatePresence>
+                {toast.show && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 20, scale: 0.95 }}
+                        className="fixed bottom-10 right-10 z-[100] bg-[#1e293b] border border-white/10 shadow-2xl rounded-2xl p-4 flex items-center gap-4 min-w-[320px]"
+                    >
+                        <div className={`h-10 w-10 rounded-xl flex items-center justify-center shrink-0 ${toast.type === 'success' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
+                            {toast.type === 'success' ? <CheckCircle size={20} /> : <AlertCircle size={20} />}
+                        </div>
+                        <div>
+                            <h4 className="font-bold text-white text-sm">{toast.type === 'success' ? 'Success' : 'Error'}</h4>
+                            <p className="text-slate-400 text-xs mt-0.5">{toast.message}</p>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </div>
+    );
+}
+
+function CompanySettings() {
+    const [company, setCompany] = useState({
+        name: 'Akashohk1',
+        gst: '24ABCDE1234F1Z5',
+        email: 'admin@aaryatech.com',
+        mobile: '+91 98765 43210',
+        website: 'www.aaryatech.com',
+        address: '405, Silicon Valley, Near Shivranjani Cross Roads, Satellite, Ahmedabad - 380015',
+        logo: ''
+    });
+    const [loading, setLoading] = useState(false);
+    const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+
+    useEffect(() => {
+        if (toast.show) {
+            const timer = setTimeout(() => setToast(prev => ({ ...prev, show: false })), 3000);
+            return () => clearTimeout(timer);
+        }
+    }, [toast.show]);
+
+    useEffect(() => {
+        const saved = db.getCompanyDetails();
+        setCompany(saved);
     }, []);
 
     const handleChange = (field: string, value: string) => {
@@ -199,7 +315,7 @@ function CompanySettings() {
     const handleSave = () => {
         setLoading(true);
         setTimeout(() => {
-            localStorage.setItem('admin_company_settings', JSON.stringify(company));
+            db.saveCompanyDetails(company);
             setToast({ show: true, message: 'Company Profile Saved Successfully!', type: 'success' });
             setLoading(false);
         }, 800);
@@ -213,11 +329,27 @@ function CompanySettings() {
             </div>
 
             <div className="flex items-center gap-6 p-6 bg-[#0f172a]/50 rounded-2xl border border-white/5">
-                <div className="h-24 w-24 rounded-full bg-white/10 flex items-center justify-center border-2 border-dashed border-slate-600 relative overflow-hidden group cursor-pointer">
-                    <Upload size={24} className="text-slate-400 group-hover:text-white transition-colors" />
-                    <div className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                        <span className="text-xs font-bold text-white">Upload</span>
-                    </div>
+                <div className="relative group">
+                    <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        id="company-logo-upload"
+                        onChange={(e) => handleImageUpload(e, (base64) => handleChange('logo', base64))}
+                    />
+                    <label
+                        htmlFor="company-logo-upload"
+                        className="h-24 w-24 rounded-full bg-white/10 flex items-center justify-center border-2 border-dashed border-slate-600 relative overflow-hidden group cursor-pointer block"
+                    >
+                        {company.logo ? (
+                            <img src={company.logo} alt="Logo" className="h-full w-full object-cover rounded-full" />
+                        ) : (
+                            <Upload size={24} className="text-slate-400 group-hover:text-white transition-colors" />
+                        )}
+                        <div className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                            <span className="text-xs font-bold text-white">Upload</span>
+                        </div>
+                    </label>
                 </div>
                 <div>
                     <h4 className="text-white font-bold text-lg">Company Logo</h4>
@@ -272,14 +404,11 @@ function CompanySettings() {
 }
 
 function ZoneSettings() {
-    const [zones, setZones] = useState([
-        { id: 1, name: 'Ahmedabad (East)', active_staff: 12, collections: '₹ 2.5L' },
-        { id: 2, name: 'Surat Market', active_staff: 8, collections: '₹ 1.8L' },
-        { id: 3, name: 'Vadodara Central', active_staff: 5, collections: '₹ 1.2L' },
-        { id: 4, name: 'Rajkot Hub', active_staff: 4, collections: '₹ 85k' },
-    ]);
+    const [zones, setZones] = useState<any[]>([]);
+    const [stats, setStats] = useState<any>({});
     const [newZone, setNewZone] = useState('');
     const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+    const { formatCurrency } = useCurrency();
 
     useEffect(() => {
         if (toast.show) {
@@ -288,26 +417,64 @@ function ZoneSettings() {
         }
     }, [toast.show]);
 
+    // Load Data
     useEffect(() => {
-        const saved = localStorage.getItem('admin_zones');
-        if (saved) setZones(JSON.parse(saved));
-    }, []);
+        const loadData = () => {
+            const z = db.getZones();
+            setZones(z);
 
-    const saveZones = (updatedZones: any[]) => {
-        setZones(updatedZones);
-        localStorage.setItem('admin_zones', JSON.stringify(updatedZones));
-    };
+            // Calculate Dynamic Stats per Zone
+            const staff = db.getStaff();
+            const txns = db.getCollections();
+            const zoneStats: any = {};
+
+            z.forEach((zone: any) => {
+                // Active Staff in this Zone (assuming staff have a 'zone' field, or we check if their transactions are here?)
+                // For now, let's map Staff by their 'zone' field if it exists.
+                // Note: Staff interface needs 'zone' field populated in DB.
+                const activeStaffCount = staff.filter((s: any) => s.status === 'Active' && s.zone === zone.name).length;
+
+                // Revenue from this Zone (based on Customer City matching Zone Name)
+                // This aligns with Reports logic
+                const zoneRevenue = txns
+                    .filter((t: any) => {
+                        // Find customer for this txn
+                        const customer = db.getCustomers().find((c: any) => c.name === t.customer);
+                        return t.status === 'Paid' && customer?.city === zone.name;
+                    })
+                    .reduce((sum: number, t: any) => sum + (parseFloat(t.amount.replace(/,/g, '')) || 0), 0);
+
+                zoneStats[zone.id] = { active_staff: activeStaffCount, collections: formatCurrency(zoneRevenue) };
+            });
+            setStats(zoneStats);
+        };
+
+        loadData();
+        window.addEventListener('zone-updated', loadData);
+        window.addEventListener('transaction-updated', loadData); // Re-calc revenue
+        window.addEventListener('staff-updated', loadData); // Re-calc staff
+        return () => {
+            window.removeEventListener('zone-updated', loadData);
+            window.removeEventListener('transaction-updated', loadData);
+            window.removeEventListener('staff-updated', loadData);
+        };
+    }, [formatCurrency]);
 
     const handleAddZone = () => {
         if (!newZone.trim()) return;
-        const updated = [...zones, { id: Date.now(), name: newZone, active_staff: 0, collections: '₹ 0' }];
-        saveZones(updated);
+        // Check duplicate
+        if (zones.some(z => z.name.toLowerCase() === newZone.toLowerCase())) {
+            setToast({ show: true, message: 'Zone already exists!', type: 'error' });
+            return;
+        }
+
+        db.saveZone({ id: Date.now(), name: newZone });
         setNewZone('');
         setToast({ show: true, message: 'New Zone Added Successfully!', type: 'success' });
     };
 
     const handleDeleteZone = (id: number) => {
-        saveZones(zones.filter(z => z.id !== id));
+        db.deleteZone(id);
         setToast({ show: true, message: 'Zone Deleted Successfully!', type: 'success' });
     };
 
@@ -349,7 +516,7 @@ function ZoneSettings() {
                             </div>
                             <div>
                                 <h4 className="text-lg font-bold text-white">{zone.name}</h4>
-                                <p className="text-slate-400 text-xs font-bold mt-0.5">{zone.active_staff} Staff Active • {zone.collections} Revenue</p>
+                                <p className="text-slate-400 text-xs font-bold mt-0.5">{stats[zone.id]?.active_staff || 0} Staff Active • {stats[zone.id]?.collections || formatCurrency(0)} Revenue</p>
                             </div>
                         </div>
                         <button
@@ -394,6 +561,140 @@ function ZoneSettings() {
     );
 }
 
+function MobileAppControls() {
+    const [perms, setPerms] = useState({
+        requireGPS: false,
+        allowBackdated: true,
+        showCustomerContact: true,
+        allowShareReceipt: true,
+        enforceBiometric: false
+    });
+    const [loading, setLoading] = useState(false);
+    const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+
+    useEffect(() => {
+        if (toast.show) {
+            const timer = setTimeout(() => setToast(prev => ({ ...prev, show: false })), 3000);
+            return () => clearTimeout(timer);
+        }
+    }, [toast.show]);
+
+    useEffect(() => {
+        const saved = db.getMobilePermissions();
+        setPerms(saved);
+    }, []);
+
+    const handleToggle = (key: string) => {
+        setPerms(prev => ({ ...prev, [key]: !prev[key as keyof typeof prev] }));
+    };
+
+    const handleSave = () => {
+        setLoading(true);
+        setTimeout(() => {
+            db.saveMobilePermissions(perms);
+            setToast({ show: true, message: 'Mobile Permissions Updated!', type: 'success' });
+            setLoading(false);
+        }, 800);
+    };
+
+    return (
+        <div className="space-y-8">
+            <div>
+                <h3 className="text-2xl font-bold text-white mb-2">Mobile App Controls</h3>
+                <p className="text-slate-400">Configure permissions and features for the Staff Mobile App.</p>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4">
+                <div className="bg-[#0f172a] p-6 rounded-2xl border border-white/5 flex items-center justify-between group hover:border-indigo-500/30 transition-all">
+                    <div className="flex items-center gap-4">
+                        <div className={`h-12 w-12 rounded-xl flex items-center justify-center transition-colors ${perms.requireGPS ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/20' : 'bg-white/5 text-slate-500'}`}>
+                            <MapPin size={24} />
+                        </div>
+                        <div>
+                            <h4 className="text-lg font-bold text-white text-left">Require GPS Location</h4>
+                            <p className="text-slate-400 text-sm">Force staff to enable GPS before making an entry.</p>
+                        </div>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" className="sr-only peer" checked={perms.requireGPS} onChange={() => handleToggle('requireGPS')} />
+                        <div className="w-14 h-7 bg-slate-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-indigo-600"></div>
+                    </label>
+                </div>
+
+                <div className="bg-[#0f172a] p-6 rounded-2xl border border-white/5 flex items-center justify-between group hover:border-indigo-500/30 transition-all">
+                    <div className="flex items-center gap-4">
+                        <div className={`h-12 w-12 rounded-xl flex items-center justify-center transition-colors ${perms.allowBackdated ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/20' : 'bg-white/5 text-slate-500'}`}>
+                            <CalendarClock size={24} />
+                        </div>
+                        <div>
+                            <h4 className="text-lg font-bold text-white text-left">Allow Backdated Entries</h4>
+                            <p className="text-slate-400 text-sm">Allow staff to select past dates for transactions.</p>
+                        </div>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" className="sr-only peer" checked={perms.allowBackdated} onChange={() => handleToggle('allowBackdated')} />
+                        <div className="w-14 h-7 bg-slate-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-indigo-600"></div>
+                    </label>
+                </div>
+
+                <div className="bg-[#0f172a] p-6 rounded-2xl border border-white/5 flex items-center justify-between group hover:border-indigo-500/30 transition-all">
+                    <div className="flex items-center gap-4">
+                        <div className={`h-12 w-12 rounded-xl flex items-center justify-center transition-colors ${perms.showCustomerContact ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/20' : 'bg-white/5 text-slate-500'}`}>
+                            <Phone size={24} />
+                        </div>
+                        <div>
+                            <h4 className="text-lg font-bold text-white text-left">Show Customer Contact Info</h4>
+                            <p className="text-slate-400 text-sm">Allow staff to see full phone numbers of customers.</p>
+                        </div>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" className="sr-only peer" checked={perms.showCustomerContact} onChange={() => handleToggle('showCustomerContact')} />
+                        <div className="w-14 h-7 bg-slate-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-indigo-600"></div>
+                    </label>
+                </div>
+
+                <div className="bg-[#0f172a] p-6 rounded-2xl border border-white/5 flex items-center justify-between group hover:border-indigo-500/30 transition-all">
+                    <div className="flex items-center gap-4">
+                        <div className={`h-12 w-12 rounded-xl flex items-center justify-center transition-colors ${perms.enforceBiometric ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/20' : 'bg-white/5 text-slate-500'}`}>
+                            <ScanFace size={24} />
+                        </div>
+                        <div>
+                            <h4 className="text-lg font-bold text-white text-left">Enforce Biometric Security</h4>
+                            <p className="text-slate-400 text-sm">Require FaceID/Fingerprint to open the app.</p>
+                        </div>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" className="sr-only peer" checked={perms.enforceBiometric} onChange={() => handleToggle('enforceBiometric')} />
+                        <div className="w-14 h-7 bg-slate-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-indigo-600"></div>
+                    </label>
+                </div>
+            </div>
+
+            <div className="pt-8 border-t border-white/5 flex justify-end">
+                <SaveChangesButton onClick={handleSave} loading={loading} />
+            </div>
+
+            <AnimatePresence>
+                {toast.show && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 20, scale: 0.95 }}
+                        className="fixed bottom-10 right-10 z-[100] bg-[#1e293b] border border-white/10 shadow-2xl rounded-2xl p-4 flex items-center gap-4 min-w-[320px]"
+                    >
+                        <div className={`h-10 w-10 rounded-xl flex items-center justify-center shrink-0 ${toast.type === 'success' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
+                            {toast.type === 'success' ? <CheckCircle size={20} /> : <AlertCircle size={20} />}
+                        </div>
+                        <div>
+                            <h4 className="font-bold text-white text-sm">{toast.type === 'success' ? 'Success' : 'Error'}</h4>
+                            <p className="text-slate-400 text-xs mt-0.5">{toast.message}</p>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </div>
+    );
+}
 
 function NotificationSettings() {
     const [notifs, setNotifs] = useState({
@@ -414,8 +715,8 @@ function NotificationSettings() {
     }, [toast.show]);
 
     useEffect(() => {
-        const saved = localStorage.getItem('admin_notification_settings');
-        if (saved) setNotifs(JSON.parse(saved));
+        const saved = db.getNotificationSettings();
+        setNotifs(saved);
     }, []);
 
     const handleToggle = (key: string) => {
@@ -425,7 +726,7 @@ function NotificationSettings() {
     const handleSave = () => {
         setLoading(true);
         setTimeout(() => {
-            localStorage.setItem('admin_notification_settings', JSON.stringify(notifs));
+            db.saveNotificationSettings(notifs);
             setToast({ show: true, message: 'Notification Preferences Saved!', type: 'success' });
             setLoading(false);
         }, 800);
@@ -534,21 +835,51 @@ function SecuritySettings() {
         }
     }, [toast.show]);
 
+    const [currentPin, setCurrentPin] = useState('');
+    const [newPin, setNewPin] = useState('');
+    const [confirmPin, setConfirmPin] = useState('');
+
     useEffect(() => {
-        const saved = localStorage.getItem('admin_security_settings');
-        if (saved) setSecurity(JSON.parse(saved));
+        const saved = db.getAdminSecurity();
+        setSecurity(saved);
     }, []);
 
     const handleToggle = (key: string) => {
         const updated = { ...security, [key]: !security[key as keyof typeof security] };
         setSecurity(updated);
-        localStorage.setItem('admin_security_settings', JSON.stringify(updated));
+        db.saveAdminSecurity(updated);
         setToast({ show: true, message: `${key === 'twoFactor' ? '2FA' : 'Force Logout'} setting updated!`, type: 'success' });
     };
 
     const handlePasswordUpdate = () => {
+        if (!currentPin || !newPin || !confirmPin) {
+            setToast({ show: true, message: 'All fields are required', type: 'error' });
+            return;
+        }
+
+        if (newPin !== confirmPin) {
+            setToast({ show: true, message: 'New passwords do not match', type: 'error' });
+            return;
+        }
+
+        if (newPin.length !== 4) {
+            setToast({ show: true, message: 'PIN must be exactly 4 digits', type: 'error' });
+            return;
+        }
+
+        if (!db.verifyAdminPin(currentPin)) {
+            setToast({ show: true, message: 'Incorrect Current Password', type: 'error' });
+            return;
+        }
+
         setLoading(true);
         setTimeout(() => {
+            const updated = { ...security, pin: newPin };
+            db.saveAdminSecurity(updated);
+            setSecurity(updated);
+            setCurrentPin('');
+            setNewPin('');
+            setConfirmPin('');
             setLoading(false);
             setToast({ show: true, message: 'Password Updated Successfully!', type: 'success' });
         }, 1000);
@@ -567,9 +898,29 @@ function SecuritySettings() {
                     <h4 className="text-lg font-bold text-orange-100">Change Password</h4>
                 </div>
                 <div className="space-y-4">
-                    <input type="password" placeholder="Current Password" className="w-full bg-[#0f172a] border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-orange-500/50 transition-all font-bold placeholder:font-normal" />
-                    <input type="password" placeholder="New Password" className="w-full bg-[#0f172a] border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-orange-500/50 transition-all font-bold placeholder:font-normal" />
-                    <input type="password" placeholder="Confirm New Password" className="w-full bg-[#0f172a] border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-orange-500/50 transition-all font-bold placeholder:font-normal" />
+                    <input
+                        type="password"
+                        placeholder="Current Password (PIN)"
+                        value={currentPin}
+                        onChange={(e) => setCurrentPin(e.target.value)}
+                        className="w-full bg-[#0f172a] border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-orange-500/50 transition-all font-bold placeholder:font-normal"
+                    />
+                    <input
+                        type="password"
+                        placeholder="New Password (4 Digit PIN)"
+                        value={newPin}
+                        onChange={(e) => setNewPin(e.target.value)}
+                        maxLength={4}
+                        className="w-full bg-[#0f172a] border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-orange-500/50 transition-all font-bold placeholder:font-normal"
+                    />
+                    <input
+                        type="password"
+                        placeholder="Confirm New Password"
+                        value={confirmPin}
+                        onChange={(e) => setConfirmPin(e.target.value)}
+                        maxLength={4}
+                        className="w-full bg-[#0f172a] border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-orange-500/50 transition-all font-bold placeholder:font-normal"
+                    />
                     <button
                         onClick={handlePasswordUpdate}
                         disabled={loading}
@@ -619,12 +970,19 @@ function SecuritySettings() {
                 )}
             </AnimatePresence>
         </div>
-    )
+    );
 }
 
 function BackupSettings() {
     const [loading, setLoading] = useState(false);
     const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+
+    // Reset Security State
+    const [resetStep, setResetStep] = useState<'idle' | 'password' | 'otp'>('idle');
+    const [verifyPin, setVerifyPin] = useState('');
+    const [verifyOtp, setVerifyOtp] = useState('');
+    const [generatedOtp, setGeneratedOtp] = useState('');
+    const [resetError, setResetError] = useState('');
 
     useEffect(() => {
         if (toast.show) {
@@ -641,8 +999,56 @@ function BackupSettings() {
         }, 2000);
     };
 
+    const initiateReset = () => {
+        setResetStep('password');
+        setVerifyPin('');
+        setVerifyOtp('');
+        setResetError('');
+        setGeneratedOtp('');
+    };
+
+    const handleVerifyPin = () => {
+        if (db.verifyAdminPin(verifyPin)) {
+            setResetStep('otp');
+            setResetError('');
+        } else {
+            setResetError('Incorrect Admin PIN');
+        }
+    };
+
+    const handleSendOtp = () => {
+        const otp = Math.floor(1000 + Math.random() * 9000).toString();
+        setGeneratedOtp(otp);
+
+        // Send Notification
+        db.addNotification({
+            id: Date.now(),
+            title: "Security Verification Code",
+            desc: `Your Reset OTP is: ${otp}`,
+            time: "Just now",
+            type: "system",
+            path: "#",
+            read: false
+        });
+
+        setToast({ show: true, message: 'OTP sent to Notifications', type: 'success' });
+    };
+
+    const handleVerifyOtpAndReset = async () => {
+        if (verifyOtp === generatedOtp) {
+            setLoading(true); // Reusing loading state or adding a new one ideally, but distinct state 'isResetting' would be better.
+            // Let's assume loading state is fine or just add a toast.
+            // Actually, best to just await and then redirect.
+            await db.resetAllData();
+            // Data reset complete, redirecting
+            window.location.href = '/';
+        } else {
+            setResetError('Invalid OTP');
+        }
+    };
+
     return (
-        <div className="space-y-8">
+        <div className="space-y-8 relative">
             <div>
                 <h3 className="text-2xl font-bold text-white mb-2">Data Management</h3>
                 <p className="text-slate-400">Backup and restore your application data.</p>
@@ -681,6 +1087,126 @@ function BackupSettings() {
                 </button>
                 <p className="text-slate-500 mt-4 text-sm">Manual backups are saved to your local server storage.</p>
             </div>
+
+            {/* Danger Zone */}
+            <div className="pt-8 mt-8 border-t border-white/5">
+                <div className="bg-rose-500/10 border border-rose-500/20 p-6 rounded-2xl">
+                    <h4 className="text-xl font-bold text-rose-500 mb-2 flex items-center gap-2">
+                        <AlertCircle size={24} />
+                        Danger Zone
+                    </h4>
+                    <p className="text-slate-400 text-sm mb-6">
+                        Resetting the application will permanently delete all data including customers, transactions, staff, and settings. This action cannot be undone.
+                    </p>
+                    <button
+                        onClick={initiateReset}
+                        className="bg-rose-600 hover:bg-rose-500 text-white px-6 py-3 rounded-xl font-bold shadow-lg shadow-rose-600/20 active:scale-95 transition-all flex items-center gap-2"
+                    >
+                        <Trash2 size={20} />
+                        Reset Application Data
+                    </button>
+                </div>
+            </div>
+
+            {/* Reset Security Modal */}
+            <AnimatePresence>
+                {resetStep !== 'idle' && (
+                    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+                        <motion.div
+                            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                            className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+                            onClick={() => setResetStep('idle')}
+                        />
+                        <motion.div
+                            initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
+                            className="bg-[#1e293b] w-full max-w-sm rounded-2xl border border-white/10 shadow-2xl relative z-10 p-6"
+                        >
+                            <div className="flex justify-between items-center mb-6">
+                                <h3 className="text-xl font-bold text-white">Security Check</h3>
+                                <button onClick={() => setResetStep('idle')} className="text-slate-500 hover:text-white">
+                                    <X size={20} />
+                                </button>
+                            </div>
+
+                            {resetStep === 'password' && (
+                                <div className="space-y-4">
+                                    <div className="text-center mb-4">
+                                        <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-3 text-white">
+                                            <Key size={32} />
+                                        </div>
+                                        <p className="text-slate-400 text-sm font-medium">Verify Admin PIN to proceed</p>
+                                    </div>
+                                    <input
+                                        type="password"
+                                        placeholder="Enter PIN"
+                                        value={verifyPin}
+                                        onChange={(e) => setVerifyPin(e.target.value)}
+                                        className="w-full bg-[#0f172a] border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-indigo-500 transition-all font-bold text-center tracking-widest text-lg placeholder:font-normal placeholder:tracking-normal placeholder:text-slate-600"
+                                        autoFocus
+                                    />
+                                    {resetError && <p className="text-rose-500 text-xs font-bold text-center">{resetError}</p>}
+                                    <button
+                                        onClick={handleVerifyPin}
+                                        className="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-3 rounded-xl font-bold transition-colors shadow-lg shadow-indigo-600/20"
+                                    >
+                                        Verify PIN
+                                    </button>
+                                </div>
+                            )}
+
+                            {resetStep === 'otp' && (
+                                <div className="space-y-6">
+                                    <div className="text-center">
+                                        <div className="w-20 h-20 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto mb-4 text-emerald-400 border border-emerald-500/20 shadow-[0_0_30px_rgba(16,185,129,0.2)]">
+                                            <Smartphone size={36} />
+                                        </div>
+                                        <h4 className="text-white font-bold text-lg">2-Step Verification</h4>
+                                        <p className="text-slate-400 text-sm mt-1">We've sent an OTP to your notifications.</p>
+                                    </div>
+
+                                    <div className="relative">
+                                        <input
+                                            type="text"
+                                            placeholder="XXXX"
+                                            maxLength={4}
+                                            value={verifyOtp}
+                                            onChange={(e) => setVerifyOtp(e.target.value)}
+                                            className="w-full bg-[#0f172a] border border-white/10 rounded-xl px-4 py-4 text-white outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all font-bold text-center tracking-[0.5em] text-2xl placeholder:font-normal placeholder:tracking-widest placeholder:text-slate-700"
+                                        />
+                                        <button
+                                            onClick={handleSendOtp}
+                                            className="absolute right-2 top-2 bottom-2 px-4 bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white rounded-lg text-xs font-bold transition-colors border border-white/5 active:bg-slate-600 shadow-sm"
+                                        >
+                                            {generatedOtp ? 'Resend' : 'Send'}
+                                        </button>
+                                    </div>
+
+                                    {generatedOtp && (
+                                        <div className="text-center">
+                                            <p className="text-emerald-400 text-xs font-bold flex items-center justify-center gap-1">
+                                                <CheckCircle size={12} />
+                                                OTP Sent successfully! Check Bell Icon.
+                                            </p>
+                                        </div>
+                                    )}
+
+                                    {resetError && <p className="text-rose-500 text-sm font-bold text-center bg-rose-500/10 py-2 rounded-lg">{resetError}</p>}
+
+                                    <button
+                                        onClick={handleVerifyOtpAndReset}
+                                        disabled={!generatedOtp || verifyOtp.length !== 4}
+                                        className="w-full bg-rose-600 hover:bg-rose-500 disabled:opacity-50 disabled:cursor-not-allowed text-white py-4 rounded-xl font-bold transition-all shadow-lg shadow-rose-600/20 flex items-center justify-center gap-2 mt-4 text-lg active:scale-[0.98]"
+                                    >
+                                        <Trash2 size={20} />
+                                        Confirm & Reset Data
+                                    </button>
+                                </div>
+                            )}
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
             <AnimatePresence>
                 {toast.show && (
                     <motion.div

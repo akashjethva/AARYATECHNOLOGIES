@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Search, Filter, Plus, FileText, ChevronDown, MoreHorizontal, Edit, Trash2, Eye, TrendingDown, DollarSign, ArrowUpRight, Calendar, CheckCircle, Clock, User, X, Briefcase, Phone, MapPin, LayoutGrid, List } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCurrency } from "@/hooks/useCurrency";
+import { db, Expense } from "@/services/db";
 
 export default function ExpensesPage() {
     const [activeTab, setActiveTab] = useState<'transactions' | 'dealers'>('transactions');
@@ -18,13 +19,7 @@ export default function ExpensesPage() {
     const { formatCurrency } = useCurrency();
 
     // Dealers Data
-    const [dealers, setDealers] = useState([
-        { id: 1, name: 'Samsung Distributors', contact: '9876543210', category: 'Electronics', balance: 0 },
-        { id: 2, name: 'Complex Owner', contact: '9988776655', category: 'Rent/Lease', balance: 0 },
-        { id: 3, name: 'Xiaomi Vendor', contact: '8877665544', category: 'Electronics', balance: 45000 },
-        { id: 4, name: 'Torrent Power', contact: '1800-123-456', category: 'Utility', balance: 0 },
-        { id: 5, name: 'Rahul Varma (Staff)', contact: '7766554433', category: 'Salary', balance: 0 },
-    ]);
+    const [dealers, setDealers] = useState<any[]>([]);
 
     // Form State for Expense
     const [newExpense, setNewExpense] = useState({
@@ -46,13 +41,31 @@ export default function ExpensesPage() {
     });
 
     // Expense Data
-    const [expenses, setExpenses] = useState([
-        { id: 1, title: 'Stock Purchase - Galaxy S24', party: 'Samsung Distributors', amount: 125000, date: '2026-01-03', category: 'Stock Purchase', method: 'Bank Transfer', status: 'Paid' },
-        { id: 2, title: 'Shop Rent - Jan 2026', party: 'Complex Owner', amount: 25000, date: '2026-01-01', category: 'Rent', method: 'Cheque', status: 'Paid' },
-        { id: 3, title: 'Staff Salary Advance', party: 'Rahul Varma (Staff)', amount: 5000, date: '2026-01-02', category: 'Salary', method: 'Cash', status: 'Paid' },
-        { id: 4, title: 'Electricity Bill', party: 'Torrent Power', amount: 3450, date: '2025-12-28', category: 'Utility Bill', method: 'UPI', status: 'Paid' },
-        { id: 5, title: 'Pending Payment', party: 'Xiaomi Vendor', amount: 45000, date: '2026-01-04', category: 'Stock Purchase', method: 'Pending', status: 'Pending' },
-    ]);
+    const [expenses, setExpenses] = useState<Expense[]>([]);
+
+    // Pagination
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = db.getRowsPerPage();
+
+    useEffect(() => {
+        setExpenses(db.getExpenses());
+        setDealers(db.getDealers());
+
+        const handleUpdate = () => {
+            setExpenses(db.getExpenses());
+            setDealers(db.getDealers());
+        };
+
+        window.addEventListener('expense-updated', handleUpdate);
+        window.addEventListener('dealer-updated', handleUpdate);
+        window.addEventListener('settings-updated', handleUpdate); // Re-render on settings change
+
+        return () => {
+            window.removeEventListener('expense-updated', handleUpdate);
+            window.removeEventListener('dealer-updated', handleUpdate);
+            window.removeEventListener('settings-updated', handleUpdate);
+        };
+    }, []);
 
     // Derived State
     const filteredExpenses = useMemo(() => {
@@ -101,7 +114,8 @@ export default function ExpensesPage() {
             status: newExpense.method === 'Pending' ? 'Pending' : 'Paid'
         };
 
-        setExpenses([newItem, ...expenses]);
+        const updated = db.saveExpense(newItem as any); // Cast for compatibility
+        setExpenses(updated);
         setIsAddModalOpen(false);
         setNewExpense({ title: '', party: '', amount: '', date: new Date().toISOString().split('T')[0], category: 'Stock Purchase', method: 'Cash', notes: '' });
     };
@@ -111,10 +125,15 @@ export default function ExpensesPage() {
         if (!newDealer.name) return;
 
         if (editingDealerId) {
-            setDealers(dealers.map(d => d.id === editingDealerId ? { ...d, ...newDealer } : d));
-            setEditingDealerId(null);
+            const existing = dealers.find(d => d.id === editingDealerId);
+            if (existing) {
+                const updated = db.updateDealer({ ...existing, ...newDealer });
+                setDealers(updated);
+                setEditingDealerId(null);
+            }
         } else {
-            setDealers([...dealers, { id: Date.now(), ...newDealer, balance: 0 }]);
+            const updated = db.addDealer({ id: Date.now(), ...newDealer, balance: 0 });
+            setDealers(updated);
         }
 
         setIsAddDealerModalOpen(false);
@@ -134,13 +153,15 @@ export default function ExpensesPage() {
 
     const handleDelete = (id: number) => {
         if (confirm('Are you sure you want to delete this record?')) {
-            setExpenses(expenses.filter(e => e.id !== id));
+            const updated = db.deleteExpense(id);
+            setExpenses(updated);
         }
     };
 
     const handleDeleteDealer = (id: number) => {
         if (confirm('Are you sure? This will not delete their transaction history.')) {
-            setDealers(dealers.filter(d => d.id !== id));
+            const updated = db.deleteDealer(id);
+            setDealers(updated);
         }
     };
 
@@ -297,12 +318,12 @@ export default function ExpensesPage() {
                                     </tr>
                                 </thead>
                                 <tbody className="text-white divide-y divide-white/5">
-                                    {filteredExpenses.map((expense) => (
+                                    {filteredExpenses.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((expense) => (
                                         <tr key={expense.id} className="group hover:bg-white/5 transition-colors text-lg">
                                             <td className="px-6 py-5 text-center"><input type="checkbox" className="rounded border-white/20 bg-transparent text-indigo-500 focus:ring-0" /></td>
                                             <td className="px-6 py-5">
                                                 <div className="font-bold text-white text-lg">EXP-{String(expense.id).padStart(3, '0')}</div>
-                                                <div className="text-sm text-slate-500 mt-1">{new Date(expense.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</div>
+                                                <div className="text-sm text-slate-500 mt-1">{db.formatDate(expense.date)}</div>
                                             </td>
                                             <td className="px-6 py-5">
                                                 <div className="font-bold text-white text-lg">{expense.party}</div>
@@ -321,13 +342,35 @@ export default function ExpensesPage() {
                                             <td className="px-6 py-5 text-right font-bold text-xl">
                                                 {formatCurrency(expense.amount)}
                                             </td>
-                                            <td className="px-6 py-5 text-center">
-                                                <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-base font-bold capitalize ${expense.status === 'Paid'
-                                                    ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
-                                                    : 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
+                                            <td className="px-6 py-5 text-center relative group">
+                                                <select
+                                                    value={expense.status || 'Pending'}
+                                                    onChange={(e) => {
+                                                        const updated = { ...expense, status: e.target.value };
+                                                        db.saveExpense(updated);
+                                                    }}
+                                                    onClick={(e) => e.stopPropagation()}
+                                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                                    title="Change Status"
+                                                    style={{ colorScheme: 'dark' }}
+                                                >
+                                                    <option value="Paid" className="bg-[#1e293b] text-white">Paid</option>
+                                                    <option value="Approved" className="bg-[#1e293b] text-white">Approved</option>
+                                                    <option value="Pending" className="bg-[#1e293b] text-white">Pending</option>
+                                                    <option value="Rejected" className="bg-[#1e293b] text-white">Rejected</option>
+                                                </select>
+                                                <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-base font-bold capitalize ${expense.status === 'Paid' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' :
+                                                    expense.status === 'Approved' ? 'bg-blue-500/10 text-blue-500 border border-blue-500/20' :
+                                                        expense.status === 'Rejected' ? 'bg-rose-500/10 text-rose-500 border border-rose-500/20' :
+                                                            'bg-amber-500/10 text-amber-500 border border-amber-500/20'
                                                     }`}>
-                                                    <span className={`w-1.5 h-1.5 rounded-full ${expense.status === 'Paid' ? 'bg-emerald-500' : 'bg-amber-500'}`}></span>
+                                                    <span className={`w-1.5 h-1.5 rounded-full ${expense.status === 'Paid' ? 'bg-emerald-500' :
+                                                        expense.status === 'Approved' ? 'bg-blue-500' :
+                                                            expense.status === 'Rejected' ? 'bg-rose-500' :
+                                                                'bg-amber-500'
+                                                        }`}></span>
                                                     {expense.status}
+                                                    <ChevronDown size={14} className="ml-1 opacity-50 group-hover:opacity-100 transition-opacity" />
                                                 </span>
                                             </td>
                                             <td className="px-8 py-5 text-center">
@@ -350,6 +393,16 @@ export default function ExpensesPage() {
                                     )}
                                 </tbody>
                             </table>
+                        </div>
+                        {/* Pagination Controls */}
+                        <div className="flex justify-between items-center p-4 border-t border-white/10 bg-[#1e293b]/20">
+                            <div className="text-slate-400 text-sm font-medium">
+                                Showing <span className="text-white font-bold">{Math.min((currentPage - 1) * itemsPerPage + 1, filteredExpenses.length)}</span> to <span className="text-white font-bold">{Math.min(currentPage * itemsPerPage, filteredExpenses.length)}</span> of <span className="text-white font-bold">{filteredExpenses.length}</span> results
+                            </div>
+                            <div className="flex gap-2">
+                                <button disabled={currentPage === 1} onClick={() => setCurrentPage(prev => prev - 1)} className="px-4 py-2 rounded-lg bg-[#0f172a] border border-white/10 text-white disabled:opacity-50 hover:bg-white/5 transition-colors">Previous</button>
+                                <button disabled={currentPage * itemsPerPage >= filteredExpenses.length} onClick={() => setCurrentPage(prev => prev + 1)} className="px-4 py-2 rounded-lg bg-[#0f172a] border border-white/10 text-white disabled:opacity-50 hover:bg-white/5 transition-colors">Next</button>
+                            </div>
                         </div>
                     </motion.div>
                 ) : (

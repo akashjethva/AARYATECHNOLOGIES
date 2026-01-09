@@ -7,67 +7,184 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import GoalTracker from "@/components/GoalTracker";
 import { EnhancedTransactionItem } from "@/components/EnhancedTransactionItem";
-import { loadFromStorage, saveToStorage } from "@/utils/storage";
-import { useCurrency } from "@/hooks/useCurrency";
+import { db, Collection, Expense } from "@/services/db"; // Use proper service
 
-interface Transaction {
-    id: number;
-    time: string;
-    customer: string;
-    amount: string;
-    staff: string;
-    mode: string;
-    status: "Verified" | "Pending" | "Failed";
-    date?: string;
-    remarks?: string;
-}
+import { useCurrency } from "@/hooks/useCurrency";
+import jsPDF from 'jspdf';
 
 // Helper to get formatted date string (YYYY-MM-DD)
 const getTodayDate = () => new Date().toISOString().split('T')[0];
-const getYesterdayDate = () => {
-    const d = new Date();
-    d.setDate(d.getDate() - 1);
-    return d.toISOString().split('T')[0];
-}
-
-const initialTransactions: Transaction[] = [
-    { id: 1, time: "10:45 AM", customer: "Shiv Shakti Traders", amount: "5,000", staff: "Rahul V.", mode: "Cash", status: "Verified", date: getTodayDate() },
-    { id: 2, time: "11:12 AM", customer: "Jay Mataji Store", amount: "2,200", staff: "Amit K.", mode: "UPI", status: "Verified", date: getTodayDate() },
-    { id: 3, time: "11:30 AM", customer: "Om Enterprise", amount: "10,000", staff: "Rahul V.", mode: "Cheque", status: "Pending", date: getTodayDate() },
-    { id: 4, time: "12:05 PM", customer: "Ganesh Provision", amount: "1,500", staff: "Suresh P.", mode: "Cash", status: "Verified", date: getYesterdayDate() },
-    { id: 5, time: "12:45 PM", customer: "Maruti Nandan", amount: "7,500", staff: "Vikram S.", mode: "Cash", status: "Verified", date: getYesterdayDate() },
-    { id: 6, time: "01:15 PM", customer: "Khodiyar General", amount: "3,000", staff: "Amit K.", mode: "UPI", status: "Failed", date: getYesterdayDate() },
-];
 
 export default function AdminDashboard() {
-    // Load from storage or fallback to initialTransactions
-    // process this in useEffect to avoid hydration mismatch
-    const [transactions, setTransactions] = useState<Transaction[]>(initialTransactions);
+    // Load from db service
+    const [transactions, setTransactions] = useState<Collection[]>([]);
+    const [expenses, setExpenses] = useState<Expense[]>([]); // Add Expenses State
     const [isLoaded, setIsLoaded] = useState(false);
     const { formatCurrency } = useCurrency();
 
-    // Initial Load
+    // Customer Sync Logic
+    const [customers, setCustomers] = useState<{ id: number, name: string }[]>([]);
+
+    // Staff Sync Logic for Proper Dashboard Sync
+    const [staffList, setStaffList] = useState<{ id: number; name: string; status?: string }[]>([]);
     useEffect(() => {
-        const saved = loadFromStorage('transactions', initialTransactions);
-        if (saved && Array.isArray(saved) && saved.length > 0) {
-            setTransactions(saved);
-        }
-        setIsLoaded(true);
+        const loadStaff = () => setStaffList(db.getStaff());
+        loadStaff();
+        window.addEventListener('staff-updated', loadStaff);
+        return () => window.removeEventListener('staff-updated', loadStaff);
     }, []);
 
-    // Persist changes
     useEffect(() => {
-        if (isLoaded) {
-            saveToStorage('transactions', transactions);
-            // Trigger a custom event to notify other components immediately if needed
-            // But storage event listener in Layout should be enough for cross-window, 
-            // for same-window updates we might need window.dispatchEvent if setupStorageSync doesn't catch same-window storage.setItem
-            // StorageEvent only fires on OTHER windows.
-            // We need a custom event for same-window sync or just rely on Layout re-mounting? 
-            // Layout won't re-mount. Layout needs a custom listener.
-            window.dispatchEvent(new Event('transaction-updated'));
+        setCustomers(db.getCustomers());
+        const handleCustUpdate = () => setCustomers(db.getCustomers());
+        window.addEventListener('customer-updated', handleCustUpdate);
+        return () => window.removeEventListener('customer-updated', handleCustUpdate);
+    }, []);
+
+    // Initial Load
+    useEffect(() => {
+        const loadData = () => {
+            setTransactions(db.getCollections());
+            setExpenses(db.getExpenses());
+        };
+        loadData();
+        setIsLoaded(true);
+
+        const handleUpdate = () => {
+            setTransactions(db.getCollections());
+            setExpenses(db.getExpenses()); // Refresh expenses too
+        };
+
+        window.addEventListener('transaction-updated', handleUpdate);
+        window.addEventListener('expense-updated', handleUpdate); // Listen for expense updates
+
+        return () => {
+            window.removeEventListener('transaction-updated', handleUpdate);
+            window.removeEventListener('expense-updated', handleUpdate);
+        };
+    }, []);
+
+    // Calculate Stats
+    // 1. Total Revenue (Income)
+    // 1. Total Revenue (Net Income = Gross - Expense)
+    const grossRevenue = transactions
+        .filter(t => t.status === 'Paid')
+        .reduce((sum, t) => sum + (parseFloat(String(t.amount).replace(/,/g, '')) || 0), 0);
+
+    // 4. Operational Expenses (Moved up for calculation)
+    const totalExpense = expenses
+        .reduce((sum, e) => sum + (parseFloat(String(e.amount).replace(/,/g, '')) || 0), 0);
+
+    const totalRevenue = grossRevenue - totalExpense;
+
+    // 2. Cash Collection
+    const cashCollection = transactions
+        .filter(t => t.status === 'Paid' && t.mode === 'Cash')
+        .reduce((sum, t) => sum + (parseFloat(String(t.amount).replace(/,/g, '')) || 0), 0);
+
+    // 3. Digital / UPI Collection (Derived as Gross - Cash)
+    const digitalCollection = grossRevenue - cashCollection;
+
+    // 5. Staff Leaderboard Calculation (Synced with Active Staff)
+    const staffPerformance = transactions
+        .filter(t => t.status === 'Paid')
+        .reduce((acc, t) => {
+            // Normalize name: remove trailing dots, inconsistent spacing
+            // HARDENED: Force string conversion to prevent crash if staff is not string
+            let staffName = String(t.staff || 'Unknown').replace(/\.$/, '').trim();
+
+            // Try to map to active staff if close match
+            const matchedStaff = staffList.find(s =>
+                s && s.name && ( // Ensure staff object and name exist
+                    String(s.name).toLowerCase() === staffName.toLowerCase() ||
+                    String(s.name).toLowerCase().startsWith(staffName.toLowerCase()) ||
+                    staffName.toLowerCase().startsWith(String(s.name).toLowerCase())
+                )
+            );
+
+            const finalName = matchedStaff ? matchedStaff.name : staffName;
+
+            acc[finalName] = (acc[finalName] || 0) + (parseFloat(String(t.amount).replace(/,/g, '')) || 0);
+            return acc;
+        }, {} as Record<string, number>);
+
+
+    const topPerformers = staffList
+        .map(staff => {
+            if (!staff || !staff.name) return { name: 'Unknown', amount: 0 };
+            const amount = staffPerformance[staff.name] || 0;
+            return { name: staff.name, amount };
+        })
+        .sort((a, b) => b.amount - a.amount)
+        .slice(0, 5); // Show Top 5 to include more staff
+
+
+    // 6. Pending Handover Calculation
+    const rawPending = transactions
+        .filter(t => t.status === 'Paid' && t.mode === 'Cash') // Cash Only
+        .reduce((acc, t) => {
+            // Check if this is a Handover record
+            if (t.customer.startsWith('HANDOVER: ')) {
+                const staffName = t.customer.replace('HANDOVER: ', '').trim();
+                const amount = parseFloat(String(t.amount).replace(/,/g, '')) || 0;
+
+                // Match Logic
+                const matchedStaff = staffList.find(s =>
+                    s && s.name && (
+                        String(s.name).toLowerCase() === staffName.toLowerCase() ||
+                        staffName.toLowerCase().startsWith(String(s.name).toLowerCase())
+                    )
+                );
+                const finalName = matchedStaff ? matchedStaff.name : staffName;
+
+                // Subtract from balance
+                acc[finalName] = (acc[finalName] || 0) - amount;
+                return acc;
+            }
+
+            const staffName = String(t.staff || 'Unknown');
+            const matchedStaff = staffList.find(s =>
+                s && s.name && (
+                    String(s.name).toLowerCase() === staffName.toLowerCase() ||
+                    staffName.toLowerCase().startsWith(String(s.name).toLowerCase())
+                )
+            );
+            const finalName = matchedStaff ? matchedStaff.name : staffName;
+
+            acc[finalName] = (acc[finalName] || 0) + (parseFloat(String(t.amount).replace(/,/g, '')) || 0);
+            return acc;
+        }, {} as Record<string, number>);
+
+    // Deduct Cash Expenses
+    const pendingHandover = { ...rawPending };
+    expenses.forEach(e => {
+        if (e.method === 'Cash' && e.status !== 'Rejected' && e.createdBy) {
+            const amount = parseFloat(String(e.amount)) || 0;
+            const staffName = e.createdBy;
+
+            const matchedStaff = staffList.find(s =>
+                s && s.name && (
+                    String(s.name).toLowerCase() === staffName.toLowerCase() ||
+                    staffName.toLowerCase().startsWith(String(s.name).toLowerCase())
+                )
+            );
+            const finalName = matchedStaff ? matchedStaff.name : staffName;
+
+            pendingHandover[finalName] = (pendingHandover[finalName] || 0) - amount;
         }
-    }, [transactions, isLoaded]);
+    });
+
+    const handoverList = Object.entries(pendingHandover)
+        .map(([name, amount]) => ({ name, amount }))
+        // Also Filter Handover List if needed, but maybe keep pending cash even if staff deleted? 
+        // User asked for proper sync, so let's filter to be consistent.
+        .filter(h => h && h.name && staffList.some(s => s && s.name === h.name) && h.amount > 0)
+        .sort((a, b) => b.amount - a.amount);
+
+    const totalPendingHandover = handoverList.reduce((sum, h) => sum + h.amount, 0);
+
+    // ... (No need for persist effect as methods handle it now, and listener updates local state)
+
     const [isEntryModalOpen, setIsEntryModalOpen] = useState(false);
     const [isHandoverModalOpen, setIsHandoverModalOpen] = useState(false);
     const [isDateOpen, setIsDateOpen] = useState(false);
@@ -75,6 +192,13 @@ export default function AdminDashboard() {
     const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
     const exportButtonRef = useRef<HTMLButtonElement>(null);
     const [exportMenuPosition, setExportMenuPosition] = useState({ top: 0, left: 0 });
+
+    // Toast State
+    const [toastMsg, setToastMsg] = useState('');
+    const showToast = (msg: string) => {
+        setToastMsg(msg);
+        setTimeout(() => setToastMsg(''), 3000);
+    };
 
     // Filter & Search State
     const [dateFilter, setDateFilter] = useState("Jan 2026");
@@ -121,7 +245,7 @@ export default function AdminDashboard() {
         customer: "",
         amount: "",
         mode: "Cash",
-        staff: "Rahul Varma",
+        staff: "Admin",
         date: getTodayDate(),
         remarks: "",
         status: "Verified" as "Verified" | "Pending" | "Failed"
@@ -130,17 +254,7 @@ export default function AdminDashboard() {
     const dateOptions = ["Today", "Yesterday", "Last 7 Days", "Jan 2026", "Dec 2025"];
     const filterOptions = ["All", "Cash", "UPI", "Cheque", "Pending", "Verified", "Failed"];
 
-    const mockCustomers = [
-        "Shiv Shakti Traders",
-        "Jay Mataji Store",
-        "Om Enterprise",
-        "Ganesh Provision",
-        "Maruti Nandan",
-        "Khodiyar General",
-        "Umiya Traders",
-        "Balaji Kirana",
-        "Sardar Stores"
-    ];
+
 
     const handleDateSelect = (option: string) => {
         setDateFilter(option);
@@ -158,26 +272,31 @@ export default function AdminDashboard() {
             return;
         }
 
-        const newTxn: Transaction = {
-            id: Date.now(),
+        const newTxn: Collection = {
+            id: `REC-${Date.now()}`,
             time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
             customer: formData.customer,
             amount: Number(formData.amount).toLocaleString(),
             staff: formData.staff.split(' ')[0] + ' ' + (formData.staff.split(' ')[1]?.[0] || '') + '.',
-            mode: formData.mode,
-            status: formData.status,
+            mode: formData.mode as any,
+            status: formData.status === "Verified" ? "Paid" : (formData.status as any), // Map Verified -> Paid
             date: formData.date,
-            remarks: formData.remarks
+            remarks: formData.remarks,
+            contact: "+91 00000 00000" // Default
         };
 
-        setTransactions([newTxn, ...transactions]);
+        const updated = db.saveCollection(newTxn);
+        setTransactions(updated);
+        // Dispatch
+        if (typeof window !== 'undefined') window.dispatchEvent(new Event('transaction-updated'));
+
         setIsEntryModalOpen(false);
         // Reset form
         setFormData({
             customer: "",
             amount: "",
             mode: "Cash",
-            staff: "Rahul Varma",
+            staff: "Admin",
             date: getTodayDate(),
             remarks: "",
             status: "Verified"
@@ -185,7 +304,36 @@ export default function AdminDashboard() {
     };
 
     // Filter Logic
-    const filteredTransactions = transactions.filter(txn => {
+    const combinedFeed = [
+        ...transactions.map(t => ({ ...t, isExpense: false })),
+        ...expenses.map(e => ({
+            id: `EXP-${e.id}`,
+            time: '12:00 PM', // Default for expenses as they lack time field
+            customer: e.party || e.title || 'Unknown Party',
+            amount: `-${e.amount}`,
+            staff: e.createdBy || 'Admin',
+            mode: e.method,
+            status: e.status === 'Paid' ? 'Verified' : e.status === 'Pending' ? 'Pending' : 'Failed',
+            date: e.date,
+            remarks: e.notes, // map notes to remarks
+            isExpense: true
+        }))
+    ].sort((a, b) => {
+        // Sort by Date Descending
+        const dateA = new Date(a.date || '2000-01-01').getTime();
+        const dateB = new Date(b.date || '2000-01-01').getTime();
+        if (dateA !== dateB) return dateB - dateA;
+        // If same date, try time?
+        if (dateA !== dateB) return dateB - dateA;
+
+        // Secondary Sort by ID (Timestamp extraction)
+        // IDs are either "REC-123456" or "123456"
+        const idA = parseInt(String(a.id).replace(/\D/g, '')) || 0;
+        const idB = parseInt(String(b.id).replace(/\D/g, '')) || 0;
+        return idB - idA; // Descending
+    });
+
+    const filteredTransactions = combinedFeed.filter(txn => {
         const matchesSearch = txn.customer.toLowerCase().includes(searchQuery.toLowerCase());
         const matchesFilter = activeFilter === "All" || txn.mode === activeFilter || txn.status === activeFilter;
         const matchesDate = !filterDate || txn.date === filterDate;
@@ -194,21 +342,36 @@ export default function AdminDashboard() {
 
     // Action Handlers
     const handleVerifyTransaction = (id: number | string) => {
-        setTransactions(prev => prev.map(t =>
-            t.id === id ? { ...t, status: t.status === 'Verified' ? 'Pending' : 'Verified' } : t
-        ));
+        // Find item
+        const item = transactions.find(t => t.id === id);
+        if (item) {
+            // Toggle status
+            const newStatus = item.status === 'Paid' ? 'Pending' : 'Paid';
+            // We need updateCollection in db
+            // For now, let's just delete and re-add or implement update?
+            // Implementing quick updateshim:
+            const updatedItem = { ...item, status: newStatus };
+            // Use internal logic since update isn't exposed yet in getCollections
+            // Actually I should add updateCollection to db.ts, but for now I can delete then add
+            // db.deleteCollection(String(id)); // No need to delete anymore with upsert
+            const updatedList = db.saveCollection(updatedItem as Collection);
+            setTransactions(updatedList);
+            if (typeof window !== 'undefined') window.dispatchEvent(new Event('transaction-updated'));
+        }
     };
 
     const handleDeleteTransaction = (id: number | string) => {
         if (confirm("Are you sure you want to delete this transaction?")) {
-            setTransactions(transactions.filter(t => t.id !== id));
+            const updated = db.deleteCollection(String(id));
+            setTransactions(updated);
+            if (typeof window !== 'undefined') window.dispatchEvent(new Event('transaction-updated'));
         }
     };
 
     const handleViewTransaction = (item: any) => {
         setFormData({
             customer: item.customer,
-            amount: item.amount.replace(/,/g, ''),
+            amount: String(item.amount).replace(/,/g, ''),
             mode: item.mode,
             staff: item.staff.replace(/\.$/, ''), // Remove trailing dot if exists
             date: item.date || getTodayDate(),
@@ -319,7 +482,7 @@ export default function AdminDashboard() {
                                         onClick={() => {
                                             const csvContent = "data:text/csv;charset=utf-8,"
                                                 + "Time,Customer,Amount,Staff,Mode,Status,Date\n"
-                                                + filteredTransactions.map(t => `${t.time},${t.customer},${t.amount.replace(/,/g, '')},${t.staff},${t.mode},${t.status},${t.date}`).join("\n");
+                                                + filteredTransactions.map(t => `${t.time},${t.customer},${String(t.amount).replace(/,/g, '')},${t.staff},${t.mode},${t.status},${t.date}`).join("\n");
                                             const encodedUri = encodeURI(csvContent);
                                             const link = document.createElement("a");
                                             link.setAttribute("href", encodedUri);
@@ -344,7 +507,73 @@ export default function AdminDashboard() {
 
                                     <button
                                         onClick={() => {
-                                            window.print();
+                                            const doc = new jsPDF();
+                                            const today = new Date().toLocaleDateString();
+
+                                            // Header
+                                            doc.setFontSize(20);
+                                            doc.setFont('helvetica', 'bold');
+                                            const appName = db.getAppSettings().appName;
+                                            doc.text(appName, 105, 20, { align: 'center' });
+
+                                            doc.setFontSize(16);
+                                            doc.text('Transaction Report', 105, 30, { align: 'center' });
+
+                                            doc.setFontSize(10);
+                                            doc.setFont('helvetica', 'normal');
+                                            doc.text(`Generated on: ${today}`, 105, 38, { align: 'center' });
+
+                                            // Stats
+                                            const totalAmount = filteredTransactions.reduce((sum, t) => sum + (parseFloat(String(t.amount).replace(/,/g, '')) || 0), 0);
+
+                                            doc.setFontSize(12);
+                                            doc.setFont('helvetica', 'bold');
+                                            doc.text(`Total Records: ${filteredTransactions.length}`, 20, 50);
+                                            doc.text(`Total Amount: ${formatCurrency(totalAmount).replace('₹', 'Rs.')}`, 20, 58);
+
+                                            // Table Headers
+                                            let yPos = 70;
+                                            doc.setFillColor(241, 245, 249); // slate-100
+                                            doc.rect(20, yPos - 5, 170, 8, 'F');
+
+                                            doc.setFontSize(9);
+                                            doc.setFont('helvetica', 'bold');
+                                            doc.text('Time', 22, yPos);
+                                            doc.text('Customer', 45, yPos);
+                                            doc.text('Staff', 95, yPos);
+                                            doc.text('Mode', 135, yPos);
+                                            doc.text('Amount', 188, yPos, { align: 'right' });
+
+                                            yPos += 8;
+
+                                            // Table Rows
+                                            doc.setFont('helvetica', 'normal');
+                                            filteredTransactions.forEach((t) => {
+                                                if (yPos > 280) {
+                                                    doc.addPage();
+                                                    yPos = 20;
+                                                    // Re-print header on new page? Optional, simplest is just continue rows
+                                                }
+
+                                                doc.text(t.time, 22, yPos);
+                                                doc.text(t.customer.substring(0, 25), 45, yPos);
+                                                doc.text(t.staff.substring(0, 20), 95, yPos);
+                                                doc.text(t.mode, 135, yPos);
+                                                doc.text(t.amount, 188, yPos, { align: 'right' });
+
+                                                yPos += 7;
+                                            });
+
+                                            // Footer
+                                            const pageCount = doc.internal.pages.length - 1;
+                                            for (let i = 1; i <= pageCount; i++) {
+                                                doc.setPage(i);
+                                                doc.setFontSize(8);
+                                                doc.setTextColor(150);
+                                                doc.text(`Page ${i} of ${pageCount}`, 105, 290, { align: "center" });
+                                            }
+
+                                            doc.save(`Transaction_Report_${new Date().toISOString().split('T')[0]}.pdf`);
                                             setIsExportMenuOpen(false);
                                         }}
                                         className="w-full text-left px-4 py-3 rounded-xl text-sm font-bold text-slate-300 hover:bg-white/5 hover:text-white transition-colors flex items-center gap-3 group relative z-10"
@@ -354,7 +583,7 @@ export default function AdminDashboard() {
                                         </div>
                                         <div>
                                             <div className="font-bold">Export as PDF</div>
-                                            <div className="text-[10px] text-slate-500 mt-0.5">Save via Print</div>
+                                            <div className="text-[10px] text-slate-500 mt-0.5">High Quality Report</div>
                                         </div>
                                     </button>
                                 </motion.div>
@@ -371,7 +600,7 @@ export default function AdminDashboard() {
                         >
                             <div className="flex items-center gap-3">
                                 <Calendar size={20} className="text-indigo-300 group-hover:text-white transition-colors" />
-                                <span>{dateFilter} {activeReceipt ? 'R' : ''}</span> {/* Force Re-render */}
+                                <span className="text-nowrap">{dateFilter} {activeReceipt ? 'R' : ''}</span>
                             </div>
                             <ChevronDown size={16} className={`text-white/50 transition-transform ${isDateOpen ? 'rotate-180' : ''}`} />
                         </button>
@@ -422,20 +651,47 @@ export default function AdminDashboard() {
                 </div>
             </div>
 
-            {/* Stats Row */}
+            {/* Stats Row Breakdown: Revenue, Cash, Digital, Expense */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <Card title="Today's Collection" value={formatCurrency(45200)} icon={<TrendingUp />} trend="+15%" trendUp={true} color="bg-blue-600" href="/admin/collections" />
                 <Card
-                    title="Pending Handover"
-                    value={formatCurrency(12500)}
-                    icon={<Users />}
-                    trend="3 Staff"
-                    trendUp={false}
-                    color="bg-amber-600"
-                    onClick={() => setIsHandoverModalOpen(true)}
+                    title="TOTAL REVENUE"
+                    value={formatCurrency(totalRevenue)}
+                    icon={<TrendingUp />}
+                    trend="+12%"
+                    trendUp={true}
+                    color="bg-indigo-600"
+                    href="/admin/collections"
                 />
-                <Card title="Active Staff" value="8 / 10" icon={<Activity />} trend="All Online" trendUp={true} color="bg-emerald-600" href="/admin/staff" />
-                <Card title="Month Revenue" value={formatCurrency(850000)} icon={<Wallet />} trend="+12% vs last" trendUp={true} color="bg-purple-600" href="/admin/reports" />
+
+                <Card
+                    title="CASH COLLECTION"
+                    value={formatCurrency(cashCollection)}
+                    icon={<Wallet />}
+                    trend="+8%"
+                    trendUp={true}
+                    color="bg-emerald-600"
+                    href="/admin/collections"
+                />
+
+                <Card
+                    title="DIGITAL / UPI"
+                    value={formatCurrency(digitalCollection)}
+                    icon={<CreditCard />}
+                    trend="+15%"
+                    trendUp={true}
+                    color="bg-purple-600"
+                    href="/admin/collections"
+                />
+
+                <Card
+                    title="OPERATIONAL EXP."
+                    value={formatCurrency(totalExpense)}
+                    icon={<ArrowUpRight />}
+                    trend="-2%"
+                    trendUp={false}
+                    color="bg-rose-600"
+                    href="/admin/expenses"
+                />
             </div>
 
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
@@ -509,6 +765,11 @@ export default function AdminDashboard() {
                                 <EnhancedTransactionItem
                                     key={txn.id}
                                     {...txn}
+                                    status={
+                                        (txn.status === 'Paid' ? 'Verified' :
+                                            txn.status === 'Processing' ? 'Pending' :
+                                                txn.status) as any
+                                    }
                                     onVerify={handleVerifyTransaction}
                                     onView={handleViewTransaction}
                                     onReceipt={handleDownloadReceipt}
@@ -536,25 +797,32 @@ export default function AdminDashboard() {
                 <div className="space-y-6">
                     {/* Staff Leaderboard */}
                     <div className="bg-[#0f172a] rounded-[2.5rem] p-8 text-white relative overflow-hidden border border-white/10 shadow-2xl">
-                        <div className="absolute top-0 right-0 w-64 h-64 bg-gradien-to-br from-indigo-500 to-purple-500 opacity-20 blur-[80px]"></div>
+                        <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-indigo-500 to-purple-500 opacity-20 blur-[80px]"></div>
                         <div className="relative z-10">
                             <div className="flex justify-between items-center mb-6">
                                 <h3 className="text-lg font-bold">Top Performers</h3>
-                                <span className="text-xs bg-white/10 px-2 py-1 rounded-lg border border-white/10">Today</span>
+                                <span className="text-xs bg-white/10 px-2 py-1 rounded-lg border border-white/10">Lifetime</span>
                             </div>
                             <div className="space-y-5">
-                                <LeaderboardItem rank="1" name="Rahul Varma" amount={formatCurrency(15000)} />
-                                <LeaderboardItem rank="2" name="Vikram Singh" amount={formatCurrency(12000)} />
-                                <LeaderboardItem rank="3" name="Amit Kumar" amount={formatCurrency(8000)} />
+                                {topPerformers.length > 0 ? (
+                                    topPerformers.map((staff, index) => (
+                                        <LeaderboardItem key={staff.name} rank={String(index + 1)} name={staff.name} amount={formatCurrency(staff.amount)} />
+                                    ))
+                                ) : (
+                                    <div className="text-slate-500 text-sm text-center py-4 italic">No performance data yet</div>
+                                )}
                             </div>
-                            <Link href="/admin/reports" className="block w-full mt-8 py-4 bg-white/5 hover:bg-white/10 rounded-2xl font-bold text-sm transition-colors border border-white/5 text-center">
-                                View Full Report
-                            </Link>
+                            <button
+                                onClick={() => setIsHandoverModalOpen(true)}
+                                className="block w-full mt-8 py-4 bg-white/5 hover:bg-white/10 rounded-2xl font-bold text-sm transition-colors border border-white/5 text-center text-indigo-300"
+                            >
+                                View Pending Handover
+                            </button>
                         </div>
                     </div>
 
                     {/* Advanced Goal Widget */}
-                    <GoalTracker currentRevenue={filteredTransactions.reduce((sum, t) => sum + (parseInt(String(t.amount).replace(/,/g, '')) || 0), 0)} />
+                    <GoalTracker currentRevenue={totalRevenue} />
                 </div>
 
             </div>
@@ -605,17 +873,17 @@ export default function AdminDashboard() {
                                             {/* Autocomplete Dropdown */}
                                             {showDropdown && (
                                                 <div className="absolute top-full left-0 w-full mt-2 bg-[#1e293b] border border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden max-h-48 overflow-y-auto custom-scrollbar">
-                                                    {mockCustomers.filter(c => c.toLowerCase().includes(formData.customer.toLowerCase())).length > 0 ? (
-                                                        mockCustomers.filter(c => c.toLowerCase().includes(formData.customer.toLowerCase())).map((c, i) => (
+                                                    {customers.filter(c => c.name.toLowerCase().includes(formData.customer.toLowerCase())).length > 0 ? (
+                                                        customers.filter(c => c.name.toLowerCase().includes(formData.customer.toLowerCase())).map((c) => (
                                                             <div
-                                                                key={i}
+                                                                key={c.id}
                                                                 onMouseDown={() => {
-                                                                    setFormData({ ...formData, customer: c });
+                                                                    setFormData({ ...formData, customer: c.name });
                                                                     setShowDropdown(false);
                                                                 }}
                                                                 className="px-5 py-3 hover:bg-white/5 cursor-pointer text-slate-300 hover:text-white font-bold transition-colors"
                                                             >
-                                                                {c}
+                                                                {c.name}
                                                             </div>
                                                         ))
                                                     ) : (
@@ -663,9 +931,10 @@ export default function AdminDashboard() {
                                             onChange={(e) => setFormData({ ...formData, staff: e.target.value })}
                                             className="w-full bg-[#0f172a] border border-white/10 rounded-2xl px-5 py-4 text-white outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-bold text-lg cursor-pointer appearance-none"
                                         >
-                                            <option>Rahul Varma</option>
-                                            <option>Amit Kumar</option>
                                             <option value="Admin">Admin (Self)</option>
+                                            {staffList.filter(s => s.status === 'Active').map(s => (
+                                                <option key={s.id} value={s.name}>{s.name}</option>
+                                            ))}
                                         </select>
                                     </div>
                                     <div className="md:col-span-2">
@@ -718,20 +987,59 @@ export default function AdminDashboard() {
                                 </button>
                             </div>
                             <div className="p-6 space-y-4">
-                                <HandoverItem name="Rahul Varma" amount="₹ 5,000" time="Since 2 days" />
-                                <HandoverItem name="Amit Kumar" amount="₹ 4,500" time="Since Yesterday" />
-                                <HandoverItem name="Vikram Singh" amount="₹ 3,000" time="Today" />
+                                {handoverList.length > 0 ? (
+                                    handoverList.map((item) => (
+                                        <HandoverItem
+                                            key={item.name}
+                                            name={item.name}
+                                            amount={formatCurrency(item.amount)}
+                                            time="Pending"
+                                            onAccept={() => {
+                                                if (window.confirm(`Accept ₹${item.amount.toLocaleString('en-IN')} from ${item.name}?`)) {
+                                                    db.acceptHandover(item.name, item.amount);
+                                                    showToast(`Accepted transaction from ${item.name}`);
+                                                    setIsHandoverModalOpen(false);
+                                                }
+                                            }}
+                                        />
+                                    ))
+                                ) : (
+                                    <div className="text-slate-500 text-sm text-center py-4 italic">No pending cash handover</div>
+                                )}
 
                                 <div className="mt-6 pt-6 border-t border-white/5 flex justify-between items-center px-2">
                                     <span className="text-slate-400 font-bold">Total Pending</span>
-                                    <span className="text-2xl font-bold text-white">₹ 12,500</span>
+                                    <span className="text-2xl font-bold text-white">{formatCurrency(totalPendingHandover)}</span>
                                 </div>
-                                <button className="w-full mt-4 bg-amber-600 hover:bg-amber-500 text-white py-3 rounded-xl font-bold shadow-lg shadow-amber-600/20 active:scale-95 transition-all">
+                                <button
+                                    onClick={() => {
+                                        // Send notification to Staff App
+                                        db.sendStaffNotification("Please settle your cash balance immediately.");
+                                        // Show In-App Toast
+                                        showToast(`Settlement requests sent to ${handoverList.length} staff members.`);
+                                        setIsHandoverModalOpen(false);
+                                    }}
+                                    className="w-full mt-4 bg-amber-600 hover:bg-amber-500 text-white py-3 rounded-xl font-bold shadow-lg shadow-amber-600/20 active:scale-95 transition-all">
                                     Request Settlement
                                 </button>
                             </div>
                         </motion.div>
                     </div>
+                )}
+            </AnimatePresence>
+
+            {/* Custom Toast UI */}
+            <AnimatePresence>
+                {toastMsg && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 50 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 50 }}
+                        className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] bg-[#1e293b] text-white px-6 py-3 rounded-2xl shadow-2xl border border-white/10 flex items-center gap-3"
+                    >
+                        <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                        <span className="font-bold text-sm tracking-wide">{toastMsg}</span>
+                    </motion.div>
                 )}
             </AnimatePresence>
 
@@ -751,7 +1059,7 @@ export default function AdminDashboard() {
                         <div className="p-6 space-y-6 print:hidden">
                             <div className="text-center">
                                 <p className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">Amount Paid</p>
-                                <h3 className="text-4xl font-black text-slate-900">{formatCurrency(parseFloat(activeReceipt.amount.replace(/,/g, '') || '0'))}</h3>
+                                <h3 className="text-4xl font-black text-slate-900">{formatCurrency(parseFloat(String(activeReceipt.amount).replace(/,/g, '') || '0'))}</h3>
                             </div>
                             <div className="space-y-4 border-t border-dashed border-slate-200 pt-4">
                                 <div className="flex justify-between">
@@ -774,94 +1082,140 @@ export default function AdminDashboard() {
                         </div>
                         <div className="p-4 bg-slate-50 border-t border-slate-100 flex gap-3 print:hidden">
                             <button onClick={() => setActiveReceipt(null)} className="flex-1 py-3 bg-white border border-slate-200 text-slate-600 font-bold rounded-xl text-sm hover:bg-slate-50 transition-colors">Close</button>
-                            <button onClick={() => window.print()} className="flex-1 py-3 bg-indigo-600 text-white font-bold rounded-xl text-sm shadow-xl shadow-indigo-600/20 hover:bg-indigo-700 transition-colors">Print / PDF</button>
+                            <button
+                                onClick={() => {
+                                    const doc = new jsPDF();
+
+                                    // Header Background
+                                    doc.setFillColor(79, 70, 229); // Indigo 600
+                                    doc.rect(0, 0, 210, 40, 'F');
+
+                                    // Header Text
+                                    doc.setTextColor(255, 255, 255);
+                                    doc.setFontSize(22);
+                                    doc.setFont('helvetica', 'bold');
+                                    doc.text("PAYMENT RECEIPT", 105, 18, { align: "center" });
+
+                                    doc.setFontSize(10);
+                                    doc.setFont('helvetica', 'normal');
+                                    const appName = db.getAppSettings().appName;
+                                    doc.text(appName.toUpperCase(), 105, 28, { align: "center" });
+
+                                    // Amount Section
+                                    doc.setTextColor(0, 0, 0);
+                                    doc.setFontSize(10);
+                                    doc.text("AMOUNT PAID", 105, 60, { align: "center" });
+
+                                    doc.setFontSize(30);
+                                    doc.setFont('helvetica', 'bold');
+                                    doc.text(formatCurrency(parseFloat(String(activeReceipt.amount).replace(/,/g, '') || '0')).replace('₹', 'Rs.'), 105, 75, { align: "center" });
+
+                                    // Divider
+                                    doc.setDrawColor(200, 200, 200);
+                                    doc.line(20, 90, 190, 90);
+
+                                    // Details
+                                    let y = 110;
+                                    const addDetail = (label: string, value: string) => {
+                                        doc.setFontSize(11);
+                                        doc.setTextColor(100, 100, 100);
+                                        doc.setFont('helvetica', 'bold');
+                                        doc.text(label, 20, y);
+
+                                        doc.setTextColor(0, 0, 0);
+                                        doc.text(value, 190, y, { align: "right" });
+                                        y += 15;
+                                    };
+
+                                    addDetail("Transaction ID", `#${activeReceipt.id}`);
+                                    addDetail("Customer Name", activeReceipt.customer);
+                                    addDetail("Date & Time", `${activeReceipt.date || getTodayDate()}, ${activeReceipt.time}`);
+                                    addDetail("Payment Mode", activeReceipt.mode);
+                                    addDetail("Status", "Successful");
+
+                                    // Footer
+                                    doc.setFontSize(9);
+                                    doc.setTextColor(150, 150, 150);
+                                    const appNameFooter = db.getAppSettings().appName;
+                                    doc.text(`Generated via ${appNameFooter}`, 105, 280, { align: "center" });
+
+                                    doc.save(`Receipt_${activeReceipt.id}.pdf`);
+                                }}
+                                className="flex-1 py-3 bg-indigo-600 text-white font-bold rounded-xl text-sm shadow-xl shadow-indigo-600/20 hover:bg-indigo-700 transition-colors"
+                            >
+                                Download PDF
+                            </button>
                         </div>
                     </motion.div>
                 </div>
             )}
 
-            {/* Hidden Print Template for PDF Generation - Reusing Global CSS Logic */}
-            {activeReceipt && (
-                <div id="receipt-modal" className="hidden">
-                    <div className="p-8 text-center bg-indigo-600 text-white mb-8 rounded-t-3xl">
-                        <h2 className="text-4xl font-extrabold mb-2 uppercase tracking-widest">PAYMENT RECEIPT</h2>
-                        <p className="text-sm tracking-[0.2em] uppercase opacity-90">Transaction Successful</p>
-                    </div>
-                    <div className="px-4 space-y-10">
-                        <div className="text-center py-6 border-b-2 border-dashed border-slate-200">
-                            <p className="text-lg font-bold uppercase tracking-wider mb-2 text-slate-500">Amount Paid</p>
-                            <h3 className="text-7xl font-black text-slate-900">{formatCurrency(parseFloat(activeReceipt.amount.replace(/,/g, '') || '0'))}</h3>
-                        </div>
-                        <div className="space-y-6">
-                            <div className="flex justify-between items-center"><span className="font-bold text-xl text-slate-500">Payment To</span><span className="font-bold text-2xl text-slate-900">{activeReceipt.customer}</span></div>
-                            <div className="flex justify-between items-center"><span className="font-bold text-xl text-slate-500">Date & Time</span><span className="font-bold text-2xl text-slate-900">{activeReceipt.date || getTodayDate()}, {activeReceipt.time}</span></div>
-                            <div className="flex justify-between items-center"><span className="font-bold text-xl text-slate-500">Transaction ID</span><span className="font-bold text-2xl text-slate-900">#{activeReceipt.id}</span></div>
-                            <div className="flex justify-between items-center"><span className="font-bold text-xl text-slate-500">Payment Mode</span><span className="font-bold text-2xl uppercase px-4 py-1 rounded-lg bg-slate-100 text-slate-900">{activeReceipt.mode}</span></div>
-                        </div>
-                        <div className="mt-12 pt-8 border-t text-center border-slate-100">
-                            <p className="font-bold text-sm uppercase tracking-widest text-slate-400">Generated via Payment Soft</p>
-                        </div>
-                    </div>
-                </div>
-            )}
+
 
         </div >
     );
 }
 
+
 function Card({ title, value, icon, trend, trendUp, color, href, onClick }: any) {
     const Content = (
         <motion.div
             whileHover={{ y: -5 }}
-            className={`bg-[#1e293b]/60 backdrop-blur-xl p-6 rounded-[2rem] border border-white/5 shadow-2xl relative overflow-hidden group cursor-pointer hover:bg-[#1e293b] active:scale-95 transition-all`}
+            className={`bg-[#1e293b]/60 backdrop-blur-xl p-6 rounded-[2.5rem] border border-white/5 shadow-2xl relative overflow-hidden group cursor-pointer hover:bg-[#1e293b] active:scale-95 transition-all h-full flex flex-col justify-between`}
             onClick={onClick}
         >
-            <div className={`absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity ${color} w-32 h-32 rounded-full blur-2xl translate-x-8 -translate-y-8`}></div>
-            <div className="flex justify-between items-start relative z-10">
-                <div>
-                    <p className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">{title}</p>
-                    <h3 className="text-3xl font-extrabold text-white tracking-tight">{value}</h3>
+            <div className={`absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity ${color} w-32 h-32 rounded-full blur-3xl translate-x-8 -translate-y-8`}></div>
+
+            <div className="flex justify-between items-start relative z-10 w-full mb-6">
+                {/* Icon Box */}
+                <div className={`w-14 h-14 rounded-2xl ${color} flex items-center justify-center text-white shadow-lg shadow-black/20`}>
+                    {React.cloneElement(icon, { size: 28 })}
                 </div>
-                <div className={`p-3 rounded-2xl ${color} text-white shadow-lg shadow-black/20`}>
-                    {React.cloneElement(icon, { size: 20 })}
+
+                {/* Trend Pill */}
+                <div className={`px-3 py-1.5 rounded-full flex items-center gap-1.5 text-xs font-bold ${trendUp ? 'bg-blue-500 text-white' : 'bg-rose-500 text-white'}`}>
+                    {trendUp ? <TrendingUp size={14} /> : <TrendingUp size={14} className="rotate-180" />}
+                    {trend}
                 </div>
             </div>
-            <div className="mt-6 flex items-center gap-2 text-xs font-bold relative z-10">
-                <span className={`px-2 py-1 rounded-full ${trendUp ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/20 text-rose-400 border border-rose-500/20'}`}>
-                    {trend}
-                </span>
-                <span className="text-slate-500">vs yesterday</span>
+
+            <div className="relative z-10">
+                <h3 className="text-4xl font-black text-white tracking-tight mb-2">{value}</h3>
+                <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">{title}</p>
             </div>
         </motion.div>
     );
 
     if (href && !onClick) {
-        return <Link href={href}>{Content}</Link>;
+        return <Link href={href} className="block h-full">{Content}</Link>;
     }
     return Content;
 }
 
-// TransactionItem replaced with EnhancedTransactionItem component
+
 
 function LeaderboardItem({ rank, name, amount }: any) {
+    const isFirst = rank === '1';
     return (
-        <div className="flex items-center gap-4 p-3 rounded-2xl bg-white/5 border border-white/5 hover:bg-white/10 transition-colors cursor-pointer">
-            <div className={`h-8 w-8 rounded-xl flex items-center justify-center font-bold text-sm ${rank === '1' ? 'bg-amber-400 text-black shadow-lg shadow-amber-400/20' : 'bg-[#1e293b] text-slate-400'}`}>
+        <div className="flex items-center gap-4 p-4 rounded-3xl bg-[#1e293b]/50 border border-white/5 hover:bg-white/5 transition-colors cursor-pointer group">
+            <div className={`h-12 w-12 rounded-2xl flex items-center justify-center font-bold text-lg shadow-lg ${isFirst ? 'bg-amber-400 text-black shadow-amber-400/20' : 'bg-[#0f172a] text-slate-500'}`}>
                 {rank}
             </div>
             <div className="flex-1">
-                <p className="font-bold text-sm text-slate-200">{name}</p>
+                <p className={`font-bold text-base ${isFirst ? 'text-white' : 'text-slate-300'}`}>{name}</p>
             </div>
-            <p className="font-bold text-emerald-400">{amount}</p>
+            <p className="font-bold text-emerald-400 text-lg tracking-tight">{amount}</p>
         </div>
     )
 }
 
-function HandoverItem({ name, amount, time }: any) {
+
+
+function HandoverItem({ name, amount, time, onAccept }: any) {
     return (
-        <div className="flex items-center justify-between p-3 bg-white/5 rounded-xl border border-white/5">
+        <div className="flex items-center justify-between p-3 bg-white/5 rounded-xl border border-white/5 hover:border-indigo-500/30 transition-colors group">
             <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-indigo-500/20 text-indigo-300 flex items-center justify-center font-bold">
+                <div className="w-10 h-10 rounded-full bg-indigo-500/20 text-indigo-300 flex items-center justify-center font-bold group-hover:bg-indigo-500 group-hover:text-white transition-colors">
                     {name[0]}
                 </div>
                 <div>
@@ -869,7 +1223,18 @@ function HandoverItem({ name, amount, time }: any) {
                     <p className="text-xs text-slate-500">{time}</p>
                 </div>
             </div>
-            <span className="font-bold text-white">{amount}</span>
+            <div className="flex items-center gap-3">
+                <span className="font-bold text-white">{amount}</span>
+                {onAccept && (
+                    <button
+                        onClick={onAccept}
+                        title="Accept Payment"
+                        className="p-2 bg-emerald-500/10 text-emerald-400 rounded-lg hover:bg-emerald-500 hover:text-white transition-colors border border-emerald-500/20"
+                    >
+                        <Check size={16} />
+                    </button>
+                )}
+            </div>
         </div>
     )
 }
