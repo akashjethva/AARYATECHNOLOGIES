@@ -5,7 +5,7 @@ import { useState, useCallback, memo, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCurrency } from "@/hooks/useCurrency";
-import { db, Customer } from "@/services/db";
+import { db, Customer, Collection } from "@/services/db";
 import jsPDF from "jspdf";
 import autoTable from 'jspdf-autotable';
 
@@ -25,14 +25,14 @@ export default function CustomersPage() {
     const [isFilterOpen, setIsFilterOpen] = useState(false);
     const [activeFilter, setActiveFilter] = useState("All");
 
-     const handleDownloadPendingReport = () => {
+    const handleDownloadPendingReport = () => {
         const doc = new jsPDF();
-        
+
         // Header
         doc.setFontSize(22);
         doc.setTextColor(40, 40, 40);
         doc.text("Pending Dues Report", 14, 20);
-        
+
         doc.setFontSize(10);
         doc.setTextColor(100, 100, 100);
         doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 28);
@@ -588,6 +588,19 @@ function CustomerLedgerModal({ customer, onClose }: { customer: Customer, onClos
     const [activeTab, setActiveTab] = useState("Transaction Timeline");
     const [toast, setToast] = useState({ message: '', type: 'success', visible: false });
     const { formatCurrency } = useCurrency();
+    const [transactions, setTransactions] = useState<Collection[]>([]);
+
+    useEffect(() => {
+        // Fetch and filter transactions for this customer
+        const allCollections = db.getCollections();
+        // Ensure accurate ID matching (handling string/number types safely)
+        const customerTransactions = allCollections.filter(c => String(c.customerId) === String(customer.id));
+
+        // Sort by date descending
+        customerTransactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+        setTransactions(customerTransactions);
+    }, [customer.id]);
 
     const showToast = useCallback((message: string, type: 'success' | 'info' = 'success') => {
         setToast({ message, type, visible: true });
@@ -618,7 +631,7 @@ function CustomerLedgerModal({ customer, onClose }: { customer: Customer, onClos
                             <div className="flex items-center gap-6 text-slate-400 text-sm mt-2 font-medium">
                                 <span className="flex items-center gap-2"><Phone size={16} className="text-slate-500" /> {customer.phone}</span>
                                 <span className="w-1.5 h-1.5 rounded-full bg-slate-700"></span>
-                                <span className="flex items-center gap-2"><MapPin size={16} className="text-slate-500" /> {customer.city}, East Zone</span>
+                                <span className="flex items-center gap-2"><MapPin size={16} className="text-slate-500" /> {customer.city}</span>
                             </div>
                         </div>
                     </div>
@@ -686,97 +699,36 @@ function CustomerLedgerModal({ customer, onClose }: { customer: Customer, onClos
                             {/* Transaction Timeline Content */}
                             {activeTab === "Transaction Timeline" && (
                                 <div className="space-y-10">
-
-
-                                    {/* Jan 02 */}
-                                    <div className="relative pl-10 border-l border-white/5 pb-2 last:pb-0 last:border-transparent group">
-                                        <div className="absolute -left-3.5 top-0 h-7 w-7 rounded-full bg-[#0b0c10] border border-emerald-500/30 flex items-center justify-center group-hover:border-emerald-500 transition-colors shadow-[0_0_15px_rgba(16,185,129,0.2)]">
-                                            <ShieldCheck size={14} className="text-emerald-500" />
-                                        </div>
-                                        <div className="flex justify-between items-start">
-                                            <div>
-                                                <p className="text-[10px] font-bold text-slate-500 tracking-wider uppercase mb-1.5">JAN 02, 2026</p>
-                                                <h4 className="text-xl font-bold text-white mb-1">Payment Received</h4>
-                                                <p className="text-sm text-slate-400 font-medium">Processed by <span className="text-slate-200">Rahul Varma</span></p>
-                                            </div>
-                                            <div className="text-right">
-                                                <p className="text-xl font-bold text-emerald-400 mb-1">+ {formatCurrency(5000)}</p>
-                                                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">CASH</p>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Dec 28 */}
-                                    <div className="relative pl-10 border-l border-white/5 pb-2 last:pb-0 last:border-transparent group">
-                                        <div className="absolute -left-3.5 top-0 h-7 w-7 rounded-full bg-[#0b0c10] border border-blue-500/30 flex items-center justify-center group-hover:border-blue-500 transition-colors shadow-[0_0_15px_rgba(59,130,246,0.2)]">
-                                            <TrendingUp size={14} className="text-blue-500" />
-                                        </div>
-                                        <div className="flex justify-between items-start">
-                                            <div>
-                                                <p className="text-[10px] font-bold text-slate-500 tracking-wider uppercase mb-1.5">DEC 28, 2025</p>
-                                                <h4 className="text-xl font-bold text-white mb-1">Invoice Issued</h4>
-                                                <div className="flex items-center gap-3">
-                                                    <p className="text-sm text-slate-400 font-medium">Processed by <span className="text-slate-200">System Admin</span></p>
-
-                                                    {/* Download Button */}
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            showToast("Downloading Invoice #INV-2025-001.pdf...", "info");
-                                                        }}
-                                                        className="h-6 w-6 rounded bg-white/5 hover:bg-white/10 flex items-center justify-center text-slate-400 hover:text-white transition-colors"
-                                                        title="Download Invoice"
-                                                    >
-                                                        <Download size={12} />
-                                                    </button>
+                                    {transactions.length > 0 ? (
+                                        transactions.map((txn, index) => (
+                                            <div key={txn.id || index} className="relative pl-10 border-l border-white/5 pb-2 last:pb-0 last:border-transparent group">
+                                                <div className={`absolute -left-3.5 top-0 h-7 w-7 rounded-full bg-[#0b0c10] flex items-center justify-center transition-colors shadow-[0_0_15px_rgba(16,185,129,0.2)] ${txn.type === 'Credit' ? 'border-emerald-500/30 group-hover:border-emerald-500' : 'border-blue-500/30 group-hover:border-blue-500'}`}>
+                                                    {txn.type === 'Credit' ? <ShieldCheck size={14} className="text-emerald-500" /> : <TrendingUp size={14} className="text-blue-500" />}
+                                                </div>
+                                                <div className="flex justify-between items-start">
+                                                    <div>
+                                                        <p className="text-[10px] font-bold text-slate-500 tracking-wider uppercase mb-1.5">{new Date(txn.date).toLocaleDateString()}</p>
+                                                        <h4 className="text-xl font-bold text-white mb-1">{txn.type === 'Credit' ? 'Payment Received' : 'Invoice/Debit'}</h4>
+                                                        <p className="text-sm text-slate-400 font-medium">Processed by <span className="text-slate-200">Staff Link Needed</span></p>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <p className={`text-xl font-bold mb-1 ${txn.type === 'Credit' ? 'text-emerald-400' : 'text-white'}`}>
+                                                            {txn.type === 'Credit' ? '+' : ''} {formatCurrency(parseFloat(txn.amount))}
+                                                        </p>
+                                                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{txn.paymentMode || 'N/A'}</p>
+                                                    </div>
                                                 </div>
                                             </div>
-                                            <div className="text-right">
-                                                <p className="text-xl font-bold text-white mb-1">{formatCurrency(12000)}</p>
-                                                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">TAX BILL</p>
-                                            </div>
+                                        ))
+                                    ) : (
+                                        <div className="text-center py-20 text-slate-500">
+                                            <p>No transactions found for this customer.</p>
                                         </div>
-                                    </div>
-
-                                    {/* Dec 22 */}
-                                    <div className="relative pl-10 border-l border-white/5 pb-2 last:pb-0 last:border-transparent group">
-                                        <div className="absolute -left-3.5 top-0 h-7 w-7 rounded-full bg-[#0b0c10] border border-amber-500/30 flex items-center justify-center group-hover:border-amber-500 transition-colors shadow-[0_0_15px_rgba(245,158,11,0.2)]">
-                                            <Map size={14} className="text-amber-500" />
-                                        </div>
-                                        <div className="flex justify-between items-start">
-                                            <div>
-                                                <p className="text-[10px] font-bold text-slate-500 tracking-wider uppercase mb-1.5">DEC 22, 2025</p>
-                                                <h4 className="text-xl font-bold text-white mb-1">Site Visit Confirmed</h4>
-                                                <p className="text-sm text-slate-400 font-medium">Processed by <span className="text-slate-200">Amit Kumar</span></p>
-                                            </div>
-                                            <div className="text-right">
-                                                <p className="text-sm font-bold text-white mb-1">Details Updated</p>
-                                                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">CHECK-IN</p>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Dec 15 */}
-                                    <div className="relative pl-10 border-l border-white/5 pb-2 last:pb-0 last:border-transparent group">
-                                        <div className="absolute -left-3.5 top-0 h-7 w-7 rounded-full bg-[#0b0c10] border border-emerald-500/30 flex items-center justify-center group-hover:border-emerald-500 transition-colors shadow-[0_0_15px_rgba(16,185,129,0.2)]">
-                                            <CheckCircle size={14} className="text-emerald-500" />
-                                        </div>
-                                        <div className="flex justify-between items-start">
-                                            <div>
-                                                <p className="text-[10px] font-bold text-slate-500 tracking-wider uppercase mb-1.5">DEC 15, 2025</p>
-                                                <h4 className="text-xl font-bold text-white mb-1">Payment Received</h4>
-                                                <p className="text-sm text-slate-400 font-medium">Processed by <span className="text-slate-200">Rahul Varma</span></p>
-                                            </div>
-                                            <div className="text-right">
-                                                <p className="text-xl font-bold text-emerald-400 mb-1">+ {formatCurrency(2000)}</p>
-                                                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">UPI</p>
-                                            </div>
-                                        </div>
-                                    </div>
+                                    )}
                                 </div>
                             )}
 
-                            {/* Communication Content */}
+                            {/* Communication Content (Placeholder for now) */}
                             {activeTab === "Communication" && (
                                 <div className="space-y-6">
                                     <div
@@ -791,121 +743,26 @@ function CustomerLedgerModal({ customer, onClose }: { customer: Customer, onClos
                                                 <h4 className="font-bold text-white text-sm group-hover:text-emerald-400 transition-colors">Payment Reminder Sent</h4>
                                                 <span className="text-[10px] font-bold text-slate-500">Yesterday</span>
                                             </div>
-                                            <p className="text-slate-400 text-xs leading-relaxed">Automated reminder sent via WhatsApp regarding overdue balance of ₹ 15,200.</p>
-                                        </div>
-                                    </div>
-
-                                    <div
-                                        onClick={() => showToast("Showing Call Recording & Logs...", "info")}
-                                        className="bg-[#151921] hover:bg-[#1f2937] cursor-pointer transition-colors p-5 rounded-2xl border border-white/5 flex gap-4 group"
-                                    >
-                                        <div className="h-10 w-10 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-500 shrink-0 group-hover:scale-110 transition-transform">
-                                            <Phone size={18} />
-                                        </div>
-                                        <div className="flex-1">
-                                            <div className="flex justify-between items-start mb-1">
-                                                <h4 className="font-bold text-white text-sm group-hover:text-blue-400 transition-colors">Call with Owner</h4>
-                                                <span className="text-[10px] font-bold text-slate-500">3 Days ago</span>
-                                            </div>
-                                            <p className="text-slate-400 text-xs leading-relaxed">Spoke to Mr. Rajesh. He promised to clear the pending dues by Monday evening.</p>
-                                        </div>
-                                    </div>
-
-                                    <div
-                                        onClick={() => showToast("Statement resent to billing@shivshakti.com", "success")}
-                                        className="bg-[#151921] hover:bg-[#1f2937] cursor-pointer transition-colors p-5 rounded-2xl border border-white/5 flex gap-4 group"
-                                    >
-                                        <div className="h-10 w-10 rounded-full bg-white/5 flex items-center justify-center text-slate-400 shrink-0 group-hover:scale-110 transition-transform">
-                                            <Mail size={18} />
-                                        </div>
-                                        <div className="flex-1">
-                                            <div className="flex justify-between items-start mb-1">
-                                                <h4 className="font-bold text-white text-sm group-hover:text-slate-200 transition-colors">Monthly Statement</h4>
-                                                <span className="text-[10px] font-bold text-slate-500">Dec 31</span>
-                                            </div>
-                                            <p className="text-slate-400 text-xs leading-relaxed">December 2025 statement generated and emailed to billing@shivshakti.com</p>
+                                            <p className="text-slate-400 text-xs leading-relaxed">Automated reminder sent via WhatsApp regarding overdue balance.</p>
                                         </div>
                                     </div>
                                 </div>
                             )}
 
-                            {/* KYC Docs Content */}
+                            {/* KYC Content (Placeholder) */}
                             {activeTab === "KYC Docs" && (
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="bg-[#151921] p-4 rounded-2xl border border-white/5 hover:border-white/10 transition-colors group">
-                                        <div className="flex justify-between items-start mb-4">
-                                            <div className="h-10 w-10 rounded-xl bg-purple-500/10 flex items-center justify-center text-purple-400">
-                                                <FileText size={20} />
-                                            </div>
-                                            <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-bold px-2 py-0.5 rounded-full">VERIFIED</span>
-                                        </div>
-                                        <h4 className="font-bold text-white text-sm mb-1">GST Certificate</h4>
-                                        <p className="text-slate-500 text-[10px] mb-4">Uploaded on Jan 10, 2025</p>
-                                        <button className="w-full bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white py-2 rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-2">
-                                            <Download size={14} /> Download PDF
-                                        </button>
-                                    </div>
-
-                                    <div className="bg-[#151921] p-4 rounded-2xl border border-white/5 hover:border-white/10 transition-colors group">
-                                        <div className="flex justify-between items-start mb-4">
-                                            <div className="h-10 w-10 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-400">
-                                                <FileText size={20} />
-                                            </div>
-                                            <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-bold px-2 py-0.5 rounded-full">VERIFIED</span>
-                                        </div>
-                                        <h4 className="font-bold text-white text-sm mb-1">PAN Card</h4>
-                                        <p className="text-slate-500 text-[10px] mb-4">Uploaded on Jan 10, 2025</p>
-                                        <button className="w-full bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white py-2 rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-2">
-                                            <Download size={14} /> Download Image
-                                        </button>
-                                    </div>
-
-                                    <div className="bg-[#151921] p-4 rounded-2xl border border-white/5 hover:border-white/10 transition-colors group">
-                                        <div className="flex justify-between items-start mb-4">
-                                            <div className="h-10 w-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-400">
-                                                <FileText size={20} />
-                                            </div>
-                                            <span className="bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[10px] font-bold px-2 py-0.5 rounded-full">PENDING</span>
-                                        </div>
-                                        <h4 className="font-bold text-white text-sm mb-1">Shop License</h4>
-                                        <p className="text-slate-500 text-[10px] mb-4">Expired on Dec 31, 2025</p>
-                                        <button className="w-full bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white py-2 rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-2">
-                                            <Download size={14} /> View Details
-                                        </button>
-                                    </div>
+                                <div className="text-center py-20 text-slate-500">
+                                    <p>No KYC documents uploaded.</p>
                                 </div>
                             )}
-                        </div>
-
-                        {/* Custom Report Banner */}
-                        <div className="mt-8 pt-0">
-                            <div className="bg-gradient-to-r from-[#1e1b4b] to-[#1e1b4b] border border-indigo-500/30 rounded-[2rem] p-6 flex items-center justify-between relative overflow-hidden group hover:border-indigo-500/50 transition-colors shadow-2xl">
-                                <div className="absolute inset-0 bg-[#4f46e5]/10 blur-2xl group-hover:bg-[#4f46e5]/20 transition-colors"></div>
-                                <div className="flex items-center gap-6 relative z-10">
-                                    <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-[#4f46e5] to-[#4338ca] flex items-center justify-center shadow-lg shadow-indigo-500/30 group-hover:scale-110 transition-transform">
-                                        <FileText size={28} className="text-white" />
-                                    </div>
-                                    <div>
-                                        <h4 className="text-xl font-bold text-white">Need a custom report?</h4>
-                                        <p className="text-indigo-200 text-sm font-medium mt-1">Export specific filters as a PDF or Excel.</p>
-                                    </div>
-                                </div>
-                                <button
-                                    onClick={() => showToast("Generating Custom Report (PDF)... Download starting!", "success")}
-                                    className="bg-[#4f46e5] hover:bg-[#4338ca] text-white font-bold py-4 px-8 rounded-xl shadow-lg shadow-indigo-600/30 transition-all active:scale-95 relative z-10 text-sm"
-                                >
-                                    Generate Custom PDF
-                                </button>
-                            </div>
                         </div>
                     </div>
                 </div>
-
             </motion.div>
-        </div>,
-        document.body
+        </div>
     );
 }
+
 
 function CustomerFinancialPanel({ customer, showToast, setActiveTab }: { customer: Customer, showToast: (msg: string, type: 'success' | 'info') => void, setActiveTab: (tab: string) => void }) {
     return (
