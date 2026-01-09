@@ -591,16 +591,33 @@ function CustomerLedgerModal({ customer, onClose }: { customer: Customer, onClos
     const [transactions, setTransactions] = useState<Collection[]>([]);
 
     useEffect(() => {
-        // Fetch and filter transactions for this customer
-        const allCollections = db.getCollections();
-        // Ensure accurate ID matching (handling string/number types safely)
-        const customerTransactions = allCollections.filter(c => String(c.customerId) === String(customer.id));
+        try {
+            if (!customer || !customer.id) {
+                console.warn("CustomerLedgerModal: Missing customer or customer ID");
+                return;
+            }
 
-        // Sort by date descending
-        customerTransactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+            // Fetch and filter transactions for this customer
+            const allCollections = db.getCollections();
 
-        setTransactions(customerTransactions);
-    }, [customer.id]);
+            if (!Array.isArray(allCollections)) {
+                console.error("CustomerLedgerModal: db.getCollections() returned non-array", allCollections);
+                setTransactions([]);
+                return;
+            }
+
+            // Ensure accurate ID matching (handling string/number types safely)
+            const customerTransactions = allCollections.filter(c => String(c.customerId) === String(customer.id));
+
+            // Sort by date descending
+            customerTransactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+            setTransactions(customerTransactions);
+        } catch (err) {
+            console.error("CustomerLedgerModal Error:", err);
+            showToast("Error loading transactions", "info");
+        }
+    }, [customer?.id]); // Safe access in dependency
 
     const showToast = useCallback((message: string, type: 'success' | 'info' = 'success') => {
         setToast({ message, type, visible: true });
@@ -608,6 +625,7 @@ function CustomerLedgerModal({ customer, onClose }: { customer: Customer, onClos
     }, []);
 
     if (typeof window === 'undefined') return null;
+    if (!customer) return null; // Extra safety guard
 
     return createPortal(
         <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
