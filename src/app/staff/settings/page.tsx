@@ -501,21 +501,24 @@ export default function StaffSettings() {
             </div>
 
             <button
-                router.push('/');
+                onClick={() => {
+                    localStorage.removeItem('payment_app_user');
+                    localStorage.removeItem('payment_app_session');
+                    router.push('/');
                 }}
-            className="w-full py-4 rounded-2xl bg-rose-500/10 text-rose-500 font-bold border border-rose-500/20 flex items-center justify-center gap-2 hover:bg-rose-500 hover:text-white transition-all active:scale-95"
+                className="w-full py-4 rounded-2xl bg-rose-500/10 text-rose-500 font-bold border border-rose-500/20 flex items-center justify-center gap-2 hover:bg-rose-500 hover:text-white transition-all active:scale-95"
             >
-            <LogOut size={20} /> Logout
-        </button>
+                <LogOut size={20} /> Logout
+            </button>
 
-            {/* DEBUG: Force Sync Button */ }
+            {/* DEBUG: Force Sync Button */}
             <button
                 onClick={() => {
                     const confirmSync = window.confirm("Reset & Sync All Data? This will attempt to push all local data to Server.");
                     if (confirmSync) {
                         db.forceSync()
-                          .then(() => showToast("Force Sync Complete! Check Admin.", "success"))
-                          .catch(err => alert("Sync Failed: " + err.message));
+                            .then(() => showToast("Force Sync Complete! Check Admin.", "success"))
+                            .catch(err => alert("Sync Failed: " + err.message));
                     }
                 }}
                 className="w-full mt-4 py-3 rounded-2xl bg-blue-500/10 text-blue-500 font-bold border border-blue-500/20 flex items-center justify-center gap-2 hover:bg-blue-500 hover:text-white transition-all active:scale-95"
@@ -529,90 +532,90 @@ export default function StaffSettings() {
                 Powered by {db.getAppSettings().appName}
             </p>
 
-    {/* Custom Toast */ }
-    <AnimatePresence>
-        {toast.show && (
-            <motion.div
-                initial={{ opacity: 0, y: 50 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 50 }}
-                className={`fixed bottom-24 left-6 right-6 z-[100] p-4 rounded-2xl border ${toast.type === 'success' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500' : 'bg-rose-500/10 border-rose-500/20 text-rose-500'} backdrop-blur-xl flex items-center justify-center font-bold text-sm shadow-2xl`}
-            >
-                {toast.message}
-            </motion.div>
-        )}
-    </AnimatePresence>
+            {/* Custom Toast */}
+            <AnimatePresence>
+                {toast.show && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 50 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 50 }}
+                        className={`fixed bottom-24 left-6 right-6 z-[100] p-4 rounded-2xl border ${toast.type === 'success' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500' : 'bg-rose-500/10 border-rose-500/20 text-rose-500'} backdrop-blur-xl flex items-center justify-center font-bold text-sm shadow-2xl`}
+                    >
+                        {toast.message}
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
-    {/* Change Password Modal */ }
-    <AnimatePresence>
-        {isPassModalOpen && (
-            <div className="fixed inset-0 z-[9999] flex items-center justify-center p-6">
-                <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    onClick={() => setIsPassModalOpen(false)}
-                    className="absolute inset-0 bg-black/80 backdrop-blur-md"
-                />
-                <motion.div
-                    initial={{ scale: 0.9, opacity: 0, y: 20 }}
-                    animate={{ scale: 1, opacity: 1, y: 0 }}
-                    exit={{ scale: 0.9, opacity: 0, y: 20 }}
-                    className="bg-white dark:bg-[#111] w-full max-w-sm rounded-[2.5rem] border border-slate-200 dark:border-white/10 shadow-2xl relative z-10 overflow-hidden p-8"
-                >
-                    <div className="flex justify-between items-center mb-6">
-                        <h3 className="text-xl font-bold">Change Password</h3>
-                        <button onClick={() => setIsPassModalOpen(false)} className="text-slate-400 p-2">
-                            <X size={24} />
-                        </button>
-                    </div>
-
-                    <form onSubmit={handlePasswordChange} className="space-y-4 text-left">
-                        <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase mb-2 pl-1">Current Password</label>
-                            <input
-                                type="password"
-                                required
-                                value={passData.current}
-                                onChange={(e) => setPassData({ ...passData, current: e.target.value })}
-                                className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/5 rounded-2xl px-5 py-3.5 outline-none focus:border-indigo-500 transition-all font-medium"
-                                placeholder="••••"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase mb-2 pl-1">New Password</label>
-                            <input
-                                type="password"
-                                required
-                                value={passData.new}
-                                onChange={(e) => setPassData({ ...passData, new: e.target.value })}
-                                className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/5 rounded-2xl px-5 py-3.5 outline-none focus:border-indigo-500 transition-all font-medium"
-                                placeholder="••••"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase mb-2 pl-1">Confirm New Password</label>
-                            <input
-                                type="password"
-                                required
-                                value={passData.confirm}
-                                onChange={(e) => setPassData({ ...passData, confirm: e.target.value })}
-                                className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/5 rounded-2xl px-5 py-3.5 outline-none focus:border-indigo-500 transition-all font-medium"
-                                placeholder="••••"
-                            />
-                        </div>
-
-                        <button
-                            type="submit"
-                            className="w-full mt-4 py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-2xl shadow-xl shadow-indigo-600/20 active:scale-95 transition-all text-center"
+            {/* Change Password Modal */}
+            <AnimatePresence>
+                {isPassModalOpen && (
+                    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-6">
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => setIsPassModalOpen(false)}
+                            className="absolute inset-0 bg-black/80 backdrop-blur-md"
+                        />
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                            animate={{ scale: 1, opacity: 1, y: 0 }}
+                            exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                            className="bg-white dark:bg-[#111] w-full max-w-sm rounded-[2.5rem] border border-slate-200 dark:border-white/10 shadow-2xl relative z-10 overflow-hidden p-8"
                         >
-                            Update Password
-                        </button>
-                    </form>
-                </motion.div>
-            </div>
-        )}
-    </AnimatePresence>
+                            <div className="flex justify-between items-center mb-6">
+                                <h3 className="text-xl font-bold">Change Password</h3>
+                                <button onClick={() => setIsPassModalOpen(false)} className="text-slate-400 p-2">
+                                    <X size={24} />
+                                </button>
+                            </div>
+
+                            <form onSubmit={handlePasswordChange} className="space-y-4 text-left">
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2 pl-1">Current Password</label>
+                                    <input
+                                        type="password"
+                                        required
+                                        value={passData.current}
+                                        onChange={(e) => setPassData({ ...passData, current: e.target.value })}
+                                        className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/5 rounded-2xl px-5 py-3.5 outline-none focus:border-indigo-500 transition-all font-medium"
+                                        placeholder="••••"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2 pl-1">New Password</label>
+                                    <input
+                                        type="password"
+                                        required
+                                        value={passData.new}
+                                        onChange={(e) => setPassData({ ...passData, new: e.target.value })}
+                                        className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/5 rounded-2xl px-5 py-3.5 outline-none focus:border-indigo-500 transition-all font-medium"
+                                        placeholder="••••"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2 pl-1">Confirm New Password</label>
+                                    <input
+                                        type="password"
+                                        required
+                                        value={passData.confirm}
+                                        onChange={(e) => setPassData({ ...passData, confirm: e.target.value })}
+                                        className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/5 rounded-2xl px-5 py-3.5 outline-none focus:border-indigo-500 transition-all font-medium"
+                                        placeholder="••••"
+                                    />
+                                </div>
+
+                                <button
+                                    type="submit"
+                                    className="w-full mt-4 py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-2xl shadow-xl shadow-indigo-600/20 active:scale-95 transition-all text-center"
+                                >
+                                    Update Password
+                                </button>
+                            </form>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
         </div >
     )
 }
