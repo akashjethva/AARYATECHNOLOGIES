@@ -105,6 +105,24 @@ const safeParse = (key: string, fallback: any) => {
     }
 };
 
+// Helper: Remove undefined fields for Firestore (Global Scope)
+const sanitizeForFirestore = (data: any) => {
+    if (!data || typeof data !== 'object') return data;
+    const cleanData: any = {};
+    Object.keys(data).forEach(key => {
+        const value = data[key];
+        if (value !== undefined) {
+            // Recursive clean for nested objects
+            cleanData[key] = (value && typeof value === 'object' && !Array.isArray(value))
+                ? sanitizeForFirestore(value)
+                : value;
+        } else {
+            cleanData[key] = null; // Convert undefined to null
+        }
+    });
+    return cleanData;
+};
+
 // Sync Mechanism
 let isSyncing = false;
 
@@ -850,22 +868,9 @@ export const db = {
                                                                                                                                                                                             return String(security.pin) === inputPin;
                                                                                                                                                                                         },
 
-                                                                                                                                                                                            forceSync: () => {
-                                                                                                                                                                                                if (typeof window !== 'undefined') {
-                                                                                                                                                                                                    window.dispatchEvent(new Event('transaction-updated'));
-                                                                                                                                                                                                    window.dispatchEvent(new Event('customer-updated'));
-                                                                                                                                                                                                    window.dispatchEvent(new Event('expense-updated'));
-                                                                                                                                                                                                    window.dispatchEvent(new Event('staff-updated'));
-                                                                                                                                                                                                    window.dispatchEvent(new Event('expense-updated'));
-                                                                                                                                                                                                    window.dispatchEvent(new Event('staff-updated'));
-                                                                                                                                                                                                    window.dispatchEvent(new Event('zone-updated'));
-                                                                                                                                                                                                    window.dispatchEvent(new Event('settings-updated'));
-                                                                                                                                                                                                    window.dispatchEvent(new Event('company-updated'));
-                                                                                                                                                                                                    window.dispatchEvent(new Event('admin-profile-updated'));
-                                                                                                                                                                                                    window.dispatchEvent(new Event('notifications-updated'));
-                                                                                                                                                                                                    window.dispatchEvent(new Event('mobile-permissions-updated'));
-                                                                                                                                                                                                    window.dispatchEvent(new Event('alerts-updated'));
-                                                                                                                                                                                                    window.dispatchEvent(new Event('security-updated'));
-                                                                                                                                                                                                }
-                                                                                                                                                                                            }
+                                                                                                                                                                                            window.dispatchEvent(new Event('mobile-permissions-updated'));
+        window.dispatchEvent(new Event('alerts-updated'));
+        window.dispatchEvent(new Event('security-updated'));
+    }
+}
     };
