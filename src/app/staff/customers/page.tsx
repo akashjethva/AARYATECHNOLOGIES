@@ -290,39 +290,37 @@ function CustomerDetailsModal({ customer, onClose }: { customer: any, onClose: (
                 initial={{ scale: 0.95, opacity: 0, y: 20 }}
                 animate={{ scale: 1, opacity: 1, y: 0 }}
                 exit={{ scale: 0.95, opacity: 0, y: 20 }}
-                className="bg-[#0b0c10] w-full max-w-7xl rounded-[2.5rem] border border-white/5 shadow-2xl relative z-10 overflow-hidden h-[90vh] max-h-[900px] flex flex-col"
+                className="bg-[#0b0c10] w-full max-w-7xl rounded-[2rem] md:rounded-[2.5rem] border border-white/5 shadow-2xl relative z-10 overflow-hidden h-[85vh] md:h-[90vh] max-h-[900px] flex flex-col"
             >
-                {/* Modal Header */}
-                <div className="px-8 py-6 border-b border-white/5 flex justify-between items-center bg-[#0b0c10] shrink-0">
-                    <div className="flex items-center gap-6">
-                        <div className="h-16 w-16 rounded-3xl bg-[#4f46e5] flex items-center justify-center text-white text-3xl font-bold shadow-2xl shadow-indigo-500/20">
+                {/* Modal Header - Responsive Grid */}
+                <div className="px-5 py-5 md:px-8 md:py-6 border-b border-white/5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-[#0b0c10] shrink-0">
+                    <div className="flex items-center gap-4 md:gap-6 w-full md:w-auto">
+                        <div className="h-12 w-12 md:h-16 md:w-16 rounded-2xl md:rounded-3xl bg-[#4f46e5] flex items-center justify-center text-white text-xl md:text-3xl font-bold shadow-2xl shadow-indigo-500/20 shrink-0">
                             {customer.name[0]}
                         </div>
-                        <div>
-                            <div className="flex items-center gap-4">
-                                <h3 className="text-3xl font-bold text-white tracking-tight">{customer.name}</h3>
-                                <div className="flex items-center gap-2">
-                                    <span className={`text-white border text-[10px] font-extrabold px-3 py-1 rounded-full uppercase tracking-wider shadow-lg ${parseFloat(customer.balance) > 0 ? 'bg-rose-600 border-rose-400/20 shadow-rose-900/20' : 'bg-[#059669] border-emerald-400/20 shadow-emerald-900/20'}`}>
-                                        {parseFloat(customer.balance) > 0 ? 'Pending' : 'Active'}
-                                    </span>
-                                </div>
+                        <div className="flex-1 min-w-0">
+                            <div className="flex flex-wrap items-center gap-2 md:gap-4 mb-1">
+                                <h3 className="text-xl md:text-3xl font-bold text-white tracking-tight truncate">{customer.name}</h3>
+                                <span className={`text-white border text-[10px] font-extrabold px-2 py-0.5 md:px-3 md:py-1 rounded-full uppercase tracking-wider shadow-lg whitespace-nowrap ${parseFloat(customer.balance) > 0 ? 'bg-rose-600 border-rose-400/20 shadow-rose-900/20' : 'bg-[#059669] border-emerald-400/20 shadow-emerald-900/20'}`}>
+                                    {parseFloat(customer.balance) > 0 ? 'Pending' : 'Active'}
+                                </span>
                             </div>
-                            <div className="flex items-center gap-6 text-slate-400 text-sm mt-2 font-medium">
-                                <span className="flex items-center gap-2"><Phone size={16} className="text-slate-500" /> {customer.phone || customer.contact}</span>
-                                <span className="w-1.5 h-1.5 rounded-full bg-slate-700"></span>
-                                <span className="flex items-center gap-2"><MapPin size={16} className="text-slate-500" /> {customer.city}, East Zone</span>
+                            <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-6 text-slate-400 text-xs md:text-sm font-medium">
+                                <span className="flex items-center gap-2"><Phone size={14} className="text-slate-500" /> {customer.phone || customer.contact}</span>
                             </div>
                         </div>
                     </div>
-                    <div className="flex items-center gap-3">
+
+                    {/* Actions - Absolute on Mobile Top Right or Flex on Desktop */}
+                    <div className="flex items-center gap-3 absolute top-5 right-5 md:static">
                         <button
                             onClick={handleDownloadPDF}
-                            className={`h-12 w-12 flex items-center justify-center bg-[#1c1f26] hover:bg-white/10 rounded-2xl transition-colors ${isGenerating ? 'text-indigo-500' : 'text-slate-400 hover:text-white'} border border-white/5`}
+                            className={`h-10 w-10 md:h-12 md:w-12 flex items-center justify-center bg-[#1c1f26] hover:bg-white/10 rounded-xl md:rounded-2xl transition-colors ${isGenerating ? 'text-indigo-500' : 'text-slate-400 hover:text-white'} border border-white/5`}
                         >
-                            {isGenerating ? <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-indigo-500"></div> : <Download size={20} />}
+                            {isGenerating ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-500"></div> : <Download className="w-[18px] h-[18px] md:w-5 md:h-5" />}
                         </button>
-                        <button onClick={onClose} className="h-12 w-12 flex items-center justify-center bg-[#1c1f26] hover:bg-white/10 rounded-2xl transition-colors text-slate-400 hover:text-white border border-white/5">
-                            <X size={20} />
+                        <button onClick={onClose} className="h-10 w-10 md:h-12 md:w-12 flex items-center justify-center bg-[#1c1f26] hover:bg-white/10 rounded-xl md:rounded-2xl transition-colors text-slate-400 hover:text-white border border-white/5">
+                            <X className="w-[18px] h-[18px] md:w-5 md:h-5" />
                         </button>
                     </div>
                 </div>

@@ -325,11 +325,8 @@ export default function StaffHome() {
                             className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[110]"
                         />
                         <motion.div
-                            initial={{ x: "100%" }}
-                            animate={{ x: 0 }}
-                            exit={{ x: "100%" }}
                             transition={{ type: "spring", damping: 25, stiffness: 300 }}
-                            className="fixed top-0 bottom-0 right-0 w-full max-w-sm bg-[#0f1115]/95 backdrop-blur-3xl z-[120] border-l border-white/5 flex flex-col shadow-2xl"
+                            className="fixed top-0 bottom-0 right-0 w-[85vw] md:w-full md:max-w-sm bg-[#0f1115]/95 backdrop-blur-3xl z-[120] border-l border-white/5 flex flex-col shadow-2xl"
                         >
                             {/* Header */}
                             <div className="px-6 py-5 border-b border-white/5 flex justify-between items-center bg-black/20">
