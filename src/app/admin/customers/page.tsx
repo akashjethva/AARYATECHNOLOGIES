@@ -862,7 +862,7 @@ function CustomerFinancialPanel({ customer, showToast, setActiveTab }: { custome
                         <span className="relative inline-flex rounded-full h-3 w-3 bg-rose-500"></span>
                     </span>
                 </div>
-                <p className="text-rose-400 text-xs font-bold mt-3 bg-rose-500/10 inline-block px-3 py-1 rounded-full border border-rose-500/20">Overdue by 15 Days</p>
+                {/* REMOVED Hardcoded Overdue Text */}
             </div>
 
             <div className="space-y-4 mb-8">

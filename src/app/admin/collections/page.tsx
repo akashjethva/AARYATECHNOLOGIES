@@ -149,8 +149,16 @@ export default function CollectionsPage() {
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = db.getRowsPerPage();
 
+    // View Mode for Collections vs Handovers
+    const [viewMode, setViewMode] = useState<'Collections' | 'Handovers'>('Collections');
+
     // Filter Logic
     const filteredTransactions = transactions.filter(t => {
+        // Toggle Logic
+        const isHandover = t.customer.startsWith('HANDOVER:');
+        if (viewMode === 'Collections' && isHandover) return false;
+        if (viewMode === 'Handovers' && !isHandover) return false;
+
         const matchesSearch =
             t.customer.toLowerCase().includes(searchQuery.toLowerCase()) ||
             t.id.toLowerCase().includes(searchQuery.toLowerCase());
@@ -166,63 +174,8 @@ export default function CollectionsPage() {
 
     // Pagination Logic
     const indexOfLastItem = currentPage * itemsPerPage;
-    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-    const currentItems = filteredTransactions.slice(indexOfFirstItem, indexOfLastItem);
-    const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
-
-    const handleNextPage = () => {
-        if (currentPage < totalPages) setCurrentPage(prev => prev + 1);
-    };
-
-    const handlePrevPage = () => {
-        if (currentPage > 1) setCurrentPage(prev => prev - 1);
-    };
-
-    const handleExport = () => {
-        // Define CSV headers
-        const headers = ["Receipt ID", "Customer", "Staff", "Amount", "Status", "Date", "Mode", "Time", "Contact", "Remarks"];
-
-        // Convert data to CSV format
-        const csvContent = [
-            headers.join(","),
-            ...filteredTransactions.map(t => [
-                t.id,
-                `"${t.customer}"`, // Quote strings to handle commas
-                t.staff,
-                t.amount.replace(/,/g, ''), // Remove commas from amount for Excel
-                t.status,
-                t.amount.replace(/,/g, ''), // Remove commas from amount for Excel
-                t.status,
-                db.formatDate(t.date),
-                t.mode,
-                t.time,
-                t.contact,
-                `"${t.remarks || ''}"`
-            ].join(","))
-        ].join("\n");
-
-        // Create Blob and Download
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement("a");
-        if (link.download !== undefined) {
-            const url = URL.createObjectURL(blob);
-            link.setAttribute("href", url);
-            link.setAttribute("download", `collections_report_${getToday()}.csv`);
-            link.style.visibility = 'hidden';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        }
-    };
-
-    // Format Date for Display
-    const formatDate = (dateStr: string) => {
-        return db.formatDate(dateStr);
-    };
-
-    // Calculate Stats
     const totalCollections = transactions
-        .filter(t => t.status === "Paid")
+        .filter(t => t.status === "Paid" && !t.customer.startsWith('HANDOVER:'))
         .reduce((sum, t) => sum + parseFloat(t.amount.replace(/,/g, '')), 0);
     const pendingAmount = transactions
         .filter(t => t.status === "Processing")
@@ -322,6 +275,22 @@ export default function CollectionsPage() {
                 <div>
                     <h2 className="text-3xl font-bold text-white tracking-tight">Recent Transactions</h2>
                     <p className="text-slate-400 font-medium">Monitor financial activity in real-time</p>
+                </div>
+
+                {/* View Toggle */}
+                <div className="bg-[#0f172a] p-1 rounded-xl border border-white/10 flex items-center">
+                    <button
+                        onClick={() => setViewMode('Collections')}
+                        className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${viewMode === 'Collections' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
+                    >
+                        Collections
+                    </button>
+                    <button
+                        onClick={() => setViewMode('Handovers')}
+                        className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${viewMode === 'Handovers' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
+                    >
+                        Handovers
+                    </button>
                 </div>
 
                 <button
