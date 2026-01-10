@@ -751,6 +751,25 @@ export const db = {
         return true;
     },
 
+    clearStaffNotifications: async () => {
+        const list = db.getStaffNotifications();
+
+        // 1. Clear Local
+        localStorage.setItem('staff_notifications_list', JSON.stringify([]));
+        window.dispatchEvent(new Event('staff-notif-updated'));
+
+        // 2. Delete from Firestore (Prevent Re-Sync)
+        for (const notif of list) {
+            try {
+                if (notif.id) {
+                    await deleteDoc(doc(firestore, "staff_alerts", String(notif.id)));
+                }
+            } catch (e) {
+                console.error("Error deleting notification:", notif.id, e);
+            }
+        }
+    },
+
     acceptHandover: (staffName: string, amount: number) => {
         const id = Date.now();
         // 1. Log as Admin Collection (Cash In from Staff)

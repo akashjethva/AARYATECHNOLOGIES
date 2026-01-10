@@ -1,6 +1,6 @@
 "use client";
 
-import { Search, Phone, MapPin, ArrowRight, User, ArrowLeft, X, TrendingUp, History, ShieldCheck, Download, ExternalLink, Calendar, Map, CheckCircle2, ArrowUpRight, ArrowDownRight, Bell, Link as LinkIcon, FileText, CheckCircle } from "lucide-react";
+import { Search, Phone, MapPin, ArrowRight, User, ArrowLeft, X, TrendingUp, History, ShieldCheck, Download, ExternalLink, Calendar, Map, CheckCircle2, ArrowUpRight, ArrowDownRight, Bell, Link as LinkIcon, FileText, CheckCircle, MessageCircle } from "lucide-react";
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -94,8 +94,6 @@ export default function StaffCustomers() {
                             </a>
                             <a
                                 href={`geo:0,0?q=${encodeURIComponent(customer.address || `${customer.name} ${customer.city}`)}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
                                 className="flex-1 py-3 rounded-xl bg-[#16181d] text-slate-400 font-bold text-xs flex items-center justify-center gap-2 hover:bg-white/5 transition-colors border border-white/5"
                                 onClick={(e) => e.stopPropagation()}
                             >
