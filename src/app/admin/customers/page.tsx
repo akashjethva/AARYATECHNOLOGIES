@@ -607,7 +607,11 @@ function CustomerLedgerModal({ customer, onClose }: { customer: Customer, onClos
             }
 
             // Ensure accurate ID matching (handling string/number types safely)
-            const customerTransactions = allCollections.filter(c => String(c.customerId) === String(customer.id));
+            // Fix: Collection does not have customerId. Use Name matching.
+            const cleanName = (name: string) => String(name || '').toLowerCase().replace(/\s+/g, '').trim();
+            const targetName = cleanName(customer.name);
+
+            const customerTransactions = allCollections.filter(c => cleanName(c.customer) === targetName);
 
             // Sort by date descending
             customerTransactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -617,7 +621,7 @@ function CustomerLedgerModal({ customer, onClose }: { customer: Customer, onClos
             console.error("CustomerLedgerModal Error:", err);
             showToast("Error loading transactions", "info");
         }
-    }, [customer?.id]); // Safe access in dependency
+    }, [customer?.id, customer?.name]); // Safe access in dependency
 
     const showToast = useCallback((message: string, type: 'success' | 'info' = 'success') => {
         setToast({ message, type, visible: true });
@@ -647,9 +651,9 @@ function CustomerLedgerModal({ customer, onClose }: { customer: Customer, onClos
                                 <span className="bg-[#059669] text-white border border-emerald-400/20 text-[10px] font-extrabold px-3 py-1 rounded-full uppercase tracking-wider shadow-lg shadow-emerald-900/20">{customer.status || "Active"}</span>
                             </div>
                             <div className="flex items-center gap-6 text-slate-400 text-sm mt-2 font-medium">
-                                <span className="flex items-center gap-2"><Phone size={16} className="text-slate-500" /> {customer.phone}</span>
+                                <span className="flex items-center gap-2"><Phone size={16} className="text-slate-500" /> {customer.phone || 'N/A'}</span>
                                 <span className="w-1.5 h-1.5 rounded-full bg-slate-700"></span>
-                                <span className="flex items-center gap-2"><MapPin size={16} className="text-slate-500" /> {customer.city}</span>
+                                <span className="flex items-center gap-2"><MapPin size={16} className="text-slate-500" /> {customer.city || 'N/A'}</span>
                             </div>
                         </div>
                     </div>
@@ -788,7 +792,8 @@ function CustomerLedgerModal({ customer, onClose }: { customer: Customer, onClos
                     </div>
                 </div>
             </motion.div>
-        </div>
+        </div>,
+        document.body
     );
 }
 
@@ -799,7 +804,7 @@ function CustomerFinancialPanel({ customer, showToast, setActiveTab }: { custome
             <div className="mb-8 text-center">
                 <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">OUTSTANDING BALANCE</p>
                 <div className="relative inline-block">
-                    <h2 className="text-5xl font-extrabold text-white tracking-tight">₹ {customer.balance}</h2>
+                    <h2 className="text-5xl font-extrabold text-white tracking-tight">₹ {customer.balance || '0'}</h2>
                     <span className="absolute -top-2 -right-6 flex h-3 w-3">
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
                         <span className="relative inline-flex rounded-full h-3 w-3 bg-rose-500"></span>
