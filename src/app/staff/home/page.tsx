@@ -329,85 +329,89 @@ export default function StaffHome() {
                             animate={{ x: 0 }}
                             exit={{ x: "100%" }}
                             transition={{ type: "spring", damping: 25, stiffness: 300 }}
-                            className="fixed top-0 bottom-0 right-0 w-full max-w-sm bg-[#0f172a] z-[120] border-l border-white/10 flex flex-col"
+                            className="fixed top-0 bottom-0 right-0 w-full max-w-sm bg-[#0f1115]/95 backdrop-blur-3xl z-[120] border-l border-white/5 flex flex-col shadow-2xl"
                         >
-                            <div className="p-6 border-b border-white/10 flex justify-between items-center bg-[#0f172a]/80 backdrop-blur-xl">
-                                <h2 className="text-xl font-bold text-white">Notifications</h2>
+                            {/* Header */}
+                            <div className="px-6 py-5 border-b border-white/5 flex justify-between items-center bg-black/20">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 bg-indigo-500/10 rounded-xl text-indigo-400">
+                                        <Bell size={20} />
+                                    </div>
+                                    <h2 className="text-lg font-bold text-white tracking-wide">Notifications</h2>
+                                </div>
                                 <button
                                     onClick={() => setShowNotifications(false)}
-                                    className="p-2 rounded-xl hover:bg-white/5 text-slate-400 hover:text-white transition-colors"
+                                    className="p-2 rounded-full bg-white/5 text-slate-400 hover:text-white hover:bg-white/10 transition-all border border-white/5"
                                 >
-                                    <XCircle size={24} />
+                                    <XCircle size={20} />
                                 </button>
                             </div>
 
-                            {/* Clear All Button - Redesigned */}
+                            {/* Clear All Button - Floating Action Style */}
                             {myNotifications.length > 0 && (
-                                <div className="px-6 py-4 border-b border-white/10 flex justify-end">
+                                <div className="px-6 py-3 flex justify-between items-center bg-indigo-900/10 border-b border-white/5">
+                                    <span className="text-[10px] font-bold uppercase tracking-widest text-indigo-300">{myNotifications.length} New Messages</span>
                                     <button
                                         onClick={async () => {
                                             await db.clearStaffNotifications();
                                             setMyNotifications([]);
                                         }}
-                                        className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 hover:text-rose-300 transition-colors text-xs font-bold border border-rose-500/20"
+                                        className="text-[10px] font-bold text-rose-400 hover:text-rose-300 flex items-center gap-1 uppercase tracking-wider"
                                     >
-                                        <Trash2 size={14} /> Clear All
+                                        <Trash2 size={12} /> Clear All
                                     </button>
                                 </div>
                             )}
 
-                            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                            <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
                                 {myNotifications.length > 0 ? (
                                     myNotifications.map((notif: any) => {
-                                        // Handle timestamp (number) or time (string/date)
                                         const notifTime = notif.timestamp || notif.time;
-                                        let timeDisplay = "";
+                                        let timeDisplay = "Just now";
                                         try {
-                                            const dateObj = new Date(notifTime);
-                                            if (!isNaN(dateObj.getTime())) {
-                                                timeDisplay = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                                            } else {
-                                                timeDisplay = "Just now";
-                                            }
-                                        } catch {
-                                            timeDisplay = "Just now";
-                                        }
+                                            const d = new Date(notifTime);
+                                            if (!isNaN(d.getTime())) timeDisplay = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                                        } catch { }
 
                                         return (
-                                            <div key={notif.id} className={`p-4 rounded-2xl border border-white/5 ${notif.read ? 'bg-white/5 opacity-60' : 'bg-indigo-500/10 border-indigo-500/20'}`}>
-                                                <div className="flex justify-between items-start mb-1">
-                                                    <h3 className="font-bold text-white text-sm">{notif.title || "Notification"}</h3>
-                                                    <span className="text-[10px] text-slate-500">{timeDisplay}</span>
+                                            <div key={notif.id} className="relative pl-4 pr-4 py-4 rounded-2xl bg-gradient-to-br from-[#1a1d24] to-[#14161b] border border-white/5 group active:scale-[0.98] transition-transform">
+                                                <div className={`absolute left-0 top-4 bottom-4 w-1 rounded-r-full ${notif.read ? 'bg-slate-700' : 'bg-indigo-500'}`}></div>
+                                                <div className="flex justify-between items-start mb-1.5">
+                                                    <h3 className={`text-sm font-bold ${notif.read ? 'text-slate-400' : 'text-white'}`}>{notif.title || "Notification"}</h3>
+                                                    <span className="text-[10px] font-mono text-slate-500">{timeDisplay}</span>
                                                 </div>
-                                                <p className="text-xs text-slate-400 leading-relaxed">{notif.message}</p>
+                                                <p className="text-xs text-slate-400 leading-relaxed font-medium">{notif.message}</p>
                                             </div>
                                         );
                                     })
                                 ) : (
-                                    <div className="flex flex-col items-center justify-center h-full text-slate-500 gap-4 opacity-50">
-                                        <div className="w-20 h-20 rounded-full bg-white/5 flex items-center justify-center">
-                                            <BellOff size={32} />
+                                    <div className="flex flex-col items-center justify-center h-full text-slate-600 gap-6 opacity-60">
+                                        <div className="relative">
+                                            <div className="absolute inset-0 bg-indigo-500/20 blur-xl rounded-full"></div>
+                                            <BellOff size={48} className="relative z-10 text-slate-500" />
                                         </div>
-                                        <p className="text-sm font-medium">No notifications yet</p>
+                                        <div className="text-center">
+                                            <p className="text-sm font-bold text-slate-400 mb-1">All caught up!</p>
+                                            <p className="text-[10px] text-slate-500 uppercase tracking-widest">No new notifications</p>
+                                        </div>
                                     </div>
                                 )}
                             </div>
 
-                            {/* Manual Logout (Fallback) */}
-                            <div className="p-4 border-t border-white/10 bg-[#0f172a]/80 backdrop-blur-xl">
+                            {/* Footer Logout */}
+                            <div className="p-4 border-t border-white/5 bg-black/40 backdrop-blur-md">
                                 <button
                                     onClick={() => {
-                                        localStorage.clear();
-                                        window.location.href = '/';
+                                        if (confirm("Logout from app?")) {
+                                            localStorage.clear();
+                                            window.location.href = '/';
+                                        }
                                     }}
-                                    className="w-full py-4 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 font-bold flex items-center justify-center gap-2 transition-colors active:scale-95"
+                                    className="w-full py-3.5 rounded-xl bg-gradient-to-r from-slate-800 to-slate-900 border border-white/10 text-slate-300 font-bold text-sm flex items-center justify-center gap-2 hover:text-white transition-all active:scale-95 shadow-lg"
                                 >
-                                    <Power size={18} />
-                                    Logout
+                                    <Power size={16} />
+                                    Sign Out
                                 </button>
-                                <p className="text-[10px] text-slate-500 text-center mt-2">
-                                    Use this if you are stuck or need to switch accounts.
-                                </p>
                             </div>
                         </motion.div>
                     </>

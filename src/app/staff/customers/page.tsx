@@ -332,43 +332,46 @@ function CustomerDetailsModal({ customer, onClose }: { customer: any, onClose: (
                     <div className="w-full md:w-[450px] bg-[#0b0c10] p-8 border-r border-white/5 flex flex-col gap-5 overflow-y-auto custom-scrollbar">
                         <p className="text-[11px] font-extrabold text-[#64748b] uppercase tracking-[0.2em] mb-2">Financial Status</p>
 
-                        {/* Total Collections Card - ADDED MIN HEIGHT */}
-                        <div className="bg-[#151921] p-6 rounded-[2rem] border border-white/5 relative overflow-hidden group hover:border-white/10 transition-colors min-h-[140px] flex flex-col justify-center">
-                            <div className="absolute top-4 right-4 opacity-[0.05] group-hover:opacity-[0.1] transition-opacity duration-500">
-                                <ArrowUpRight size={120} />
+                        {/* Total Collections Card - Redesigned */}
+                        <div className="bg-gradient-to-br from-indigo-600 to-blue-700 p-6 rounded-[2rem] border border-white/10 relative overflow-hidden group shadow-2xl shadow-indigo-900/40 min-h-[140px] flex flex-col justify-center">
+                            <div className="absolute top-0 right-0 p-4 opacity-20 transform translate-x-2 -translate-y-2 group-hover:scale-110 transition-transform duration-500">
+                                <ArrowUpRight size={100} className="text-white" />
                             </div>
-                            <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider mb-2">Total Collections</p>
-                            <h4 className="text-[2.75rem] leading-none font-extrabold text-white tracking-tight">₹ {(stats.totalCollections || 0).toLocaleString('en-IN')}</h4>
-                            <div className="flex items-center gap-2 mt-4">
-                                <TrendingUp size={16} className="text-emerald-500" />
-                                <span className="text-emerald-500 text-xs font-bold">Lifetime Collections</span>
+                            <div className="relative z-10">
+                                <p className="text-blue-200 text-[10px] font-bold uppercase tracking-wider mb-2">Total Collections</p>
+                                <h4 className="text-[2.75rem] leading-none font-extrabold text-white tracking-tight drop-shadow-sm">₹ {(stats.totalCollections || 0).toLocaleString('en-IN')}</h4>
+                                <div className="flex items-center gap-2 mt-4 bg-white/20 w-fit px-3 py-1 rounded-full backdrop-blur-sm">
+                                    <TrendingUp size={14} className="text-white" />
+                                    <span className="text-white text-[10px] font-bold uppercase tracking-wide">Lifetime</span>
+                                </div>
                             </div>
                         </div>
 
-                        {/* Current Balance Card - ADDED MIN HEIGHT */}
-                        <div className="bg-[#151921] p-6 rounded-[2rem] border border-white/5 relative overflow-hidden group hover:border-white/10 transition-colors min-h-[140px] flex flex-col justify-center">
-                            <div className="absolute top-4 right-4 opacity-[0.05] group-hover:opacity-[0.1] transition-opacity duration-500">
-                                <ArrowDownRight size={120} className="text-rose-500" />
+                        {/* Current Balance Card - Redesigned */}
+                        <div className={`p-6 rounded-[2rem] border relative overflow-hidden group min-h-[140px] flex flex-col justify-center transition-all ${parseFloat(customer.balance) > 0 ? 'bg-gradient-to-br from-[#1a1315] to-[#0f0f10] border-rose-500/30' : 'bg-gradient-to-br from-[#131a15] to-[#0f0f10] border-emerald-500/30'}`}>
+                            <div className="absolute top-0 right-0 p-4 opacity-10 transform translate-x-2 -translate-y-2 group-hover:scale-110 transition-transform duration-500">
+                                {parseFloat(customer.balance) > 0 ? <ArrowDownRight size={100} className="text-rose-500" /> : <ShieldCheck size={100} className="text-emerald-500" />}
                             </div>
-                            <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider mb-2">Current Balance</p>
-                            <h4 className="text-[2.75rem] leading-none font-extrabold text-white tracking-tight">₹ {customer.balance || '0'}</h4>
-                            <p className="text-slate-600 text-[10px] font-bold mt-4 uppercase tracking-wide">
-                                {parseFloat(customer.balance) > 0 ? 'Payment Outstanding' : 'All Clear'}
-                            </p>
+                            <div className="relative z-10">
+                                <p className={`text-[10px] font-bold uppercase tracking-wider mb-2 ${parseFloat(customer.balance) > 0 ? 'text-rose-400' : 'text-emerald-400'}`}>Current Balance</p>
+                                <h4 className="text-[2.75rem] leading-none font-extrabold text-white tracking-tight">₹ {customer.balance || '0'}</h4>
+                                <p className={`text-[10px] font-bold mt-4 uppercase tracking-wide flex items-center gap-2 ${parseFloat(customer.balance) > 0 ? 'text-rose-500' : 'text-emerald-500'}`}>
+                                    {parseFloat(customer.balance) > 0 ? <><span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span> Payment Pending</> : <><CheckCircle2 size={14} /> All Clear</>}
+                                </p>
+                            </div>
                         </div>
 
-                        {/* Collection Trend - High Density Neon Area Chart */}
-                        <div className="bg-gradient-to-b from-[#1a1f2e] to-[#0f1115] p-6 rounded-[2rem] border border-white/5 flex-1 min-h-[280px] flex flex-col relative overflow-hidden group">
+                        {/* Collection Trend - High Density Neon Aea Chart */}
+                        <div className="bg-[#15171c] p-6 rounded-[2rem] border border-white/5 flex-1 min-h-[280px] flex flex-col relative overflow-hidden shadow-lg">
 
                             {/* Detailed Header */}
-                            <div className="flex justify-between items-center mb-2 relative z-20">
+                            <div className="flex justify-between items-center mb-4 relative z-20">
                                 <div>
-                                    <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider mb-1">Collection Trend</p>
+                                    <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider mb-1">Avg. Monthly</p>
                                     <div className="flex items-baseline gap-2">
                                         <h3 className="text-2xl font-bold text-white tracking-tight">
                                             ₹ {(stats.trend.reduce((a, b) => a + b, 0) / (stats.trend.length || 1)).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                                         </h3>
-                                        <span className="text-[10px] font-bold text-emerald-500">AVG / MONTH</span>
                                     </div>
                                 </div>
 

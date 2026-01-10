@@ -121,12 +121,12 @@ export default function StaffHistory() {
 
         if (item.status === 'Visit') {
             const text = `📝 *VISIT LOGGED* 📝\n\n👤 *Customer:* ${item.name || item.customer}\n📅 *Date:* ${item.date}\n🕓 *Time:* ${item.time}\n📌 *Reason:* ${item.remarks || 'No Payment'}\n🆔 *Ref:* #${item.id}\n\n_Generated via ${appName}_`;
-            const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
-            window.open(url, '_blank');
+            const url = `whatsapp://send?text=${encodeURIComponent(text)}`;
+            window.location.href = url;
         } else {
             const text = `🧾 *PAYMENT RECEIPT* 🧾\n\n👤 *Customer:* ${item.name || item.customer}\n💰 *Amount:* ₹ ${item.amount}\n📅 *Date:* ${item.date}\n🕓 *Time:* ${item.time}\n💳 *Mode:* ${item.mode}\n🆔 *Transaction ID:* #${item.id}\n\n✅ *Status:* Successful\n\n_Generated via ${appName}_`;
-            const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
-            window.open(url, '_blank');
+            const url = `whatsapp://send?text=${encodeURIComponent(text)}`;
+            window.location.href = url;
         }
     };
 
