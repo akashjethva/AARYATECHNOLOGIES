@@ -573,7 +573,6 @@ export default function StaffEntry() {
                                 type="file"
                                 ref={fileInputRef}
                                 accept="image/*"
-                                capture="environment"
                                 onChange={handleFileChange}
                                 className="hidden"
                             />
