@@ -269,10 +269,29 @@ export default function StaffHome() {
         return () => clearInterval(interval);
     }, []);
 
-    const handleUpdateApp = () => {
+    const handleUpdateApp = async () => {
         if (updateInfo) {
             localStorage.setItem('app_version', updateInfo.versionName);
-            // Force reload from server, ignoring cache
+
+            try {
+                // 1. Unregister Service Workers
+                if ('serviceWorker' in navigator) {
+                    const registrations = await navigator.serviceWorker.getRegistrations();
+                    for (const registration of registrations) {
+                        await registration.unregister();
+                    }
+                }
+
+                // 2. Clear Cache Storage
+                if ('caches' in window) {
+                    const cacheNames = await caches.keys();
+                    await Promise.all(cacheNames.map(name => caches.delete(name)));
+                }
+            } catch (e) {
+                console.error("Cache clear failed", e);
+            }
+
+            // 3. Force Reload
             window.location.reload();
         }
     };

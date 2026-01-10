@@ -1,7 +1,7 @@
 {
     "versionCode": 2,
-    "versionName": "2.6.0",
+    "versionName": "2.7.0",
     "apkUrl": "https://github.com/akashjethva/AARYATECHNOLOGIES/releases/download/v2.0/app-debug.apk",
-    "forceUpdate": false,
-    "updateMessage": "New Update v2.6: 'AT' Logo, Camera Fix & UI Improvements. Please Restart App."
+    "forceUpdate": true,
+    "updateMessage": "Final Fix v2.7: Deep Cache Clean. Logo & Camera Issues Resolved!"
 }
