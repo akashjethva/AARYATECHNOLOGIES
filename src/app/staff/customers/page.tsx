@@ -32,7 +32,7 @@ export default function StaffCustomers() {
     );
 
     return (
-        <div className="pb-20 px-6 pt-4 min-h-screen bg-[#0f1115]">
+        <div className="pb-20 px-6 pt-16 min-h-screen bg-[#0f1115]">
             {/* Header */}
             <div className="flex items-center gap-4 mb-4">
                 <button onClick={() => router.back()} className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-slate-400 hover:text-white transition-colors">
@@ -93,7 +93,7 @@ export default function StaffCustomers() {
                                 <Phone size={14} /> Call Now
                             </a>
                             <a
-                                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(customer.address || `${customer.name} ${customer.city}`)}`}
+                                href={`geo:0,0?q=${encodeURIComponent(customer.address || `${customer.name} ${customer.city}`)}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="flex-1 py-3 rounded-xl bg-[#16181d] text-slate-400 font-bold text-xs flex items-center justify-center gap-2 hover:bg-white/5 transition-colors border border-white/5"
@@ -520,15 +520,15 @@ function CustomerDetailsModal({ customer, onClose }: { customer: any, onClose: (
 
                         {/* Action Buttons */}
                         <div className="grid grid-cols-3 gap-4 mt-2">
-                            <a href={`https://wa.me/91${customer.phone || customer.contact}?text=Hello ${customer.name}, your current outstanding balance is ₹${customer.balance}.`} target="_blank" className="bg-[#151921] hover:bg-[#1f2937] border border-white/5 rounded-2xl py-4 px-2 flex flex-col items-center justify-center gap-2 transition-all active:scale-95 group shadow-lg shadow-black/20">
+                            <a href={`whatsapp://send?phone=91${customer.phone || customer.contact}&text=${encodeURIComponent(`Hello ${customer.name}, your current outstanding balance is ₹${customer.balance}.`)}`} className="bg-[#151921] hover:bg-[#1f2937] border border-white/5 rounded-2xl py-4 px-2 flex flex-col items-center justify-center gap-2 transition-all active:scale-95 group shadow-lg shadow-black/20">
                                 <Bell size={20} className="text-[#818cf8] group-hover:scale-110 transition-transform" />
                                 <span className="text-[10px] font-bold text-slate-300 text-center leading-tight tracking-wide">SEND<br />ALERT</span>
                             </a>
-                            <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(customer.address || `${customer.name} ${customer.city}`)}`} target="_blank" className="bg-[#064e3b] hover:bg-[#065f46] border border-white/5 rounded-2xl py-4 px-2 flex flex-col items-center justify-center gap-2 transition-all active:scale-95 group shadow-lg shadow-emerald-900/20">
+                            <a href={`geo:0,0?q=${encodeURIComponent(customer.address || `${customer.name} ${customer.city}`)}`} className="bg-[#064e3b] hover:bg-[#065f46] border border-white/5 rounded-2xl py-4 px-2 flex flex-col items-center justify-center gap-2 transition-all active:scale-95 group shadow-lg shadow-emerald-900/20">
                                 <MapPin size={20} className="text-white group-hover:scale-110 transition-transform" />
                                 <span className="text-[10px] font-bold text-white text-center leading-tight tracking-wide">NAVIGATE</span>
                             </a>
-                            <a href={`https://wa.me/91${customer.phone || customer.contact}?text=Hello ${customer.name}, please submit your KYC documents for verification.`} target="_blank" className="bg-[#151921] hover:bg-[#1f2937] border border-white/5 rounded-2xl py-4 px-2 flex flex-col items-center justify-center gap-2 transition-all active:scale-95 group shadow-lg shadow-black/20">
+                            <a href={`whatsapp://send?phone=91${customer.phone || customer.contact}&text=${encodeURIComponent(`Hello ${customer.name}, please submit your KYC documents for verification.`)}`} className="bg-[#151921] hover:bg-[#1f2937] border border-white/5 rounded-2xl py-4 px-2 flex flex-col items-center justify-center gap-2 transition-all active:scale-95 group shadow-lg shadow-black/20">
                                 <LinkIcon size={20} className="text-slate-400 group-hover:scale-110 transition-transform" />
                                 <span className="text-[10px] font-bold text-slate-300 text-center leading-tight tracking-wide">KYC<br />LINK</span>
                             </a>

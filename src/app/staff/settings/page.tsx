@@ -160,6 +160,7 @@ export default function StaffSettings() {
         else document.documentElement.classList.remove('dark');
 
         // Listen for updates
+        // Listen for updates
         const refresh = () => {
             // Re-read user from localStorage to avoid stale closure
             let staffName = "";
@@ -170,73 +171,61 @@ export default function StaffSettings() {
             if (!staffName) return; // No user, skip
 
             const collections = db.getCollections();
-            const today = new Date().toISOString().split('T')[0];
             const cleanName = (name: string) => String(name || '').toLowerCase().replace(/\s+/g, '').trim();
             const currentStaffClean = cleanName(staffName);
 
-            // Find handovers for this staff
-            const handoverEntries = collections.filter((c: any) => {
-                const isToday = c.date === today;
-                const customerClean = cleanName(c.customer);
-                const isHandoverType = (c.customer || '').toLowerCase().includes('handover');
-                const isMyHandover = isHandoverType && customerClean.includes(currentStaffClean);
-                return isToday && isMyHandover;
-            });
-
-            // Find the LAST handover time
+            // 1. Find Last Handover (Lifetime)
             let lastHandoverTime = 0;
-            handoverEntries.forEach((h: any) => {
-                try {
-                    const dateTimeStr = `${h.date} ${h.time}`;
-                    const parsed = new Date(dateTimeStr).getTime();
-                    if (!isNaN(parsed) && parsed > lastHandoverTime) {
-                        lastHandoverTime = parsed;
-                    }
-                } catch { }
+            const myHandovers = collections.filter((t: any) => {
+                const s = t.status as any;
+                const isPaid = s === 'Paid' || s === 'Approved' || s === 'Admin';
+                const isHandover = t.customer.toLowerCase().includes('handover');
+
+                // Name check for handover
+                const customerClean = cleanName(t.customer.replace(/handover/i, '').replace(/:/g, ''));
+                const isMyHandover = customerClean === currentStaffClean || customerClean.includes(currentStaffClean);
+
+                return (isPaid || isHandover) && isMyHandover;
             });
 
-            // Get cash transactions
-            const cashTxns = collections.filter((c: any) => {
-                const isToday = c.date === today;
-                const txnStaffClean = cleanName(c.staff);
-                const isMyTxn = txnStaffClean === currentStaffClean || txnStaffClean.includes(currentStaffClean);
-                const isCash = c.mode === 'Cash';
-                const isPaid = c.status === 'Paid' || c.status === 'Visit';
-                const isNotHandover = !(c.customer || '').toLowerCase().includes('handover');
-                return isToday && isMyTxn && isCash && isPaid && isNotHandover;
-            });
-
-            // Calculate cash AFTER handover
-            let cashAfterHandover = 0;
-            if (lastHandoverTime > 0) {
-                cashTxns.forEach((t: any) => {
-                    try {
-                        const txnTimeStr = `${t.date} ${t.time}`;
-                        const txnTime = new Date(txnTimeStr).getTime();
-                        const amount = parseFloat(String(t.amount).replace(/,/g, '')) || 0;
-                        if (!isNaN(txnTime) && txnTime > lastHandoverTime) {
-                            cashAfterHandover += amount;
-                        }
-                    } catch { }
-                });
-            } else {
-                // No handover - all cash is in hand
-                cashAfterHandover = cashTxns.reduce((sum: number, c: any) => sum + (parseFloat(String(c.amount).replace(/,/g, '')) || 0), 0);
+            if (myHandovers.length > 0) {
+                // Sort descending
+                myHandovers.sort((a: any, b: any) => new Date(`${b.date} ${b.time}`).getTime() - new Date(`${a.date} ${a.time}`).getTime());
+                const last = myHandovers[0];
+                lastHandoverTime = new Date(`${last.date} ${last.time}`).getTime();
             }
 
-            // Calculate Cash Expenses for today
+            // 2. Calculate Cash In Hand (Since Last Handover)
+            const myTxns = collections.filter((c: any) => {
+                const txnStaffClean = cleanName(c.staff);
+                return txnStaffClean === currentStaffClean || txnStaffClean.includes(currentStaffClean);
+            });
+
+            const cashAfterHandover = myTxns.filter((t: any) => {
+                if (t.mode !== 'Cash' || t.status !== 'Paid' || t.customer.toLowerCase().includes('handover')) return false;
+
+                const tTime = new Date(`${t.date} ${t.time}`).getTime();
+                return tTime > lastHandoverTime;
+            }).reduce((sum: number, t: any) => sum + (parseFloat(String(t.amount).replace(/,/g, '')) || 0), 0);
+
+            // 3. Calculate Cash Expenses (Since Last Handover)
             const allExpenses = db.getExpenses();
-            const cashExpenses = allExpenses
-                .filter((e: any) => {
-                    const isToday = e.date === today;
-                    const isCash = e.method === 'Cash' || !e.method;
-                    const isMyExpense = e.createdBy === staffName || e.party === 'Staff Entry' || e.party === staffName || (e.notes || '').includes(staffName);
-                    return isToday && isCash && isMyExpense;
-                })
-                .reduce((sum: number, e: any) => sum + (parseFloat(String(e.amount).replace(/,/g, '')) || 0), 0);
+            const cashExpenses = allExpenses.filter((e: any) => {
+                // Check ownership
+                const isMyExpense = e.createdBy === staffName || e.party === 'Staff Entry' || e.party === staffName || (e.notes || '').includes(staffName);
+                if (!isMyExpense) return false;
+
+                // Check if it is a Cash Expense OR a Bank Deposit
+                const isDeposit = e.category === 'Deposit';
+                const isCash = e.method === 'Cash' || (!e.method && isDeposit);
+                if (!isCash) return false;
+
+                // Time check using ID (timestamp)
+                return e.id > lastHandoverTime;
+            }).reduce((sum: number, e: any) => sum + (parseFloat(String(e.amount).replace(/,/g, '')) || 0), 0);
 
             const netCashInHand = Math.max(0, cashAfterHandover - cashExpenses);
-            console.log("DEBUG Settings Refresh:", { staffName, cashAfterHandover, cashExpenses, netCashInHand });
+            console.log("DEBUG Settings Refresh (Lifetime):", { staffName, cashAfterHandover, cashExpenses, netCashInHand });
             setCashInHand(netCashInHand);
         };
 

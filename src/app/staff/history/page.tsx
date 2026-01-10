@@ -242,7 +242,7 @@ export default function StaffHistory() {
 
 
     return (
-        <div className="pb-28 px-6 pt-8 min-h-screen bg-[#0f1115] print:bg-white print:pb-0 print:min-h-0" onClick={() => setShowFilter(false)}>
+        <div className="pb-28 px-6 pt-20 min-h-screen bg-[#0f1115] print:bg-white print:pb-0 print:min-h-0" onClick={() => setShowFilter(false)}>
             {/* Header */}
             <div className="flex items-center justify-between mb-4 relative z-50 print:hidden">
                 <div className="flex items-center gap-4">
