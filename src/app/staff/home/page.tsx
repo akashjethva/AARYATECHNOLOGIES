@@ -271,6 +271,11 @@ export default function StaffHome() {
 
     const handleUpdateApp = async () => {
         if (updateInfo) {
+            // NUCLEAR OPTION: Clear EVERYTHING
+            localStorage.clear();
+            sessionStorage.clear();
+
+            // Re-save essential if needed (or let user login again/fetch fresh)
             localStorage.setItem('app_version', updateInfo.versionName);
 
             try {
@@ -376,14 +381,28 @@ export default function StaffHome() {
                     <div className="relative cursor-pointer" onClick={() => router.push('/staff/company-profile')}>
                         <div className="flex items-center gap-3">
                             <div className="w-12 h-12 rounded-2xl bg-white dark:bg-gradient-to-br dark:from-blue-600 dark:to-cyan-500 p-[1px] shadow-md border border-slate-100 dark:border-none">
-                                <div className="w-full h-full rounded-2xl bg-white dark:bg-[#0a0a0a] flex items-center justify-center overflow-hidden relative">
-                                    <>
-                                        <div className="absolute inset-0 bg-gradient-to-tr from-blue-600/10 to-cyan-500/10"></div>
-                                        <span className="font-black text-xl text-transparent bg-clip-text bg-gradient-to-tr from-blue-600 to-cyan-500 dark:from-blue-400 dark:to-cyan-400">
-                                            AT
-                                        </span>
-                                    </>
-                                </div>
+                                    {/* Company Logo with Fallback */}
+                                    <div className="w-full h-full rounded-2xl bg-white dark:bg-[#0a0a0a] flex items-center justify-center overflow-hidden relative">
+                                        {company.logo ? (
+                                            <img
+                                                src={company.logo}
+                                                alt="Logo"
+                                                className="w-full h-full object-cover"
+                                                onError={(e) => {
+                                                    (e.target as HTMLImageElement).src = '/logo_v3.jpg';
+                                                }}
+                                            />
+                                        ) : (
+                                            <>
+                                                <div className="absolute inset-0 bg-gradient-to-tr from-blue-600/10 to-cyan-500/10"></div>
+                                                <img 
+                                                    src="/logo_v3.jpg" 
+                                                    alt="AT" 
+                                                    className="w-full h-full object-cover"
+                                                />
+                                            </>
+                                        )}
+                                    </div>
                             </div>
                         </div>
                     </div>
