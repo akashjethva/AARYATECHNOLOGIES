@@ -309,7 +309,37 @@ export const db = {
 
     saveCollection: (collection: Collection) => {
         const collections = db.getCollections();
+        const existingCollection = collections.find(c => c.id === collection.id);
         const index = collections.findIndex(c => c.id === collection.id);
+
+        // --- BALANCE UPDATE LOGIC ---
+        // 1. If Editing: Revert old amount, then deduct new amount
+        // 2. If New: Deduct new amount
+
+        const customers = db.getCustomers();
+        const cleanName = (name: string) => String(name || '').toLowerCase().replace(/\s+/g, '').trim();
+        const targetName = cleanName(collection.customer);
+        const customer = customers.find(c => cleanName(c.name) === targetName);
+
+        if (customer) {
+            let currentBalance = parseFloat(customer.balance.replace(/[^0-9.-]+/g, "") || "0");
+
+            // Revert old amount if editing
+            if (existingCollection) {
+                const oldAmount = parseFloat(existingCollection.amount.replace(/[^0-9.-]+/g, "") || "0");
+                currentBalance += oldAmount;
+            }
+
+            // Deduct new amount
+            const newAmount = parseFloat(collection.amount.replace(/[^0-9.-]+/g, "") || "0");
+            currentBalance -= newAmount;
+
+            // Update Customer
+            customer.balance = String(currentBalance);
+            db.saveCustomer(customer); // This triggers sync
+        }
+        // -----------------------------
+
         const newCollections = index >= 0
             ? collections.map(c => c.id === collection.id ? collection : c)
             : [collection, ...collections];
@@ -336,6 +366,26 @@ export const db = {
 
     deleteCollection: (id: string) => {
         const collections = db.getCollections();
+        const collectionToDelete = collections.find(c => c.id === id);
+
+        // --- BALANCE REVERT LOGIC ---
+        if (collectionToDelete) {
+            const customers = db.getCustomers();
+            const cleanName = (name: string) => String(name || '').toLowerCase().replace(/\s+/g, '').trim();
+            const targetName = cleanName(collectionToDelete.customer);
+            const customer = customers.find(c => cleanName(c.name) === targetName);
+
+            if (customer) {
+                let currentBalance = parseFloat(customer.balance.replace(/[^0-9.-]+/g, "") || "0");
+                const amountRestore = parseFloat(collectionToDelete.amount.replace(/[^0-9.-]+/g, "") || "0");
+                currentBalance += amountRestore;
+
+                customer.balance = String(currentBalance);
+                db.saveCustomer(customer);
+            }
+        }
+        // ----------------------------
+
         const newCollections = collections.filter(c => c.id !== id);
         localStorage.setItem(STORAGE_KEYS.COLLECTIONS, JSON.stringify(newCollections));
 

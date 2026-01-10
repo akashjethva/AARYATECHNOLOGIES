@@ -658,7 +658,59 @@ function CustomerLedgerModal({ customer, onClose }: { customer: Customer, onClos
                         </div>
                     </div>
                     <div className="flex items-center gap-3">
-                        <button className="h-12 w-12 flex items-center justify-center bg-[#1c1f26] hover:bg-white/10 rounded-2xl transition-colors text-slate-400 hover:text-white border border-white/5">
+                        <button
+                            onClick={() => {
+                                try {
+                                    const doc = new jsPDF();
+
+                                    // Header
+                                    doc.setFillColor(11, 12, 16);
+                                    doc.rect(0, 0, 210, 40, 'F');
+                                    doc.setTextColor(255, 255, 255);
+                                    doc.setFontSize(22);
+                                    doc.text("Customer Statement", 14, 25);
+
+                                    // Customer Info
+                                    doc.setTextColor(100);
+                                    doc.setFontSize(10);
+                                    doc.text(`Customer: ${customer.name || 'Unknown'}`, 14, 50);
+                                    doc.text(`Phone: ${customer.phone || 'N/A'}`, 14, 55);
+                                    doc.text(`City: ${customer.city || 'N/A'}`, 14, 60);
+                                    doc.text(`Date: ${new Date().toLocaleDateString()}`, 150, 50);
+
+                                    // Table
+                                    const tableData = transactions.map(t => [
+                                        new Date(t.date).toLocaleDateString(),
+                                        t.staff || 'Admin',
+                                        t.mode || 'Cash',
+                                        t.amount || '0',
+                                        t.status || 'Paid'
+                                    ]);
+
+                                    autoTable(doc, {
+                                        head: [['Date', 'Collected By', 'Mode', 'Amount', 'Status']],
+                                        body: tableData,
+                                        startY: 70,
+                                        theme: 'grid',
+                                        headStyles: { fillColor: [79, 70, 229], textColor: 255 },
+                                        alternateRowStyles: { fillColor: [245, 247, 250] }
+                                    });
+
+                                    // Footer Balance
+                                    const finalY = (doc as any).lastAutoTable.finalY || 150;
+                                    doc.setFontSize(14);
+                                    doc.setTextColor(0);
+                                    doc.text(`Outstanding Balance: Rs. ${customer.balance}`, 14, finalY + 20);
+
+                                    doc.save(`${customer.name}_Statement.pdf`);
+                                    showToast("Statement Downloaded Successfully", "success");
+                                } catch (e) {
+                                    console.error(e);
+                                    showToast("Error generating PDF", "info");
+                                }
+                            }}
+                            className="h-12 w-12 flex items-center justify-center bg-[#1c1f26] hover:bg-white/10 rounded-2xl transition-colors text-slate-400 hover:text-white border border-white/5"
+                        >
                             <Download size={20} />
                         </button>
                         <button onClick={onClose} className="h-12 w-12 flex items-center justify-center bg-[#1c1f26] hover:bg-white/10 rounded-2xl transition-colors text-slate-400 hover:text-white border border-white/5">
@@ -837,17 +889,29 @@ function CustomerFinancialPanel({ customer, showToast, setActiveTab }: { custome
 
             <div className="space-y-3 mt-auto">
                 <button
-                    onClick={() => { showToast("Payment Reminder Sent via WhatsApp!", "success"); setActiveTab("Communication"); }}
+                    onClick={() => {
+                        const message = `Dear ${customer.name}, your outstanding balance is ₹${customer.balance}. Please ensure timely payment. Thank you.`;
+                        const url = `https://wa.me/91${customer.phone}?text=${encodeURIComponent(message)}`;
+                        window.open(url, '_blank');
+                        showToast("WhatsApp Reminder Opened!", "success");
+                        setActiveTab("Communication");
+                    }}
                     className="w-full bg-white text-indigo-950 hover:bg-indigo-50 py-4 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-white/5 transition-transform active:scale-95"
                 >
                     <MessageSquare size={18} strokeWidth={2.5} />
                     Send Reminder
                 </button>
                 <div className="grid grid-cols-2 gap-3">
-                    <button className="bg-[#151921] hover:bg-white/10 text-white py-3 rounded-xl font-bold text-sm border border-white/5 hover:border-white/20 transition-all flex items-center justify-center gap-2">
+                    <button onClick={() => window.open(`tel:${customer.phone}`)} className="bg-[#151921] hover:bg-white/10 text-white py-3 rounded-xl font-bold text-sm border border-white/5 hover:border-white/20 transition-all flex items-center justify-center gap-2">
                         <Phone size={16} /> Call
                     </button>
-                    <button className="bg-[#151921] hover:bg-white/10 text-white py-3 rounded-xl font-bold text-sm border border-white/5 hover:border-white/20 transition-all flex items-center justify-center gap-2">
+                    <button
+                        onClick={() => {
+                            // Dummy PDF Logic for now (or integrate actual PDF generation)
+                            // Ideally, this should trigger the same PDF logic as the top download button
+                            alert("Please use the top-right download button for the statement.");
+                        }}
+                        className="bg-[#151921] hover:bg-white/10 text-white py-3 rounded-xl font-bold text-sm border border-white/5 hover:border-white/20 transition-all flex items-center justify-center gap-2">
                         <Map size={16} /> Locate
                     </button>
                 </div>
