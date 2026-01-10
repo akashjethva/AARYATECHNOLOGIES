@@ -140,7 +140,9 @@ export default function StaffHome() {
                 const isMyExpense = e.createdBy === staffName || e.party === 'Staff Entry' || e.party === staffName || e.notes?.includes(staffName);
                 if (!isMyExpense) return false;
 
-                const isCash = e.method === 'Cash' || !e.method;
+                // Check if it is a Cash Expense OR a Bank Deposit
+                const isDeposit = e.category === 'Deposit';
+                const isCash = e.method === 'Cash' || (!e.method && isDeposit); // Assume deposit is cash if mode unspecified
                 if (!isCash) return false;
 
                 // Time check using ID (timestamp)
