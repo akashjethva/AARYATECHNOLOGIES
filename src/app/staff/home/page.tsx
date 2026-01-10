@@ -109,7 +109,8 @@ export default function StaffHome() {
             // 2. Find Last Handover (Lifetime)
             let lastHandoverTime = 0;
             const myHandovers = allCollections.filter(t => {
-                const isPaid = t.status === 'Paid';
+                const s = t.status as any;
+                const isPaid = s === 'Paid' || s === 'Approved' || s === 'Admin'; // Accept various "Done" statuses
                 const isHandover = t.customer.toLowerCase().includes('handover');
                 if (!isPaid || !isHandover) return false;
 
@@ -238,7 +239,7 @@ export default function StaffHome() {
     const formatCurrency = (val: number) => new Intl.NumberFormat('en-IN').format(val);
 
     return (
-        <div className="pb-24 min-h-screen relative overflow-hidden bg-transparent">
+        <div className="pb-24 pt-8 min-h-screen relative overflow-hidden bg-transparent">
             {/* ... toast & background ... */}
             <AnimatePresence>
                 {toast.show && (

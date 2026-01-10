@@ -639,12 +639,12 @@ function CustomerLedgerModal({ customer, onClose }: { customer: Customer, onClos
                 <div className="px-8 py-6 border-b border-white/5 flex justify-between items-center bg-[#0b0c10] shrink-0">
                     <div className="flex items-center gap-6">
                         <div className="h-16 w-16 rounded-3xl bg-[#4f46e5] flex items-center justify-center text-white text-3xl font-bold shadow-2xl shadow-indigo-500/20">
-                            {customer.name[0]}
+                            {(customer.name || "?").charAt(0).toUpperCase()}
                         </div>
                         <div>
                             <div className="flex items-center gap-4">
-                                <h3 className="text-3xl font-bold text-white tracking-tight">{customer.name}</h3>
-                                <span className="bg-[#059669] text-white border border-emerald-400/20 text-[10px] font-extrabold px-3 py-1 rounded-full uppercase tracking-wider shadow-lg shadow-emerald-900/20">Active</span>
+                                <h3 className="text-3xl font-bold text-white tracking-tight">{customer.name || "Unknown Customer"}</h3>
+                                <span className="bg-[#059669] text-white border border-emerald-400/20 text-[10px] font-extrabold px-3 py-1 rounded-full uppercase tracking-wider shadow-lg shadow-emerald-900/20">{customer.status || "Active"}</span>
                             </div>
                             <div className="flex items-center gap-6 text-slate-400 text-sm mt-2 font-medium">
                                 <span className="flex items-center gap-2"><Phone size={16} className="text-slate-500" /> {customer.phone}</span>
@@ -715,32 +715,43 @@ function CustomerLedgerModal({ customer, onClose }: { customer: Customer, onClos
                         {/* Content */}
                         <div className="flex-1 overflow-y-auto custom-scrollbar pr-6 pl-4">
                             {/* Transaction Timeline Content */}
+                            {/* Transaction Timeline Content */}
                             {activeTab === "Transaction Timeline" && (
                                 <div className="space-y-10">
                                     {transactions.length > 0 ? (
-                                        transactions.map((txn, index) => (
-                                            <div key={txn.id || index} className="relative pl-10 border-l border-white/5 pb-2 last:pb-0 last:border-transparent group">
-                                                <div className={`absolute -left-3.5 top-0 h-7 w-7 rounded-full bg-[#0b0c10] flex items-center justify-center transition-colors shadow-[0_0_15px_rgba(16,185,129,0.2)] ${txn.type === 'Credit' ? 'border-emerald-500/30 group-hover:border-emerald-500' : 'border-blue-500/30 group-hover:border-blue-500'}`}>
-                                                    {txn.type === 'Credit' ? <ShieldCheck size={14} className="text-emerald-500" /> : <TrendingUp size={14} className="text-blue-500" />}
-                                                </div>
-                                                <div className="flex justify-between items-start">
-                                                    <div>
-                                                        <p className="text-[10px] font-bold text-slate-500 tracking-wider uppercase mb-1.5">{new Date(txn.date).toLocaleDateString()}</p>
-                                                        <h4 className="text-xl font-bold text-white mb-1">{txn.type === 'Credit' ? 'Payment Received' : 'Invoice/Debit'}</h4>
-                                                        <p className="text-sm text-slate-400 font-medium">Processed by <span className="text-slate-200">Staff Link Needed</span></p>
+                                        transactions.map((txn, index) => {
+                                            const isPayment = txn.status !== 'Failed'; // Assume successful collections are payments
+                                            const txnDate = txn.date ? new Date(txn.date) : new Date();
+                                            const isValidDate = !isNaN(txnDate.getTime());
+                                            const displayDate = isValidDate ? txnDate.toLocaleDateString() : 'N/A';
+
+                                            return (
+                                                <div key={txn.id || index} className="relative pl-10 border-l border-white/5 pb-2 last:pb-0 last:border-transparent group">
+                                                    <div className={`absolute -left-3.5 top-0 h-7 w-7 rounded-full bg-[#0b0c10] flex items-center justify-center transition-colors shadow-[0_0_15px_rgba(16,185,129,0.2)] border-emerald-500/30 group-hover:border-emerald-500`}>
+                                                        <ShieldCheck size={14} className="text-emerald-500" />
                                                     </div>
-                                                    <div className="text-right">
-                                                        <p className={`text-xl font-bold mb-1 ${txn.type === 'Credit' ? 'text-emerald-400' : 'text-white'}`}>
-                                                            {txn.type === 'Credit' ? '+' : ''} {formatCurrency(parseFloat(txn.amount))}
-                                                        </p>
-                                                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{txn.paymentMode || 'N/A'}</p>
+                                                    <div className="flex justify-between items-start">
+                                                        <div>
+                                                            <p className="text-[10px] font-bold text-slate-500 tracking-wider uppercase mb-1.5">{displayDate}</p>
+                                                            <h4 className="text-xl font-bold text-white mb-1">Payment Received</h4>
+                                                            <p className="text-sm text-slate-400 font-medium">Collected by <span className="text-slate-200">{txn.staff || 'Staff'}</span></p>
+                                                        </div>
+                                                        <div className="text-right">
+                                                            <p className="text-xl font-bold mb-1 text-emerald-400">
+                                                                + {formatCurrency(parseFloat(txn.amount || '0'))}
+                                                            </p>
+                                                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{txn.mode || 'CASH'}</p>
+                                                        </div>
                                                     </div>
                                                 </div>
-                                            </div>
-                                        ))
+                                            );
+                                        })
                                     ) : (
-                                        <div className="text-center py-20 text-slate-500">
-                                            <p>No transactions found for this customer.</p>
+                                        <div className="text-center py-20 text-slate-500 flex flex-col items-center gap-4">
+                                            <div className="h-16 w-16 rounded-full bg-white/5 flex items-center justify-center">
+                                                <History size={24} className="opacity-50" />
+                                            </div>
+                                            <p>No payment history found for this customer.</p>
                                         </div>
                                     )}
                                 </div>
