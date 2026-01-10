@@ -381,28 +381,28 @@ export default function StaffHome() {
                     <div className="relative cursor-pointer" onClick={() => router.push('/staff/company-profile')}>
                         <div className="flex items-center gap-3">
                             <div className="w-12 h-12 rounded-2xl bg-white dark:bg-gradient-to-br dark:from-blue-600 dark:to-cyan-500 p-[1px] shadow-md border border-slate-100 dark:border-none">
-                                    {/* Company Logo with Fallback */}
-                                    <div className="w-full h-full rounded-2xl bg-white dark:bg-[#0a0a0a] flex items-center justify-center overflow-hidden relative">
-                                        {company.logo ? (
+                                {/* Company Logo with Fallback */}
+                                <div className="w-full h-full rounded-2xl bg-white dark:bg-[#0a0a0a] flex items-center justify-center overflow-hidden relative">
+                                    {company.logo ? (
+                                        <img
+                                            src={company.logo}
+                                            alt="Logo"
+                                            className="w-full h-full object-cover"
+                                            onError={(e) => {
+                                                (e.target as HTMLImageElement).src = '/logo_v3.jpg';
+                                            }}
+                                        />
+                                    ) : (
+                                        <>
+                                            <div className="absolute inset-0 bg-gradient-to-tr from-blue-600/10 to-cyan-500/10"></div>
                                             <img
-                                                src={company.logo}
-                                                alt="Logo"
+                                                src="/logo.jpg"
+                                                alt="AT"
                                                 className="w-full h-full object-cover"
-                                                onError={(e) => {
-                                                    (e.target as HTMLImageElement).src = '/logo_v3.jpg';
-                                                }}
                                             />
-                                        ) : (
-                                            <>
-                                                <div className="absolute inset-0 bg-gradient-to-tr from-blue-600/10 to-cyan-500/10"></div>
-                                                <img 
-                                                    src="/logo_v3.jpg" 
-                                                    alt="AT" 
-                                                    className="w-full h-full object-cover"
-                                                />
-                                            </>
-                                        )}
-                                    </div>
+                                        </>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     </div>

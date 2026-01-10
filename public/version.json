@@ -1,7 +1,7 @@
 {
     "versionCode": 2,
-    "versionName": "2.9.0",
+    "versionName": "2.10.0",
     "apkUrl": "https://github.com/akashjethva/AARYATECHNOLOGIES/releases/download/v2.0/app-debug.apk",
     "forceUpdate": true,
-    "updateMessage": "Final Reset v2.9: This will clear app data & fix Logo/Camera instantly."
+    "updateMessage": "Final Polish v2.10: App Icon & Metadata Fix."
 }

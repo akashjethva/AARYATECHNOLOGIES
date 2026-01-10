@@ -16,6 +16,11 @@ export const metadata: Metadata = {
   title: "Aarya Technologies - Admin & Staff",
   description: "Advanced Payment Management System",
   manifest: "/manifest.json",
+  icons: {
+    icon: "/icon-192x192.png",
+    shortcut: "/icon-192x192.png",
+    apple: "/apple-touch-icon.png",
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
