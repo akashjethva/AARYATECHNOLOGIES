@@ -602,9 +602,12 @@ function CustomerDetailsModal({ customer, onClose }: { customer: any, onClose: (
                                         <p className="text-indigo-200 text-sm font-medium mt-1">Export specific filters as a PDF or Excel.</p>
                                     </div>
                                 </div>
-                                <button className="bg-[#4f46e5] hover:bg-[#4338ca] text-white font-bold py-4 px-8 rounded-xl shadow-lg shadow-indigo-600/30 transition-all active:scale-95 relative z-10 text-sm">
-                                    Generate Custom PDF
-                                </button>
+                                <a
+                                    href={`whatsapp://send?text=${encodeURIComponent(`*Customer Report: ${customer.name}*\n\nBalance: ₹${customer.balance}\nStatus: ${parseFloat(customer.balance) > 0 ? 'Outstanding' : 'Clear'}\nAddress: ${customer.address || 'N/A'}\n\nGenerated via PaymentSoft`)}`}
+                                    className="bg-[#25D366] hover:bg-[#20bd5a] text-white font-bold py-4 px-8 rounded-xl shadow-lg shadow-green-500/30 transition-all active:scale-95 relative z-10 text-sm flex items-center gap-2"
+                                >
+                                    <MessageCircle size={18} /> Share Report
+                                </a>
                             </div>
                         </div>
                     </div>

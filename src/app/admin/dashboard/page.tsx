@@ -67,8 +67,10 @@ export default function AdminDashboard() {
     // Calculate Stats
     // 1. Total Revenue (Income)
     // 1. Total Revenue (Net Income = Gross - Expense)
+    // 1. Total Revenue (Net Income = Gross - Expense)
+    // EXCLUDE Handover transactions (Internal transfers)
     const grossRevenue = transactions
-        .filter(t => t.status === 'Paid')
+        .filter(t => t.status === 'Paid' && !t.customer.startsWith('HANDOVER:'))
         .reduce((sum, t) => sum + (parseFloat(String(t.amount).replace(/,/g, '')) || 0), 0);
 
     // 4. Operational Expenses (Moved up for calculation)
@@ -78,8 +80,9 @@ export default function AdminDashboard() {
     const totalRevenue = grossRevenue - totalExpense;
 
     // 2. Cash Collection
+    // EXCLUDE Handover transactions
     const cashCollection = transactions
-        .filter(t => t.status === 'Paid' && t.mode === 'Cash')
+        .filter(t => t.status === 'Paid' && t.mode === 'Cash' && !t.customer.startsWith('HANDOVER:'))
         .reduce((sum, t) => sum + (parseFloat(String(t.amount).replace(/,/g, '')) || 0), 0);
 
     // 3. Digital / UPI Collection (Derived as Gross - Cash)
@@ -87,7 +90,7 @@ export default function AdminDashboard() {
 
     // 5. Staff Leaderboard Calculation (Synced with Active Staff)
     const staffPerformance = transactions
-        .filter(t => t.status === 'Paid')
+        .filter(t => t.status === 'Paid' && !t.customer.startsWith('HANDOVER:'))
         .reduce((acc, t) => {
             // Normalize name: remove trailing dots, inconsistent spacing
             // HARDENED: Force string conversion to prevent crash if staff is not string

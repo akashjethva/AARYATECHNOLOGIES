@@ -671,18 +671,34 @@ export const db = {
 
     requestHandover: (staffName: string, amount: number) => {
         const id = Date.now();
+
+        // 1. AUTO-APPROVE: Create "Paid" Transaction immediately
+        db.saveCollection({
+            id: String(id),
+            customer: `HANDOVER: ${staffName}`,
+            staff: 'Admin', // Marked as Admin collection to separate from staff sales
+            amount: String(amount),
+            status: 'Paid',
+            date: new Date().toISOString().split('T')[0],
+            mode: 'Cash',
+            time: new Date().toLocaleTimeString(),
+            contact: 'N/A',
+            remarks: 'Auto-Approved Handover'
+        });
+
+        // 2. Notify Admin (For Record)
         const notif = {
             id,
-            title: "Handover Requested",
-            desc: `${staffName} has requested to settle ₹${amount.toLocaleString('en-IN')}`,
+            title: "Handover Received",
+            desc: `${staffName} has settled ₹${amount.toLocaleString('en-IN')} (Auto-Approved)`,
             time: "Just now",
             type: "alert",
-            path: "/admin/dashboard", // Opens dashboard where handover modal is
+            path: "/admin/dashboard",
             read: false
         };
         db.addNotification(notif);
 
-        // Push to Firestore
+        // Push Alert to Firestore
         try {
             setDoc(doc(firestore, "alerts", String(id)), notif)
                 .then(() => console.log("✅ Admin Alert Sync Success"))
