@@ -384,271 +384,270 @@ export default function StaffHome() {
                                         );
                                     })
                                 ) : (
-                                ): (
-                                        <div className = "flex flex-col items-center justify-center h-full text-slate-500 gap-4 opacity-50">
-                                        <div className = "w-20 h-20 rounded-full bg-white/5 flex items-center justify-center">
-                                            <BellOff size = { 32 } />
-                            </div>
-                            <p className="text-sm font-medium">No notifications yet</p>
-                        </div>
+                                    <div className="flex flex-col items-center justify-center h-full text-slate-500 gap-4 opacity-50">
+                                        <div className="w-20 h-20 rounded-full bg-white/5 flex items-center justify-center">
+                                            <BellOff size={32} />
+                                        </div>
+                                        <p className="text-sm font-medium">No notifications yet</p>
+                                    </div>
                                 )}
-                    </div>
-
-                {/* Manual Logout (Fallback) */}
-                <div className="p-4 border-t border-white/10 bg-[#0f172a]/80 backdrop-blur-xl">
-                    <button
-                        onClick={() => {
-                            localStorage.clear();
-                            window.location.href = '/';
-                        }}
-                        className="w-full py-4 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 font-bold flex items-center justify-center gap-2 transition-colors active:scale-95"
-                    >
-                        <Power size={18} />
-                        Logout
-                    </button>
-                    <p className="text-[10px] text-slate-500 text-center mt-2">
-                        Use this if you are stuck or need to switch accounts.
-                    </p>
-                </div>
-            </motion.div>
-        </>
-    )
-}
-            </AnimatePresence >
-
-    <div className="px-6 space-y-8 relative z-10 mt-6">
-
-        {/* Hero Card - The Showstopper */}
-        <Link href="/staff/history">
-            <motion.div
-                initial={{ y: 20, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                className="w-full relative rounded-[2rem] overflow-hidden group border border-white/10 bg-[#15171c] shadow-2xl transition-transform active:scale-[0.98]"
-            >
-                {/* Subtle Gradient Glow */}
-                <div className="absolute -top-24 -right-24 w-64 h-64 bg-indigo-600/20 rounded-full blur-[80px]"></div>
-                <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-fuchsia-600/10 rounded-full blur-[80px]"></div>
-
-                <div className="relative z-10 p-5 flex flex-col justify-between min-h-[160px]">
-                    <div className="flex justify-between items-start">
-                        <div className="p-2.5 bg-white/5 rounded-xl backdrop-blur-md border border-white/10 shadow-lg group-hover:bg-white/10 transition-colors">
-                            <Wallet className="text-indigo-400 drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)]" size={20} />
-                        </div>
-                        <div className="flex gap-2">
-                            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-500/10 backdrop-blur-md rounded-full border border-emerald-500/20">
-                                <TrendingUp size={10} className="text-emerald-400" />
-                                <span className="text-[10px] font-bold text-emerald-400">+12%</span>
-                            </div>
-                            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-white/5 backdrop-blur-md rounded-full border border-white/5">
-                                <span className="text-[10px] font-bold text-slate-300">{stats.visits} Visits</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="mt-4 flex items-end justify-between gap-4">
-                        <div>
-                            <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest mb-1">Cash In Hand</p>
-                            <div className="flex items-end gap-1 mb-2">
-                                <span className="text-2xl font-light text-slate-500 mb-1.5">₹</span>
-                                <h2 className="text-5xl font-black text-white tracking-tighter drop-shadow-xl">
-                                    {formatCurrency(stats.cash)}
-                                </h2>
                             </div>
 
-                            {/* Progress Bar (Moved here to stay under total) */}
-                            <div className="w-32 mt-2">
-                                <div className="flex justify-between text-[9px] font-bold text-slate-500 mb-1">
-                                    <span>Goal</span>
-                                    <span>48%</span>
-                                </div>
-                                <div className="bg-white/5 h-1.5 w-full rounded-full overflow-hidden backdrop-blur-sm">
-                                    <div className="h-full bg-indigo-500 w-[48%] shadow-[0_0_15px_rgba(99,102,241,0.5)] rounded-full relative"></div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Inner Stats Grid - Vertical Stack on Right */}
-                        <div className="flex flex-col gap-2 min-w-[140px]">
-                            <div className="bg-black/30 rounded-xl p-2.5 backdrop-blur-md border border-white/5 flex items-center justify-between gap-3 shadow-lg">
-                                <div className="flex items-center gap-2">
-                                    <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-400 border border-emerald-500/10">
-                                        <span className="text-md">📊</span>
-                                    </div>
-                                    <div>
-                                        <p className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">Total</p>
-                                        <p className="text-lg font-black text-white leading-none mt-0.5">₹ {formatCurrency(stats.total)}</p>
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="bg-black/30 rounded-xl p-2.5 backdrop-blur-md border border-white/5 flex items-center justify-between gap-3 shadow-lg">
-                                <div className="flex items-center gap-2">
-                                    <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-400 border border-indigo-500/10">
-                                        <span className="text-md">📱</span>
-                                    </div>
-                                    <div>
-                                        <p className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">Online</p>
-                                        <p className="text-lg font-black text-white leading-none mt-0.5">₹ {formatCurrency(stats.online)}</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </motion.div>
-        </Link>
-
-        {/* Neo-Action Grid */}
-        <div className="pt-4">
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4 ml-1">Quick Actions</p>
-            <div className="grid grid-cols-4 gap-3">
-                <NeoButton
-                    icon="📍"
-                    label="Route"
-                    color="from-amber-400 to-orange-500"
-                    delay={0.1}
-                    onClick={() => window.open('https://www.google.com/maps', '_blank')}
-                />
-                <NeoButton
-                    icon="💸"
-                    label="Deposit"
-                    color="from-emerald-400 to-teal-500"
-                    delay={0.2}
-                    onClick={() => router.push('/staff/entry')}
-                />
-                <NeoButton
-                    icon="🚀"
-                    label="Rank"
-                    color="from-rose-400 to-pink-500"
-                    delay={0.3}
-                    onClick={() => router.push('/staff/rank')}
-                />
-                <NeoButton
-                    icon="⚡"
-                    label="More"
-                    color="from-blue-400 to-cyan-500"
-                    delay={0.4}
-                    onClick={() => router.push('/staff/settings')}
-                />
-            </div>
-        </div>
-
-        {/* Live Feed - Floating Glass Style */}
-        <div>
-            <div className="flex justify-between items-end mb-5 px-1">
-                <h3 className="text-lg font-bold text-white tracking-tight">Recent Activity</h3>
-                <Link href="/staff/history" className="text-xs font-bold text-indigo-400 flex items-center gap-1">View All <ChevronRight size={12} /></Link>
-            </div>
-
-            <div className="space-y-3">
-                {recentTxns.length > 0 ? recentTxns.map((txn, idx) => {
-                    const isHandover = txn.customer.toLowerCase().startsWith('handover:');
-                    const isExpense = (txn as any).isExpense || txn.amount.startsWith('-'); // Check isExpense flag or negative amount
-                    const isDebit = isHandover || isExpense;
-
-                    const displayName = isHandover ? "Handover to Admin" : txn.customer;
-                    // Format amount: If Debit, ensure minus sign.
-                    const amountVal = parseFloat(String(txn.amount).replace(/,/g, ''));
-                    // If isDebit and positive, make negative for display. If already negative, keep it.
-                    const finalDisplayAmount = isDebit ? ` - ₹ ${formatCurrency(Math.abs(amountVal))}` : `₹ ${formatCurrency(amountVal)}`;
-
-                    return (
-                        <motion.div
-                            initial={{ x: -20, opacity: 0 }}
-                            animate={{ x: 0, opacity: 1 }}
-                            transition={{ delay: idx * 0.1 }}
-                            key={txn.id || idx}
-                            onClick={() => setSelectedTxn(txn)}
-                            className="flex items-center justify-between p-4 bg-[#111] rounded-3xl border border-white/5 relative overflow-hidden group hover:bg-[#161616] transition-colors active:scale-95 transition-transform cursor-pointer"
-                        >
-                            <div className="flex items-center gap-4 relative z-10">
-                                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-bold text-sm border shadow-inner group-hover:scale-105 transition-transform ${isDebit ? 'bg-rose-500/10 text-rose-500 border-rose-500/20' : 'bg-[#1a1a1a] text-slate-300 border-white/5'}`}>
-                                    {isHandover ? <ShieldCheck size={20} /> : (isExpense ? <Banknote size={20} /> : txn.customer.substring(0, 2).toUpperCase())}
-                                </div>
-                                <div>
-                                    <p className={`font-bold text-sm transition-colors ${isDebit ? 'text-rose-400' : 'text-white group-hover:text-indigo-400'}`}>{displayName}</p>
-                                    <p className="text-[10px] text-slate-500 font-medium mt-0.5">Today, {txn.time || 'Now'}</p>
-                                </div>
-                            </div>
-                            <div className="text-right relative z-10">
-                                <p className={`font-bold text-base ${isDebit ? 'text-rose-400' : 'text-white'}`}>{finalDisplayAmount}</p>
-                                <p className={`text-[10px] font-bold flex justify-end items-center gap-1 ${isExpense ? 'text-rose-500' : txn.status === 'Paid' ? 'text-emerald-500' : txn.status === 'Visit' ? 'text-blue-500' : 'text-amber-500'}`}>
-                                    <Zap size={10} fill="currentColor" /> {isExpense ? 'Expense' : txn.status}
+                            {/* Manual Logout (Fallback) */}
+                            <div className="p-4 border-t border-white/10 bg-[#0f172a]/80 backdrop-blur-xl">
+                                <button
+                                    onClick={() => {
+                                        localStorage.clear();
+                                        window.location.href = '/';
+                                    }}
+                                    className="w-full py-4 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 font-bold flex items-center justify-center gap-2 transition-colors active:scale-95"
+                                >
+                                    <Power size={18} />
+                                    Logout
+                                </button>
+                                <p className="text-[10px] text-slate-500 text-center mt-2">
+                                    Use this if you are stuck or need to switch accounts.
                                 </p>
                             </div>
                         </motion.div>
-                    );
-                }) : (
-                    <div className="text-center py-8 opacity-50 text-sm text-slate-500">
-                        No recent activity
-                    </div>
-                )}
-            </div>
-        </div>
+                    </>
+                )
+                }
+            </AnimatePresence >
 
-        {/* Transaction Details Modal */}
-        <AnimatePresence>
-            {selectedTxn && (
-                <>
+            <div className="px-6 space-y-8 relative z-10 mt-6">
+
+                {/* Hero Card - The Showstopper */}
+                <Link href="/staff/history">
                     <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        onClick={() => setSelectedTxn(null)}
-                        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[110]"
-                    />
-                    <motion.div
-                        initial={{ y: "100%" }}
-                        animate={{ y: 0 }}
-                        exit={{ y: "100%" }}
-                        transition={{ type: "spring", damping: 25, stiffness: 300 }}
-                        className="fixed bottom-0 left-0 right-0 bg-[#0f172a] rounded-t-[2.5rem] p-6 z-[120] border-t border-white/10"
+                        initial={{ y: 20, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        className="w-full relative rounded-[2rem] overflow-hidden group border border-white/10 bg-[#15171c] shadow-2xl transition-transform active:scale-[0.98]"
                     >
-                        <div className="w-12 h-1.5 bg-white/10 rounded-full mx-auto mb-8" />
+                        {/* Subtle Gradient Glow */}
+                        <div className="absolute -top-24 -right-24 w-64 h-64 bg-indigo-600/20 rounded-full blur-[80px]"></div>
+                        <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-fuchsia-600/10 rounded-full blur-[80px]"></div>
 
-                        <div className="flex flex-col items-center mb-8">
-                            <div className="w-20 h-20 rounded-3xl bg-indigo-500/10 flex items-center justify-center mb-4 border border-indigo-500/20">
-                                <span className="text-3xl font-bold text-indigo-400">₹</span>
+                        <div className="relative z-10 p-5 flex flex-col justify-between min-h-[160px]">
+                            <div className="flex justify-between items-start">
+                                <div className="p-2.5 bg-white/5 rounded-xl backdrop-blur-md border border-white/10 shadow-lg group-hover:bg-white/10 transition-colors">
+                                    <Wallet className="text-indigo-400 drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)]" size={20} />
+                                </div>
+                                <div className="flex gap-2">
+                                    <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-500/10 backdrop-blur-md rounded-full border border-emerald-500/20">
+                                        <TrendingUp size={10} className="text-emerald-400" />
+                                        <span className="text-[10px] font-bold text-emerald-400">+12%</span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5 px-2.5 py-1 bg-white/5 backdrop-blur-md rounded-full border border-white/5">
+                                        <span className="text-[10px] font-bold text-slate-300">{stats.visits} Visits</span>
+                                    </div>
+                                </div>
                             </div>
-                            <h2 className="text-4xl font-bold text-white mb-2">₹ {formatCurrency(parseFloat(selectedTxn.amount))}</h2>
-                            <div className={`px-3 py-1 rounded-full text-xs font-bold border ${selectedTxn.status === 'Paid' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-amber-500/10 text-amber-500 border-amber-500/20'}`}>
-                                {selectedTxn.status}
-                            </div>
-                        </div>
 
-                        <div className="space-y-4 bg-white/5 rounded-3xl p-5 border border-white/5 mb-6">
-                            <div className="flex justify-between items-center pb-3 border-b border-white/5">
-                                <span className="text-slate-400 text-sm font-medium">Customer</span>
-                                <span className="text-white font-bold">{selectedTxn.customer}</span>
-                            </div>
-                            <div className="flex justify-between items-center pb-3 border-b border-white/5">
-                                <span className="text-slate-400 text-sm font-medium">Date & Time</span>
-                                <span className="text-white font-bold">{selectedTxn.date}, {selectedTxn.time}</span>
-                            </div>
-                            <div className="flex justify-between items-center">
-                                <span className="text-slate-400 text-sm font-medium">Payment Mode</span>
-                                <span className="text-white font-bold">{selectedTxn.mode}</span>
-                            </div>
-                        </div>
+                            <div className="mt-4 flex items-end justify-between gap-4">
+                                <div>
+                                    <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest mb-1">Cash In Hand</p>
+                                    <div className="flex items-end gap-1 mb-2">
+                                        <span className="text-2xl font-light text-slate-500 mb-1.5">₹</span>
+                                        <h2 className="text-5xl font-black text-white tracking-tighter drop-shadow-xl">
+                                            {formatCurrency(stats.cash)}
+                                        </h2>
+                                    </div>
 
-                        <div className="flex gap-3">
-                            <button
-                                onClick={() => setSelectedTxn(null)}
-                                className="flex-1 py-4 rounded-2xl bg-white/5 text-white font-bold active:scale-95 transition-transform"
-                            >
-                                Close
-                            </button>
-                            <button
-                                onClick={() => router.push('/staff/history')}
-                                className="flex-1 py-4 rounded-2xl bg-indigo-600 text-white font-bold shadow-lg shadow-indigo-600/20 active:scale-95 transition-transform"
-                            >
-                                View History
-                            </button>
+                                    {/* Progress Bar (Moved here to stay under total) */}
+                                    <div className="w-32 mt-2">
+                                        <div className="flex justify-between text-[9px] font-bold text-slate-500 mb-1">
+                                            <span>Goal</span>
+                                            <span>48%</span>
+                                        </div>
+                                        <div className="bg-white/5 h-1.5 w-full rounded-full overflow-hidden backdrop-blur-sm">
+                                            <div className="h-full bg-indigo-500 w-[48%] shadow-[0_0_15px_rgba(99,102,241,0.5)] rounded-full relative"></div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Inner Stats Grid - Vertical Stack on Right */}
+                                <div className="flex flex-col gap-2 min-w-[140px]">
+                                    <div className="bg-black/30 rounded-xl p-2.5 backdrop-blur-md border border-white/5 flex items-center justify-between gap-3 shadow-lg">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-400 border border-emerald-500/10">
+                                                <span className="text-md">📊</span>
+                                            </div>
+                                            <div>
+                                                <p className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">Total</p>
+                                                <p className="text-lg font-black text-white leading-none mt-0.5">₹ {formatCurrency(stats.total)}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="bg-black/30 rounded-xl p-2.5 backdrop-blur-md border border-white/5 flex items-center justify-between gap-3 shadow-lg">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-400 border border-indigo-500/10">
+                                                <span className="text-md">📱</span>
+                                            </div>
+                                            <div>
+                                                <p className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">Online</p>
+                                                <p className="text-lg font-black text-white leading-none mt-0.5">₹ {formatCurrency(stats.online)}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </motion.div>
-                </>
-            )}
-        </AnimatePresence>
-    </div>
+                </Link>
+
+                {/* Neo-Action Grid */}
+                <div className="pt-4">
+                    <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4 ml-1">Quick Actions</p>
+                    <div className="grid grid-cols-4 gap-3">
+                        <NeoButton
+                            icon="📍"
+                            label="Route"
+                            color="from-amber-400 to-orange-500"
+                            delay={0.1}
+                            onClick={() => window.open('https://www.google.com/maps', '_blank')}
+                        />
+                        <NeoButton
+                            icon="💸"
+                            label="Deposit"
+                            color="from-emerald-400 to-teal-500"
+                            delay={0.2}
+                            onClick={() => router.push('/staff/entry')}
+                        />
+                        <NeoButton
+                            icon="🚀"
+                            label="Rank"
+                            color="from-rose-400 to-pink-500"
+                            delay={0.3}
+                            onClick={() => router.push('/staff/rank')}
+                        />
+                        <NeoButton
+                            icon="⚡"
+                            label="More"
+                            color="from-blue-400 to-cyan-500"
+                            delay={0.4}
+                            onClick={() => router.push('/staff/settings')}
+                        />
+                    </div>
+                </div>
+
+                {/* Live Feed - Floating Glass Style */}
+                <div>
+                    <div className="flex justify-between items-end mb-5 px-1">
+                        <h3 className="text-lg font-bold text-white tracking-tight">Recent Activity</h3>
+                        <Link href="/staff/history" className="text-xs font-bold text-indigo-400 flex items-center gap-1">View All <ChevronRight size={12} /></Link>
+                    </div>
+
+                    <div className="space-y-3">
+                        {recentTxns.length > 0 ? recentTxns.map((txn, idx) => {
+                            const isHandover = txn.customer.toLowerCase().startsWith('handover:');
+                            const isExpense = (txn as any).isExpense || txn.amount.startsWith('-'); // Check isExpense flag or negative amount
+                            const isDebit = isHandover || isExpense;
+
+                            const displayName = isHandover ? "Handover to Admin" : txn.customer;
+                            // Format amount: If Debit, ensure minus sign.
+                            const amountVal = parseFloat(String(txn.amount).replace(/,/g, ''));
+                            // If isDebit and positive, make negative for display. If already negative, keep it.
+                            const finalDisplayAmount = isDebit ? ` - ₹ ${formatCurrency(Math.abs(amountVal))}` : `₹ ${formatCurrency(amountVal)}`;
+
+                            return (
+                                <motion.div
+                                    initial={{ x: -20, opacity: 0 }}
+                                    animate={{ x: 0, opacity: 1 }}
+                                    transition={{ delay: idx * 0.1 }}
+                                    key={txn.id || idx}
+                                    onClick={() => setSelectedTxn(txn)}
+                                    className="flex items-center justify-between p-4 bg-[#111] rounded-3xl border border-white/5 relative overflow-hidden group hover:bg-[#161616] transition-colors active:scale-95 transition-transform cursor-pointer"
+                                >
+                                    <div className="flex items-center gap-4 relative z-10">
+                                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-bold text-sm border shadow-inner group-hover:scale-105 transition-transform ${isDebit ? 'bg-rose-500/10 text-rose-500 border-rose-500/20' : 'bg-[#1a1a1a] text-slate-300 border-white/5'}`}>
+                                            {isHandover ? <ShieldCheck size={20} /> : (isExpense ? <Banknote size={20} /> : txn.customer.substring(0, 2).toUpperCase())}
+                                        </div>
+                                        <div>
+                                            <p className={`font-bold text-sm transition-colors ${isDebit ? 'text-rose-400' : 'text-white group-hover:text-indigo-400'}`}>{displayName}</p>
+                                            <p className="text-[10px] text-slate-500 font-medium mt-0.5">Today, {txn.time || 'Now'}</p>
+                                        </div>
+                                    </div>
+                                    <div className="text-right relative z-10">
+                                        <p className={`font-bold text-base ${isDebit ? 'text-rose-400' : 'text-white'}`}>{finalDisplayAmount}</p>
+                                        <p className={`text-[10px] font-bold flex justify-end items-center gap-1 ${isExpense ? 'text-rose-500' : txn.status === 'Paid' ? 'text-emerald-500' : txn.status === 'Visit' ? 'text-blue-500' : 'text-amber-500'}`}>
+                                            <Zap size={10} fill="currentColor" /> {isExpense ? 'Expense' : txn.status}
+                                        </p>
+                                    </div>
+                                </motion.div>
+                            );
+                        }) : (
+                            <div className="text-center py-8 opacity-50 text-sm text-slate-500">
+                                No recent activity
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* Transaction Details Modal */}
+                <AnimatePresence>
+                    {selectedTxn && (
+                        <>
+                            <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                onClick={() => setSelectedTxn(null)}
+                                className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[110]"
+                            />
+                            <motion.div
+                                initial={{ y: "100%" }}
+                                animate={{ y: 0 }}
+                                exit={{ y: "100%" }}
+                                transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                                className="fixed bottom-0 left-0 right-0 bg-[#0f172a] rounded-t-[2.5rem] p-6 z-[120] border-t border-white/10"
+                            >
+                                <div className="w-12 h-1.5 bg-white/10 rounded-full mx-auto mb-8" />
+
+                                <div className="flex flex-col items-center mb-8">
+                                    <div className="w-20 h-20 rounded-3xl bg-indigo-500/10 flex items-center justify-center mb-4 border border-indigo-500/20">
+                                        <span className="text-3xl font-bold text-indigo-400">₹</span>
+                                    </div>
+                                    <h2 className="text-4xl font-bold text-white mb-2">₹ {formatCurrency(parseFloat(selectedTxn.amount))}</h2>
+                                    <div className={`px-3 py-1 rounded-full text-xs font-bold border ${selectedTxn.status === 'Paid' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-amber-500/10 text-amber-500 border-amber-500/20'}`}>
+                                        {selectedTxn.status}
+                                    </div>
+                                </div>
+
+                                <div className="space-y-4 bg-white/5 rounded-3xl p-5 border border-white/5 mb-6">
+                                    <div className="flex justify-between items-center pb-3 border-b border-white/5">
+                                        <span className="text-slate-400 text-sm font-medium">Customer</span>
+                                        <span className="text-white font-bold">{selectedTxn.customer}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center pb-3 border-b border-white/5">
+                                        <span className="text-slate-400 text-sm font-medium">Date & Time</span>
+                                        <span className="text-white font-bold">{selectedTxn.date}, {selectedTxn.time}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-slate-400 text-sm font-medium">Payment Mode</span>
+                                        <span className="text-white font-bold">{selectedTxn.mode}</span>
+                                    </div>
+                                </div>
+
+                                <div className="flex gap-3">
+                                    <button
+                                        onClick={() => setSelectedTxn(null)}
+                                        className="flex-1 py-4 rounded-2xl bg-white/5 text-white font-bold active:scale-95 transition-transform"
+                                    >
+                                        Close
+                                    </button>
+                                    <button
+                                        onClick={() => router.push('/staff/history')}
+                                        className="flex-1 py-4 rounded-2xl bg-indigo-600 text-white font-bold shadow-lg shadow-indigo-600/20 active:scale-95 transition-transform"
+                                    >
+                                        View History
+                                    </button>
+                                </div>
+                            </motion.div>
+                        </>
+                    )}
+                </AnimatePresence>
+            </div>
         </div >
     );
 }
