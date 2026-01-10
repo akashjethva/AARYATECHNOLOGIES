@@ -1,7 +1,7 @@
 {
     "versionCode": 2,
-    "versionName": "2.7.0",
+    "versionName": "2.8.0",
     "apkUrl": "https://github.com/akashjethva/AARYATECHNOLOGIES/releases/download/v2.0/app-debug.apk",
     "forceUpdate": true,
-    "updateMessage": "Final Fix v2.7: Deep Cache Clean. Logo & Camera Issues Resolved!"
+    "updateMessage": "Emergency Fix v2.8: Hard Reload Strategy. This will 100% fix the Logo & Camera."
 }

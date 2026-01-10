@@ -291,8 +291,11 @@ export default function StaffHome() {
                 console.error("Cache clear failed", e);
             }
 
-            // 3. Force Reload
-            window.location.reload();
+            // 3. Force Hard Refresh via URL Change (Bypasses Service Worker Cache)
+            const newUrl = new URL(window.location.href);
+            newUrl.searchParams.set('version', updateInfo.versionName);
+            newUrl.searchParams.set('t', Date.now().toString());
+            window.location.href = newUrl.toString();
         }
     };
 
