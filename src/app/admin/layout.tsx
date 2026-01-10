@@ -66,16 +66,25 @@ export default function AdminLayout({
         if (typeof window === 'undefined') return 0;
 
         const collections = db.getCollections();
+        const expenses = db.getExpenses();
+
         if (!collections || !Array.isArray(collections)) return 0;
 
-        const total = collections
+        const totalCollections = collections
             .filter((t: any) => t && t.status === 'Paid') // Only count Paid
             .reduce((sum: number, t: any) => {
                 const amount = parseFloat(String(t.amount).replace(/,/g, ''));
                 return sum + (isNaN(amount) ? 0 : amount);
             }, 0);
 
-        return total;
+        const totalExpenses = (expenses || [])
+            .filter((e: any) => e.status === 'Approved')
+            .reduce((sum: number, e: any) => {
+                const amount = parseFloat(String(e.amount).replace(/,/g, ''));
+                return sum + (isNaN(amount) ? 0 : amount);
+            }, 0);
+
+        return totalCollections - totalExpenses;
     };
 
     // Click Outside Handler
@@ -179,7 +188,7 @@ export default function AdminLayout({
                                     AARYA
                                 </h1>
                                 <p className="text-sm font-bold text-slate-500 tracking-[0.3em] uppercase mt-2">Technologies</p>
-                                <p className="text-[10px] bg-rose-500/10 text-rose-500 font-bold px-2 py-0.5 rounded-full inline-block mt-2 border border-rose-500/20">v2.5 (Force Update)</p>
+                                <p className="text-[10px] bg-rose-500/10 text-rose-500 font-bold px-2 py-0.5 rounded-full inline-block mt-4 border border-rose-500/20">v2.6 (Force Update)</p>
                             </motion.div>
                         ) : (
                             <h1 className="text-2xl font-extrabold text-slate-400">AT</h1>
