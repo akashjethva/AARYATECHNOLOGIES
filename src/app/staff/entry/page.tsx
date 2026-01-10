@@ -155,13 +155,15 @@ export default function StaffEntry() {
         const companyName = appSettings.appName || "My Company";
 
         if (formData.type === 'Visit') {
-            const message = `*Visit Logged* 📝%0A%0A*Customer:* ${formData.customer} %0A*Date:* ${new Date().toLocaleDateString()} %0A*Reason:* ${formData.remarks || 'No Payment'} %0A%0A*${companyName}*`;
-            window.open(`https://wa.me/?text=${message}`, '_blank');
+            const message = `*Visit Logged* 📝\n\n*Customer:* ${formData.customer} \n*Date:* ${new Date().toLocaleDateString()} \n*Reason:* ${formData.remarks || 'No Payment'} \n\n*${companyName}*`;
+            const encodedMessage = encodeURIComponent(message);
+            window.location.href = `whatsapp://send?text=${encodedMessage}`;
         } else {
             const partyName = formData.type === 'Collection' ? formData.customer : formData.category;
             const transactionType = formData.type === 'Collection' ? 'Payment Received' : formData.type === 'Expense' ? 'Expense' : 'Deposit';
-            const message = `*${transactionType}* %0A%0A*Amount:* ₹ ${formData.amount} %0A*Party:* ${partyName} %0A*Date:* ${new Date().toLocaleDateString()} %0A*Mode:* ${formData.mode} %0A*Remarks:* ${formData.remarks || '-'} %0A%0A*${companyName}*`;
-            window.open(`https://wa.me/?text=${message}`, '_blank');
+            const message = `*${transactionType}* \n\n*Amount:* ₹ ${formData.amount} \n*Party:* ${partyName} \n*Date:* ${new Date().toLocaleDateString()} \n*Mode:* ${formData.mode} \n*Remarks:* ${formData.remarks || '-'} \n\n*${companyName}*`;
+            const encodedMessage = encodeURIComponent(message);
+            window.location.href = `whatsapp://send?text=${encodedMessage}`;
         }
     };
 
