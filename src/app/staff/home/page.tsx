@@ -240,8 +240,91 @@ export default function StaffHome() {
 
     const formatCurrency = (val: number) => new Intl.NumberFormat('en-IN').format(val);
 
+    // Update Check Logic
+    const [showUpdateModal, setShowUpdateModal] = useState(false);
+    const [updateInfo, setUpdateInfo] = useState<any>(null);
+
+    useEffect(() => {
+        const checkUpdate = async () => {
+            try {
+                // Fetch version.json with cache busting
+                const res = await fetch(`/version.json?t=${Date.now()}`);
+                const data = await res.json();
+
+                const currentVersion = localStorage.getItem('app_version');
+
+                // First time load or Update detected
+                if (currentVersion !== data.versionName) {
+                    setUpdateInfo(data);
+                    setShowUpdateModal(true);
+                }
+            } catch (e) {
+                console.error("Update check failed", e);
+            }
+        };
+
+        // Check on mount and every minute
+        checkUpdate();
+        const interval = setInterval(checkUpdate, 60000);
+        return () => clearInterval(interval);
+    }, []);
+
+    const handleUpdateApp = () => {
+        if (updateInfo) {
+            localStorage.setItem('app_version', updateInfo.versionName);
+            // Force reload from server, ignoring cache
+            window.location.reload();
+        }
+    };
+
     return (
         <div className="pb-24 pt-8 min-h-screen relative overflow-hidden bg-transparent">
+            {/* Update Modal */}
+            <AnimatePresence>
+                {showUpdateModal && updateInfo && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        className="fixed inset-0 z-[150] bg-black/80 backdrop-blur-md flex items-center justify-center p-6"
+                    >
+                        <motion.div
+                            initial={{ scale: 0.9, y: 20 }}
+                            animate={{ scale: 1, y: 0 }}
+                            className="bg-[#1e293b] w-full max-w-sm rounded-[2rem] p-6 border border-white/10 shadow-2xl relative overflow-hidden"
+                        >
+                            {/* Gloss Effect */}
+                            <div className="absolute -top-20 -right-20 w-40 h-40 bg-indigo-500/20 rounded-full blur-[50px]"></div>
+
+                            <div className="relative z-10 text-center">
+                                <div className="w-16 h-16 rounded-2xl bg-indigo-500/10 flex items-center justify-center mx-auto mb-4 border border-indigo-500/20 shadow-lg shadow-indigo-500/20">
+                                    <div className="animate-bounce">
+                                        <Zap size={32} className="text-indigo-400" fill="currentColor" />
+                                    </div>
+                                </div>
+
+                                <h2 className="text-2xl font-bold text-white mb-2">Update Available!</h2>
+                                <p className="text-sm text-slate-400 mb-6 font-medium leading-relaxed">
+                                    New version <span className="text-indigo-400 font-bold">{updateInfo.versionName}</span> is ready.
+                                    <br />
+                                    {updateInfo.updateMessage}
+                                </p>
+
+                                <button
+                                    onClick={handleUpdateApp}
+                                    className="w-full py-4 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 text-white font-bold text-lg shadow-xl shadow-indigo-600/30 active:scale-95 transition-transform"
+                                >
+                                    Update App Now 🚀
+                                </button>
+
+                                <p className="text-[10px] text-slate-600 mt-4 font-bold uppercase tracking-widest">
+                                    Quick Restart Required
+                                </p>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
             {/* ... toast & background ... */}
             <AnimatePresence>
                 {toast.show && (
