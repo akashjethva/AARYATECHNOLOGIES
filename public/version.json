@@ -1,7 +1,7 @@
 {
-    "versionCode": 3,
+    "versionCode": 2,
     "versionName": "2.5.0",
-    "apkUrl": "https://github.com/akashjethva/AARYATECHNOLOGIES/releases/download/v2.5/app-debug.apk",
-    "forceUpdate": true,
-    "updateMessage": "Critical Update v2.5: Fixes Mobile Crashes, Notifications, and Admin UI. Update Immediately."
+    "apkUrl": "https://github.com/akashjethva/AARYATECHNOLOGIES/releases/download/v2.0/app-debug.apk",
+    "forceUpdate": false,
+    "updateMessage": "Critical Web Update 2.5: Fixes Mobile Crashes & Notifications. (No APK Download Needed)"
 }
