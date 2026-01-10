@@ -1,5 +1,6 @@
 {
   "name": "payment-app",
+  "description": "Payment Soft - Version 2.5 Force Update",
   "version": "0.1.0",
   "private": true,
   "engines": {
