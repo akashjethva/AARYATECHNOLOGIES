@@ -585,6 +585,11 @@ export default function StaffHome() {
                     </div>
                 </div>
 
+                {/* Version Footer */}
+                <div className="pb-8 text-center opacity-30 mt-8">
+                    <p className="text-[10px] font-mono text-slate-500">App Version 2.6</p>
+                </div>
+
                 {/* Transaction Details Modal */}
                 <AnimatePresence>
                     {selectedTxn && (

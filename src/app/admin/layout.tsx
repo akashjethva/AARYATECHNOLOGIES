@@ -223,7 +223,7 @@ export default function AdminLayout({
                                 <p className="text-blue-100 text-xs font-bold uppercase tracking-wider mb-2">Total Balance</p>
                                 <p className="text-2xl font-bold text-white tracking-tight">{formatCurrency(totalBalance)}</p>
                                 <div className="mt-3 text-xs bg-white/20 inline-block px-2 py-1 rounded w-fit backdrop-blur-sm">+12% this week</div>
-                                <div className="mt-2 text-[10px] text-blue-200 font-mono opacity-80">v2.5 • Connected ✅</div>
+                                <div className="mt-2 text-[10px] text-blue-200 font-mono opacity-80">v2.6 • Connected ✅</div>
                             </div>
                         ) : (
                             <div className="h-12 w-12 bg-indigo-600 rounded-2xl flex items-center justify-center mx-auto shadow-lg shadow-indigo-500/20 cursor-pointer hover:bg-indigo-500 transition-colors">
