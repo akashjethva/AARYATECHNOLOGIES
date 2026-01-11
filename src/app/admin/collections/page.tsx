@@ -7,14 +7,85 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useCurrency } from "@/hooks/useCurrency";
 
 import { db, Collection } from "@/services/db";
+import jsPDF from 'jspdf';
 
 export default function CollectionsPage() {
     // Helper to get today's date in YYYY-MM-DD
     const getToday = () => new Date().toISOString().split('T')[0];
 
-    // Export stub to fix build error
+    // PDF Export Logic
     const handleExport = () => {
-        if (typeof window !== 'undefined') alert("Export feature coming soon within 24 hours!");
+        const doc = new jsPDF();
+        const today = new Date().toLocaleDateString();
+
+        // Header
+        doc.setFontSize(20);
+        doc.setFont('helvetica', 'bold');
+        const appName = db.getAppSettings().appName;
+        doc.text(appName, 105, 20, { align: 'center' });
+
+        doc.setFontSize(16);
+        doc.text('Collections Report', 105, 30, { align: 'center' });
+
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Generated on: ${today}`, 105, 38, { align: 'center' });
+        doc.text(`Filter: ${statusFilter} | ${staffFilter} | ${viewMode}`, 105, 43, { align: 'center' });
+
+        // Stats Summary
+        const totalAmount = filteredTransactions
+            .filter(t => t.status === 'Paid')
+            .reduce((sum, t) => sum + (parseFloat(String(t.amount).replace(/,/g, '')) || 0), 0);
+
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.text(`Total Records: ${filteredTransactions.length}`, 20, 55);
+        doc.text(`Total Collections: ${formatCurrency(totalAmount).replace('₹', 'Rs.')}`, 20, 62);
+
+        // Table Headers
+        let yPos = 75;
+        doc.setFillColor(241, 245, 249); // slate-100
+        doc.rect(15, yPos - 6, 180, 8, 'F');
+
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'bold');
+        doc.text('ID', 17, yPos);
+        doc.text('Date', 45, yPos);
+        doc.text('Customer', 70, yPos);
+        doc.text('Staff', 120, yPos);
+        doc.text('Mode', 150, yPos);
+        doc.text('Amount', 190, yPos, { align: 'right' });
+
+        yPos += 8;
+
+        // Table Rows
+        doc.setFont('helvetica', 'normal');
+        filteredTransactions.forEach((t) => {
+            if (yPos > 280) {
+                doc.addPage();
+                yPos = 20;
+            }
+
+            doc.text(String(t.id).substring(4), 17, yPos); // Show numeric part ID
+            doc.text(formatDate(t.date), 45, yPos);
+            doc.text(t.customer.substring(0, 25), 70, yPos);
+            doc.text(t.staff.split(' ')[0], 120, yPos); // First name only
+            doc.text(t.mode, 150, yPos);
+            doc.text(t.amount, 190, yPos, { align: 'right' });
+
+            yPos += 7;
+        });
+
+        // Footer
+        const pageCount = doc.internal.pages.length - 1;
+        for (let i = 1; i <= pageCount; i++) {
+            doc.setPage(i);
+            doc.setFontSize(8);
+            doc.setTextColor(150);
+            doc.text(`Page ${i} of ${pageCount}`, 105, 290, { align: "center" });
+        }
+
+        doc.save(`Collections_Report_${getToday()}.pdf`);
     };
 
     // Initial Data with standard date format
