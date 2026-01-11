@@ -377,6 +377,72 @@ export default function ReportsPage() {
     // Calculate Percentages for Bar Width
     const maxZoneAmount = sortedZones.length > 0 ? sortedZones[0].amount : 0;
 
+    // 7. Dynamic Chart Data Aggregation
+    const chartData = React.useMemo(() => {
+        const weeklyData = new Array(7).fill(0);
+        const monthlyData = new Array(5).fill(0);
+        const yearlyData = new Array(12).fill(0);
+
+        const currentYear = new Date().getFullYear();
+        const currentMonth = new Date().getMonth();
+        const now = new Date(); // Current date for week calc based on actual current week
+
+        // Helper: Get Monday of current week
+        const startOfWeek = new Date(now);
+        const dayOfWeek = startOfWeek.getDay() || 7; // 1=Mon, 7=Sun
+        if (dayOfWeek !== 1) startOfWeek.setHours(-24 * (dayOfWeek - 1));
+        else startOfWeek.setHours(0, 0, 0, 0); // It is Monday
+
+        // Helper to parse amount
+        const parseAmount = (amt: any) => parseFloat(String(amt).replace(/,/g, '')) || 0;
+
+        // Select Source Data
+        let sourceData: any[] = [];
+        if (selectedStat === 'expense') {
+            sourceData = expenses.filter(e => e.status !== 'Rejected');
+        } else {
+            sourceData = transactions.filter(t => t.status === 'Paid');
+            if (selectedStat === 'collection') sourceData = sourceData.filter(t => t.mode === 'Cash');
+            if (selectedStat === 'upi') sourceData = sourceData.filter(t => t.mode !== 'Cash');
+        }
+
+        sourceData.forEach(item => {
+            const date = new Date(item.date);
+            // Fallback if invalid date
+            if (isNaN(date.getTime())) return;
+
+            const amt = parseAmount(item.amount);
+
+            // Year Data (Jan-Dec of current year)
+            if (date.getFullYear() === currentYear) {
+                yearlyData[date.getMonth()] += amt;
+            }
+
+            // Month Data (Weeks of current month)
+            // Logic: Floor((Date - 1) / 7) gives 0-4
+            if (date.getFullYear() === currentYear && date.getMonth() === currentMonth) {
+                const day = date.getDate();
+                const weekIndex = Math.min(Math.floor((day - 1) / 7), 4);
+                monthlyData[weekIndex] += amt;
+            }
+
+            // Week Data (Current Week Mon-Sun)
+            const timeDiff = date.getTime() - startOfWeek.getTime();
+            const daysDiff = Math.floor(timeDiff / (1000 * 3600 * 24));
+
+            if (daysDiff >= 0 && daysDiff < 7) {
+                weeklyData[daysDiff] += amt;
+            }
+        });
+
+        return {
+            Week: { data: weeklyData, labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] },
+            Month: { data: monthlyData, labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4', 'Week 5'] },
+            Year: { data: yearlyData, labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] }
+        };
+
+    }, [transactions, expenses, selectedStat]);
+
     return (
         <div className="max-w-[1600px] mx-auto space-y-8 pb-20">
 
@@ -511,7 +577,11 @@ export default function ReportsPage() {
 
                         {/* Animated Bar Chart */}
                         <div className="h-72 flex justify-between gap-3 relative z-10 px-2 group">
-                            <ChartBars key={`${chartPeriod} -${selectedStat} `} period={chartPeriod} statType={selectedStat} />
+                            <ChartBars
+                                data={chartData[chartPeriod].data}
+                                labels={chartData[chartPeriod].labels}
+                                statType={selectedStat}
+                            />
                         </div>
                     </div>
 
@@ -735,44 +805,20 @@ export default function ReportsPage() {
 
 // Sub-components
 
-function ChartBars({ period, statType = 'revenue' }: { period: 'Week' | 'Month' | 'Year', statType?: string }) {
+function ChartBars({ data, labels, statType = 'revenue' }: { data: number[], labels: string[], statType?: string }) {
 
-    // Configuration for different periods
-    const chartConfig: any = {
-        Week: {
-            revenue: [40, 60, 45, 90, 30, 75, 50],
-            collection: [30, 50, 40, 80, 20, 70, 40],
-            upi: [20, 30, 25, 50, 15, 40, 20],
-            expense: [10, 5, 8, 12, 5, 8, 10],
-            labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-        },
-        Month: {
-            revenue: [30, 45, 60, 50, 70],
-            collection: [25, 40, 50, 45, 60],
-            upi: [15, 20, 30, 25, 35],
-            expense: [5, 8, 10, 8, 12],
-            labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4', 'Week 5']
-        },
-        Year: {
-            revenue: [50, 65, 60, 80, 75, 85, 90, 95, 80, 85, 90, 100],
-            collection: [40, 55, 50, 70, 65, 75, 80, 85, 70, 75, 80, 90],
-            upi: [20, 25, 30, 40, 35, 45, 50, 55, 40, 45, 50, 60],
-            expense: [10, 12, 11, 15, 12, 14, 15, 18, 12, 14, 15, 18],
-            labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-        }
-    };
-
-    const currentData = chartConfig[period][statType] || chartConfig[period].revenue;
-    const currentLabels = chartConfig[period].labels;
+    // Normalize data for visualization (height 0-100%)
+    const maxVal = Math.max(...data, 1);
+    const normalizedData = data.map(val => (val / maxVal) * 100);
 
     return (
         <>
-            {currentData.map((h: number, i: number) => (
-                <div key={`${period} -${i} `} className="flex-1 flex flex-col justify-end group cursor-pointer h-full relative items-center">
+            {normalizedData.map((h: number, i: number) => (
+                <div key={`${i}`} className="flex-1 flex flex-col justify-end group cursor-pointer h-full relative items-center">
 
                     {/* Hover Tooltip/Value */}
-                    <div className="absolute -top-12 opacity-0 group-hover:opacity-100 transition-all duration-300 bg-white text-indigo-950 font-bold text-xs py-1.5 px-3 rounded-lg shadow-[0_0_15px_rgba(255,255,255,0.4)] pointer-events-none transform translate-y-2 group-hover:translate-y-0 z-20">
-                        {h}%
+                    <div className="absolute -top-12 opacity-0 group-hover:opacity-100 transition-all duration-300 bg-white text-indigo-950 font-bold text-xs py-1.5 px-3 rounded-lg shadow-[0_0_15px_rgba(255,255,255,0.4)] pointer-events-none transform translate-y-2 group-hover:translate-y-0 z-20 whitespace-nowrap">
+                        {data[i].toLocaleString('en-IN')}
                         <div className="absolute bottom-[-4px] left-1/2 -translate-x-1/2 w-2 h-2 bg-white rotate-45"></div>
                     </div>
 
@@ -803,7 +849,7 @@ function ChartBars({ period, statType = 'revenue' }: { period: 'Week' | 'Month' 
                     </div>
 
                     <span className="text-[10px] font-bold text-slate-500 text-center mt-4 group-hover:text-cyan-400 transition-colors uppercase tracking-wider">
-                        {currentLabels[i]}
+                        {labels[i]}
                     </span>
                 </div>
             ))}
