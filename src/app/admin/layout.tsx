@@ -70,15 +70,16 @@ export default function AdminLayout({
 
         if (!collections || !Array.isArray(collections)) return 0;
 
+        // Sync with Dashboard: Exclude HANDOVER transactions
         const totalCollections = collections
-            .filter((t: any) => t && t.status === 'Paid') // Only count Paid
+            .filter((t: any) => t && t.status === 'Paid' && !String(t.customer).startsWith('HANDOVER:'))
             .reduce((sum: number, t: any) => {
                 const amount = parseFloat(String(t.amount).replace(/,/g, ''));
                 return sum + (isNaN(amount) ? 0 : amount);
             }, 0);
 
+        // Sync with Dashboard: Deduct ALL expenses
         const totalExpenses = (expenses || [])
-            .filter((e: any) => e.status === 'Approved')
             .reduce((sum: number, e: any) => {
                 const amount = parseFloat(String(e.amount).replace(/,/g, ''));
                 return sum + (isNaN(amount) ? 0 : amount);
