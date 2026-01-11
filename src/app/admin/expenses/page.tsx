@@ -89,11 +89,11 @@ export default function ExpensesPage() {
     // Dynamic Stats
     const stats = useMemo(() => {
         const totalOutflow = expenses
-            .filter(e => e.status === 'Paid')
-            .reduce((sum, e) => sum + e.amount, 0);
+            .filter(e => e.status !== 'Rejected') // Count Paid & Approved
+            .reduce((sum, e) => sum + (parseFloat(String(e.amount).replace(/,/g, '')) || 0), 0);
         const pendingAmount = expenses
             .filter(e => e.status === 'Pending')
-            .reduce((sum, e) => sum + e.amount, 0);
+            .reduce((sum, e) => sum + (parseFloat(String(e.amount).replace(/,/g, '')) || 0), 0);
         const pendingCount = expenses.filter(e => e.status === 'Pending').length;
         return { totalOutflow, pendingAmount, pendingCount };
     }, [expenses]);
