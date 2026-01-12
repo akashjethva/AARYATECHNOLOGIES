@@ -228,7 +228,7 @@ export default function ExpensesPage() {
             </div>
 
             {/* Tab Navigation & Search */}
-            <div className="bg-[#1e293b]/60 backdrop-blur-xl p-4 rounded-[2rem] border border-white/5 shadow-xl flex flex-col md:flex-row gap-4 justify-between items-center">
+            <div className="bg-[#1e293b]/60 backdrop-blur-xl p-4 rounded-[2rem] border border-white/5 shadow-xl flex flex-col md:flex-row gap-4 justify-between items-center relative z-50">
                 <div className="flex bg-[#0f172a] p-1.5 rounded-2xl border border-white/10 w-full md:w-auto">
                     <button
                         onClick={() => setActiveTab('transactions')}
