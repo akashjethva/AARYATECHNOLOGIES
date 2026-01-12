@@ -1,12 +1,10 @@
 "use client";
 
+import { Bell, Moon, Shield, ChevronRight, Wallet, ArrowUpRight, ArrowLeft, User, LogOut, Lock, Sun, ScanFace, X } from "lucide-react";
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Bell, Shield, Lock, LogOut, X, ChevronRight } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-
-import { useToast } from "@/hooks/useToast"; // Assuming this hook exists or we use internal state
-import SettingItem from "@/components/SettingItem"; // Assuming this component exists
 import { db } from "@/services/db";
 import { useCurrency } from "@/hooks/useCurrency";
 
