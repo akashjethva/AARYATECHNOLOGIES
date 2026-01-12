@@ -50,62 +50,72 @@ export default function CustomersPage() {
     const [activeFilter, setActiveFilter] = useState("All");
 
     const handleDownloadReport = () => {
-        const doc = new jsPDF();
-
-        // Use filtered customers to match the current view
-        const dataToExport = filteredCustomers;
-        const totalPending = dataToExport.reduce((sum, c) => sum + (parseFloat(c.balance.replace(/[^0-9.-]+/g, "")) || 0), 0);
-        const reportTitle = activeFilter === 'Pending Dues' ? "Pending Dues Report" : "Customer Balance Report";
-
-        // Header
-        doc.setFontSize(22);
-        doc.setTextColor(40, 40, 40);
-        doc.text(reportTitle, 14, 20);
-
-        doc.setFontSize(10);
-        doc.setTextColor(100, 100, 100);
-        doc.text(`Generated on: ${new Date().toLocaleDateString()} | Filter: ${activeFilter}`, 14, 28);
-        doc.text(`Total Customers: ${dataToExport.length}`, 14, 34);
-
-        // Table Data
-        const tableColumn = ["#", "Customer Name", "City", "Mobile", "Balance"];
-        const tableRows = dataToExport.map((c, index) => [
-            index + 1,
-            c.name,
-            c.city,
-            c.phone,
-            c.balance // Already formatted string
-        ]);
-
-        // Add Total Row
-        const totalFormatted = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(totalPending);
-        tableRows.push(["", "", "", "TOTAL PENDING:", totalFormatted]);
-
-        // @ts-ignore
-        doc.autoTable({
-            head: [tableColumn],
-            body: tableRows,
-            startY: 40,
-            theme: 'grid',
-            headStyles: { fillColor: [79, 70, 229], halign: 'left' }, // Indigo
-            columnStyles: {
-                0: { cellWidth: 15 }, // Index
-                4: { halign: 'right', fontStyle: 'bold' } // Balance
-            },
-            styles: { fontSize: 10, cellPadding: 3 },
-            alternateRowStyles: { fillColor: [245, 247, 250] },
-            didParseCell: (data: any) => {
-                // Style Total Row
-                if (data.row.index === tableRows.length - 1) {
-                    data.cell.styles.fontStyle = 'bold';
-                    data.cell.styles.fillColor = [240, 253, 244]; // Light Green
-                    if (data.column.index === 4) data.cell.styles.textColor = [22, 163, 74];
-                }
+        try {
+            // Use filtered customers to match the current view
+            const dataToExport = filteredCustomers || customers; // Fallback
+            if (!dataToExport || dataToExport.length === 0) {
+                alert("No data to export!");
+                return;
             }
-        });
 
-        doc.save("customer_report.pdf");
+            const totalPending = dataToExport.reduce((sum, c) => sum + (parseFloat(c.balance.replace(/[^0-9.-]+/g, "")) || 0), 0);
+            const reportTitle = activeFilter === 'Pending Dues' ? "Pending Dues Report" : "Customer Balance Report";
+
+            // Header
+            doc.setFontSize(22);
+            doc.setTextColor(40, 40, 40);
+            doc.text(reportTitle, 14, 20);
+
+            doc.setFontSize(10);
+            doc.setTextColor(100, 100, 100);
+            doc.text(`Generated on: ${new Date().toLocaleDateString()} | Filter: ${activeFilter}`, 14, 28);
+            doc.text(`Total Customers: ${dataToExport.length}`, 14, 34);
+
+            // Table Data
+            const tableColumn = ["#", "Customer Name", "City", "Mobile", "Balance"];
+            const tableRows = dataToExport.map((c, index) => [
+                index + 1,
+                c.name,
+                c.city,
+                c.phone,
+                c.balance // Already formatted string
+            ]);
+
+            // Add Total Row
+            const totalFormatted = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(totalPending);
+            tableRows.push(["", "", "", "TOTAL PENDING:", totalFormatted]);
+
+            // Generate Table
+            autoTable(doc, {
+                head: [tableColumn],
+                body: tableRows,
+                startY: 40,
+                theme: 'grid',
+                headStyles: { fillColor: [79, 70, 229], halign: 'left' }, // Indigo
+                columnStyles: {
+                    0: { cellWidth: 15 }, // Index
+                    4: { halign: 'right', fontStyle: 'bold' } // Balance
+                },
+                styles: { fontSize: 10, cellPadding: 3 },
+                alternateRowStyles: { fillColor: [245, 247, 250] },
+                didParseCell: (data) => {
+                    // Style Total Row
+                    if (data.row.index === tableRows.length - 1) {
+                        data.cell.styles.fontStyle = 'bold';
+                        data.cell.styles.textColor = [220, 38, 38]; // Red for total
+                        if (data.column.index === 3) data.cell.styles.halign = 'right';
+                    }
+                }
+            });
+
+            // Save
+            doc.save(`${reportTitle.replace(/ /g, "_")}_${new Date().toISOString().split('T')[0]}.pdf`);
+        } catch (error) {
+            console.error("PDF Export Failed:", error);
+            alert("Failed to generate PDF. Please try again or contact support.");
+        }
     };
+
 
     // State for Editing
     const [editingId, setEditingId] = useState<number | null>(null);

@@ -346,7 +346,9 @@ export default function AdminLayout({
                                                         <div className={n.read ? 'opacity-60' : ''}>
                                                             <p className={`text-sm leading-tight ${n.read ? 'font-medium text-slate-400' : 'font-bold text-white'}`}>{n.title}</p>
                                                             <p className="text-xs text-slate-400 mt-1">{n.desc}</p>
-                                                            <p className="text-[10px] text-slate-500 mt-2 font-medium">{n.time}</p>
+                                                            <p className="text-[10px] text-slate-500 mt-2 font-medium">
+                                                                {n.time === "Just now" ? "Just now" : new Date(n.time).toLocaleString('en-IN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' })}
+                                                            </p>
                                                         </div>
                                                     </div>
                                                 ))

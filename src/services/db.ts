@@ -899,7 +899,7 @@ export const db = {
             id,
             title: "Handover Received",
             desc: `${staffName} has settled ₹${amount.toLocaleString('en-IN')} (Auto-Approved)`,
-            time: "Just now",
+            time: new Date().toISOString(),
             type: "alert",
             path: "/admin/dashboard",
             read: false
