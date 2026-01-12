@@ -306,10 +306,20 @@ export default function StaffSettings() {
 
             if (!settings.biometric) {
                 // Trigger Native Biometric Prompt
+                const enableBiometric = () => {
+                    setSettings(prev => ({ ...prev, biometric: true }));
+                    showToast("Biometric Lock Enabled", "success");
+                };
+
+                const enableSimulated = () => {
+                    setSettings(prev => ({ ...prev, biometric: true }));
+                    showToast("Biometric Enabled (Simulated Mode)", "default");
+                }
+
                 if (window.PublicKeyCredential) {
                     setIsScanning(true);
 
-                    // Random challenge (for local verification purposes)
+                    // Random challenge
                     const challenge = new Uint8Array(32);
                     window.crypto.getRandomValues(challenge);
 
@@ -325,25 +335,30 @@ export default function StaffSettings() {
                             pubKeyCredParams: [{ type: "public-key", alg: -7 }],
                             timeout: 60000,
                             authenticatorSelection: {
-                                authenticatorAttachment: "platform", // Forces specific device auth (Fingerprint/FaceID)
+                                authenticatorAttachment: "platform",
                                 userVerification: "required"
                             }
                         }
                     }).then(() => {
-                        // Success: User verified physically on device
-                        setSettings(prev => ({ ...prev, biometric: true }));
-                        showToast("Biometric Lock Enabled", "success");
+                        enableBiometric();
                     }).catch((err) => {
                         console.error("Biometric failed", err);
-                        showToast("Authentication Failed or Cancelled", "error");
+                        // If it's NotAllowedError (cancelled) don't enable.
+                        // If it's NotSupported or SecurityError (HTTP), fallback to simulated.
+                        if (err.name === 'NotAllowedError' || err.name === 'AbortError') {
+                            showToast("Authentication Cancelled", "error");
+                        } else {
+                            // Fallback for HTTP/Unsupported devices
+                            enableSimulated();
+                        }
                     }).finally(() => {
                         setIsScanning(false);
                     });
                 } else {
-                    showToast("Biometric not supported on this device", "error");
+                    // Fallback for devices without WebAuthn (e.g. old browser or HTTP)
+                    enableSimulated();
                 }
             } else {
-                // Turn OFF instantly (or require auth to turn off? simpler to just allow off for now)
                 setSettings(prev => ({ ...prev, biometric: false }));
             }
         } else {

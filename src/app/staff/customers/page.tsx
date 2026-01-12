@@ -41,6 +41,27 @@ export default function StaffCustomers() {
                 <h1 className="text-2xl font-bold text-white leading-none">Customers</h1>
             </div>
 
+            {/* Stats Header */}
+            <div className="grid grid-cols-2 gap-4 mb-6">
+                <div className="bg-[#1e2128] rounded-2xl p-4 border border-white/5 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 p-2 opacity-10">
+                        <User size={40} className="text-indigo-500" />
+                    </div>
+                    <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider mb-1">Total Customers</p>
+                    <h3 className="text-2xl font-bold text-white">{customers.length}</h3>
+                </div>
+                <div className="bg-[#1e2128] rounded-2xl p-4 border border-white/5 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 p-2 opacity-10">
+                        <TrendingUp size={40} className="text-rose-500" />
+                    </div>
+                    <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider mb-1">Total Pending</p>
+                    <h3 className="text-2xl font-bold text-white flex items-baseline gap-1">
+                        <span className="text-sm font-normal text-slate-400">₹</span>
+                        {customers.reduce((sum, c) => sum + (parseFloat(c.balance.replace(/,/g, '')) || 0), 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                    </h3>
+                </div>
+            </div>
+
             {/* Search Bar - Premium */}
             <div className="relative mb-6 group">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
