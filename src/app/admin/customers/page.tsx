@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useCurrency } from "@/hooks/useCurrency";
 import { db, Customer, Collection } from "@/services/db";
 import jsPDF from "jspdf";
-import autoTable from 'jspdf-autotable';
+import 'jspdf-autotable';
 
 export default function CustomersPage() {
     const [customers, setCustomers] = useState<Customer[]>([]);
@@ -86,7 +86,7 @@ export default function CustomersPage() {
             tableRows.push(["", "", "", "TOTAL PENDING:", totalFormatted]);
 
             // Generate Table
-            autoTable(doc, {
+            (doc as any).autoTable({
                 head: [tableColumn],
                 body: tableRows,
                 startY: 40,
@@ -98,7 +98,7 @@ export default function CustomersPage() {
                 },
                 styles: { fontSize: 10, cellPadding: 3 },
                 alternateRowStyles: { fillColor: [245, 247, 250] },
-                didParseCell: (data) => {
+                didParseCell: (data: any) => {
                     // Style Total Row
                     if (data.row.index === tableRows.length - 1) {
                         data.cell.styles.fontStyle = 'bold';
@@ -110,9 +110,9 @@ export default function CustomersPage() {
 
             // Save
             doc.save(`${reportTitle.replace(/ /g, "_")}_${new Date().toISOString().split('T')[0]}.pdf`);
-        } catch (error) {
+        } catch (error: any) {
             console.error("PDF Export Failed:", error);
-            alert("Failed to generate PDF. Please try again or contact support.");
+            alert("Failed to generate PDF: " + (error?.message || "Unknown Error"));
         }
     };
 
