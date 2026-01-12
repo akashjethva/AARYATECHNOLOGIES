@@ -629,7 +629,7 @@ export default function ReportsPage() {
                                 <h3 key={selectedStat} className="text-2xl font-bold text-white transition-all">{getGraphTitle()}</h3>
                                 <p className="text-slate-400 text-sm font-bold uppercase tracking-wider mt-1">Income Over Time</p>
                             </div>
-                            <div className="flex bg-[#0f172a]/80 p-1.5 rounded-xl border border-white/5 backdrop-blur-md gap-2">
+                            <div className="flex bg-[#0f172a]/80 p-1.5 rounded-xl border border-white/5 backdrop-blur-md gap-4">
                                 {['Week', 'Month', 'Year'].map((period) => (
                                     <button
                                         key={period}
