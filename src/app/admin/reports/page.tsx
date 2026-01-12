@@ -62,6 +62,61 @@ export default function ReportsPage() {
     const upiPct = Math.round((upiCollection / netTotal) * 100);
     const otherPct = 100 - cashPct - upiPct; // Remainder (usually 0 if only Cash/UPI)
 
+    // Dynamic Trend Logic (Month over Month)
+    const getTrendStats = () => {
+        const now = new Date();
+        const currentMonth = now.getMonth();
+        const currentYear = now.getFullYear();
+
+        const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        const lastMonth = lastMonthDate.getMonth();
+        const lastMonthYear = lastMonthDate.getFullYear();
+
+        const getMonthData = (month: number, year: number) => {
+            const mTransactions = transactions.filter(t => {
+                const d = new Date(t.date);
+                return d.getMonth() === month && d.getFullYear() === year && t.status === "Paid";
+            });
+            const mExpenses = expenses.filter(e => {
+                const d = new Date(e.date);
+                return d.getMonth() === month && d.getFullYear() === year;
+            });
+
+            const revenue = mTransactions.reduce((s, t) => s + (parseFloat(String(t.amount).replace(/,/g, '')) || 0), 0);
+            const expense = mExpenses.reduce((s, e) => s + (parseFloat(String(e.amount).replace(/,/g, '')) || 0), 0);
+            const netRevenue = revenue; // Using Gross Revenue as 'Net Revenue' title usually implies for these dashboards, or if calc is Revenue - Expense
+            // Note: In Dashboard 'Net Revenue' was Gross - Expense. Here title is "Net Revenue" but variable used was `totalRevenue` (which is gross collection).
+            // I will match the value displayed in the card. Card displays `totalRevenue` (lines 44-46) which is just Sum of Paid Transactions.
+            // So for trend, I will compare Sum of Paid Transactions.
+
+            const cash = mTransactions.filter(t => t.mode === 'Cash').reduce((s, t) => s + (parseFloat(String(t.amount).replace(/,/g, '')) || 0), 0);
+            const upi = revenue - cash;
+
+            return { revenue, expense, cash, upi };
+        };
+
+        const current = getMonthData(currentMonth, currentYear);
+        const last = getMonthData(lastMonth, lastMonthYear);
+
+        const calc = (curr: number, prev: number) => {
+            if (prev === 0) return curr > 0 ? 100 : 0;
+            return ((curr - prev) / prev) * 100;
+        };
+
+        return {
+            revenue: calc(current.revenue, last.revenue).toFixed(1),
+            expense: calc(current.expense, last.expense).toFixed(1),
+            cash: calc(current.cash, last.cash).toFixed(1),
+            upi: calc(current.upi, last.upi).toFixed(1)
+        };
+    };
+
+    const trends = getTrendStats();
+    const formatTrend = (val: string) => {
+        const num = Number(val);
+        return (num > 0 ? "+" : "") + val + "%";
+    };
+
     const getGraphTitle = () => {
         switch (selectedStat) {
             case 'revenue': return 'Revenue Trends';
@@ -509,7 +564,7 @@ export default function ReportsPage() {
                 <StatCard
                     title="Net Revenue"
                     value={formatCurrency(totalRevenue)}
-                    trend={totalRevenue > 0 ? "+100%" : "0%"}
+                    trend={formatTrend(trends.revenue)}
                     color="bg-blue-600"
                     icon={<TrendingUp />}
                     isActive={selectedStat === 'revenue'}
@@ -519,7 +574,7 @@ export default function ReportsPage() {
                 <StatCard
                     title="Cash Collection"
                     value={formatCurrency(cashCollection)}
-                    trend={cashPct > 0 ? `+ ${cashPct}% ` : "0%"}
+                    trend={formatTrend(trends.cash)}
                     color="bg-emerald-600"
                     icon={<Wallet />}
                     isActive={selectedStat === 'collection'}
@@ -529,7 +584,7 @@ export default function ReportsPage() {
                 <StatCard
                     title="Digital / UPI"
                     value={formatCurrency(upiCollection)}
-                    trend={upiPct > 0 ? `+ ${upiPct}% ` : "0%"}
+                    trend={formatTrend(trends.upi)}
                     color="bg-purple-600"
                     icon={<CreditCard />}
                     isActive={selectedStat === 'upi'}
@@ -539,7 +594,7 @@ export default function ReportsPage() {
                 <StatCard
                     title="Operational Exp."
                     value={formatCurrency(totalExpense)}
-                    trend={totalExpense > 0 ? "+100%" : "0%"}
+                    trend={formatTrend(trends.expense)}
                     color="bg-rose-600"
                     icon={<ArrowUpRight />}
                     isActive={selectedStat === 'expense'}

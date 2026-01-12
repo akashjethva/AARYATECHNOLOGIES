@@ -288,6 +288,35 @@ export default function CollectionsPage() {
     const failedTx = transactions.filter(t => t.status === "Failed").length;
     const successRate = transactions.length > 0 ? Math.round((successfulTx / transactions.length) * 100) : 0;
 
+    // Trend Logic (Current Month vs Last Month) for Collections
+    const getCollectionsTrend = () => {
+        const now = new Date();
+        const currentMonth = now.getMonth();
+        const currentYear = now.getFullYear();
+
+        const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        const lastMonth = lastMonthDate.getMonth();
+        const lastMonthYear = lastMonthDate.getFullYear();
+
+        const getSum = (month: number, year: number) => {
+            return transactions
+                .filter(t => {
+                    const d = new Date(t.date);
+                    return d.getMonth() === month && d.getFullYear() === year && t.status === "Paid" && !t.customer.startsWith('HANDOVER:');
+                })
+                .reduce((sum, t) => sum + (parseFloat(String(t.amount).replace(/,/g, '')) || 0), 0);
+        };
+
+        const currentSum = getSum(currentMonth, currentYear);
+        const lastSum = getSum(lastMonth, lastMonthYear);
+
+        if (lastSum === 0) return currentSum > 0 ? 100 : 0;
+        return ((currentSum - lastSum) / lastSum) * 100;
+    };
+
+    const collectionTrend = getCollectionsTrend().toFixed(1);
+    const trendIsPositive = Number(collectionTrend) >= 0;
+
     return (
         <div className="w-full space-y-8 relative">
 
@@ -304,9 +333,11 @@ export default function CollectionsPage() {
                                 <p className="font-medium text-blue-100">Total Collections</p>
                             </div>
                             <h3 className="text-4xl font-bold tracking-tight">{formatCurrency(totalCollections)}</h3>
-                            <div className="mt-4 flex items-center gap-2 text-sm font-bold bg-white/10 w-fit px-3 py-1 rounded-full backdrop-blur-sm border border-white/5">
-                                <TrendingUp size={16} className="text-emerald-300" />
-                                <span className="text-emerald-100">+12.5% this month</span>
+                            <div className={`mt-4 flex items-center gap-2 text-sm font-bold bg-white/10 w-fit px-3 py-1 rounded-full backdrop-blur-sm border border-white/5`}>
+                                <TrendingUp size={16} className={trendIsPositive ? "text-emerald-300" : "text-rose-300 rotate-180"} />
+                                <span className={trendIsPositive ? "text-emerald-100" : "text-rose-100"}>
+                                    {Number(collectionTrend) > 0 ? '+' : ''}{collectionTrend}% this month
+                                </span>
                             </div>
                         </div>
                     </div>
