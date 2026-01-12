@@ -894,14 +894,14 @@ function ChartBars({ data, labels, statType = 'revenue' }: { data: number[], lab
 
                         {/* Glow Behind */}
                         <div
-                            style={{ height: `${h}% ` }}
-                            className={`absolute bottom - 0 w - full rounded - full blur - md transition - all duration - 1000 group - hover: bg - cyan - 400 / 30 ${statType === 'expense' ? 'bg-rose-500/20' : 'bg-cyan-500/20'} `}
+                            style={{ height: `${h}%` }}
+                            className={`absolute bottom-0 w-full rounded-full blur-md transition-all duration-1000 group-hover:bg-cyan-400/30 ${statType === 'expense' ? 'bg-rose-500/20' : 'bg-cyan-500/20'}`}
                         ></div>
 
                         {/* Actual Bar */}
                         <div
-                            style={{ height: `${h}% ` }}
-                            className={`w - full rounded - full relative transition - all duration - 1000 ease - out group - hover: shadow - [0_0_20px_rgba(34, 211, 238, 0.6)] 
+                            style={{ height: `${h}%` }}
+                            className={`w-full rounded-full relative transition-all duration-1000 ease-out group-hover:shadow-[0_0_20px_rgba(34,211,238,0.6)] 
                                 ${statType === 'expense'
                                     ? 'bg-gradient-to-t from-rose-600 via-pink-500 to-orange-400'
                                     : 'bg-gradient-to-t from-indigo-600 via-purple-500 to-cyan-400'
