@@ -217,6 +217,20 @@ export const setupFirebaseSync = () => {
         }
     });
 
+    onSnapshot(doc(firestore, "settings", "notifications"), (doc) => {
+        if (doc.exists()) {
+            localStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(doc.data()));
+            window.dispatchEvent(new Event('notifications-updated'));
+        }
+    });
+
+    onSnapshot(doc(firestore, "settings", "mobile_permissions"), (doc) => {
+        if (doc.exists()) {
+            localStorage.setItem(STORAGE_KEYS.MOBILE_PERMISSIONS, JSON.stringify(doc.data()));
+            window.dispatchEvent(new Event('mobile-permissions-updated'));
+        }
+    });
+
     onSnapshot(collection(firestore, "alerts"), (snapshot) => {
         const data = snapshot.docs.map(doc => doc.data());
         if (data.length > 0) mergeAndSave(STORAGE_KEYS.ALERTS, data, 'alerts-updated');
@@ -660,6 +674,13 @@ export const db = {
     saveNotificationSettings: (settings: any) => {
         localStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(settings));
         window.dispatchEvent(new Event('notifications-updated'));
+
+        try {
+            setDoc(doc(firestore, "settings", "notifications"), settings, { merge: true });
+        } catch (e) {
+            console.error("Failed to sync notification settings", e);
+        }
+
         return settings;
     },
 
@@ -677,6 +698,13 @@ export const db = {
     saveMobilePermissions: (perms: any) => {
         localStorage.setItem(STORAGE_KEYS.MOBILE_PERMISSIONS, JSON.stringify(perms));
         window.dispatchEvent(new Event('mobile-permissions-updated'));
+
+        try {
+            setDoc(doc(firestore, "settings", "mobile_permissions"), perms, { merge: true });
+        } catch (e) {
+            console.error("Failed to sync mobile permissions", e);
+        }
+
         return perms;
     },
 
@@ -699,11 +727,22 @@ export const db = {
         return newList;
     },
 
-    markNotificationsRead: () => {
+    markNotificationsRead: async () => {
         const list = db.getNotifications();
         const newList = list.map((n: any) => ({ ...n, read: true }));
         localStorage.setItem(STORAGE_KEYS.ALERTS, JSON.stringify(newList));
         window.dispatchEvent(new Event('alerts-updated'));
+
+        // Sync Read Status to Firestore
+        for (const notif of newList) {
+            if (notif.id) {
+                try {
+                    await setDoc(doc(firestore, "alerts", String(notif.id)), { read: true }, { merge: true });
+                } catch (e) {
+                    console.error("Failed to mark read in Firestore", notif.id);
+                }
+            }
+        }
     },
 
     requestHandover: (staffName: string, amount: number) => {
@@ -745,9 +784,21 @@ export const db = {
         return true;
     },
 
-    clearNotifications: () => {
+    clearNotifications: async () => {
+        const list = db.getNotifications();
         localStorage.setItem(STORAGE_KEYS.ALERTS, JSON.stringify([]));
         window.dispatchEvent(new Event('alerts-updated'));
+
+        // Delete from Firestore
+        for (const notif of list) {
+            if (notif.id) {
+                try {
+                    await deleteDoc(doc(firestore, "alerts", String(notif.id)));
+                } catch (e) {
+                    console.error("Failed to delete alert from Firestore", notif.id);
+                }
+            }
+        }
     },
 
     // --- STAFF NOTIFICATIONS (Admin -> Staff) ---
