@@ -65,7 +65,83 @@ export default function AdminDashboard() {
     }, []);
 
     // Calculate Stats
-    // 1. Total Revenue (Income)
+    // Helper for Trend Calculation (Current Month vs Last Month)
+    const calculateTrend = (data: any[], type: 'revenue' | 'expense' | 'cash' | 'digital') => {
+        const now = new Date();
+        const currentMonth = now.getMonth();
+        const currentYear = now.getFullYear();
+
+        const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        const lastMonth = lastMonthDate.getMonth();
+        const lastMonthYear = lastMonthDate.getFullYear();
+
+        const getSum = (month: number, year: number) => {
+            return data
+                .filter(item => {
+                    const d = new Date(item.date);
+                    // Filter by specific type logic if needed
+                    if (type === 'cash' && item.mode !== 'Cash') return false;
+                    if (type === 'digital' && item.mode === 'Cash') return false;
+                    if (type === 'revenue' && item.customer?.startsWith('HANDOVER:')) return false;
+
+                    return d.getMonth() === month && d.getFullYear() === year && (!item.status || item.status === 'Paid');
+                })
+                .reduce((sum, item) => sum + (parseFloat(String(item.amount).replace(/,/g, '')) || 0), 0);
+        };
+
+        const currentSum = getSum(currentMonth, currentYear);
+        const lastSum = getSum(lastMonth, lastMonthYear);
+
+        if (lastSum === 0) return currentSum > 0 ? 100 : 0;
+        return ((currentSum - lastSum) / lastSum) * 100;
+    };
+
+    // Calculate Trends
+    const revenueTrend = Number(calculateTrend(transactions, 'revenue').toFixed(0)); // Approx for Net Revenue (using Gross for trend proxy or strictly net? Let's use Gross for trend simplicity or calculate proper Net)
+    // Actually, for "Available Cash" (Net), we should ideally compare (Rev-Exp) vs (LastRev-LastExp).
+    // Let's refine the helper to allow calculating Net Trend.
+
+    // Better Trend Logic:
+    const getMonthlyStats = (monthOffset: number) => {
+        const date = new Date();
+        date.setMonth(date.getMonth() - monthOffset);
+        const month = date.getMonth();
+        const year = date.getFullYear();
+
+        const monthTxns = transactions.filter(t => {
+            const d = new Date(t.date);
+            return d.getMonth() === month && d.getFullYear() === year && t.status === 'Paid' && !t.customer.startsWith('HANDOVER:');
+        });
+        const monthExps = expenses.filter(e => {
+            const d = new Date(e.date);
+            return d.getMonth() === month && d.getFullYear() === year;
+        });
+
+        const gross = monthTxns.reduce((s, t) => s + (parseFloat(String(t.amount).replace(/,/g, '')) || 0), 0);
+        const exp = monthExps.reduce((s, e) => s + (parseFloat(String(e.amount).replace(/,/g, '')) || 0), 0);
+
+        const cash = monthTxns.filter(t => t.mode === 'Cash').reduce((s, t) => s + (parseFloat(String(t.amount).replace(/,/g, '')) || 0), 0);
+        const digital = gross - cash;
+
+        return { net: gross - exp, cash, digital, expense: exp };
+    };
+
+    const thisMonth = getMonthlyStats(0);
+    const lastMonth = getMonthlyStats(1);
+
+    const calcPerc = (curr: number, prev: number) => {
+        if (prev === 0) return curr > 0 ? 100 : 0;
+        return ((curr - prev) / prev) * 100;
+    };
+
+    const trends = {
+        net: calcPerc(thisMonth.net, lastMonth.net).toFixed(1),
+        cash: calcPerc(thisMonth.cash, lastMonth.cash).toFixed(1),
+        digital: calcPerc(thisMonth.digital, lastMonth.digital).toFixed(1),
+        expense: calcPerc(thisMonth.expense, lastMonth.expense).toFixed(1)
+    };
+
+    // 1. Total Revenue (Net Income = Gross - Expense)
     // 1. Total Revenue (Net Income = Gross - Expense)
     // 1. Total Revenue (Net Income = Gross - Expense)
     // EXCLUDE Handover transactions (Internal transfers)
@@ -657,11 +733,11 @@ export default function AdminDashboard() {
             {/* Stats Row Breakdown: Revenue, Cash, Digital, Expense */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <Card
-                    title="TOTAL REVENUE"
+                    title="AVAILABLE CASH"
                     value={formatCurrency(totalRevenue)}
                     icon={<TrendingUp />}
-                    trend="+12%"
-                    trendUp={true}
+                    trend={`${Number(trends.net) > 0 ? '+' : ''}${trends.net}%`}
+                    trendUp={Number(trends.net) >= 0}
                     color="bg-indigo-600"
                     href="/admin/collections"
                 />
@@ -670,8 +746,8 @@ export default function AdminDashboard() {
                     title="CASH COLLECTION"
                     value={formatCurrency(cashCollection)}
                     icon={<Wallet />}
-                    trend="+8%"
-                    trendUp={true}
+                    trend={`${Number(trends.cash) > 0 ? '+' : ''}${trends.cash}%`}
+                    trendUp={Number(trends.cash) >= 0}
                     color="bg-emerald-600"
                     href="/admin/collections"
                 />
@@ -680,8 +756,8 @@ export default function AdminDashboard() {
                     title="DIGITAL / UPI"
                     value={formatCurrency(digitalCollection)}
                     icon={<CreditCard />}
-                    trend="+15%"
-                    trendUp={true}
+                    trend={`${Number(trends.digital) > 0 ? '+' : ''}${trends.digital}%`}
+                    trendUp={Number(trends.digital) >= 0}
                     color="bg-purple-600"
                     href="/admin/collections"
                 />
@@ -690,8 +766,19 @@ export default function AdminDashboard() {
                     title="OPERATIONAL EXP."
                     value={formatCurrency(totalExpense)}
                     icon={<ArrowUpRight />}
-                    trend="-2%"
-                    trendUp={false}
+                    trend={`${Number(trends.expense) > 0 ? '+' : ''}${trends.expense}%`}
+                    trendUp={Number(trends.expense) <= 0} // Green if expense goes down? Actually usually UI shows red if up. Let's keep logic consistent with icon direction.
+                    // If trendUp is true (arrow up), it's usually Green for Revenue, but for Expense arrow up is Red.
+                    // The Card component uses trendUp to decide Blue(Green) or Rose(Red).
+                    // For Expense: Increase (Positive %) -> Bad (Red/Rose) -> trendUp needs to be FALSE for color Rose.
+                    // Decrease (Negative %) -> Good (Blue) -> trendUp needs to be TRUE for color Blue.
+                    // Wait, Card implementation: trendUp ? 'bg-blue-500' : 'bg-rose-500'.
+                    // So for Expense:
+                    // If expense increased (+ve), we want RED. So trendUp = false.
+                    // If expense decreased (-ve), we want BLUE (Good). So trendUp = true.
+                    // My logic: trendUp={Number(trends.expense) <= 0}
+                    // If expense is -10% (decreased), -10 <= 0 is true -> Blue. Correct.
+                    // If expense is +10% (increased), 10 <= 0 is false -> Red. Correct.
                     color="bg-rose-600"
                     href="/admin/expenses"
                 />
