@@ -51,6 +51,7 @@ export default function CustomersPage() {
 
     const handleDownloadReport = () => {
         try {
+            const doc = new jsPDF();
             // Use filtered customers to match the current view
             const dataToExport = filteredCustomers || customers; // Fallback
             if (!dataToExport || dataToExport.length === 0) {
