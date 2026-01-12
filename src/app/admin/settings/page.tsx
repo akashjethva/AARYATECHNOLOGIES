@@ -295,6 +295,18 @@ function AdminProfileSettings() {
                             </div>
                         </div>
                     </label>
+                    {profile.avatar && (
+                        <button
+                            onClick={(e) => {
+                                e.preventDefault();
+                                handleChange('avatar', '');
+                            }}
+                            className="absolute -top-2 -right-2 bg-rose-500 text-white p-1.5 rounded-full shadow-lg hover:bg-rose-600 transition-colors z-[20]"
+                            title="Remove Photo"
+                        >
+                            <X size={14} strokeWidth={3} />
+                        </button>
+                    )}
                 </div>
                 <div>
                     <h4 className="text-white font-bold text-lg">{profile.name}</h4>
@@ -405,6 +417,18 @@ function CompanySettings() {
                             <span className="text-xs font-bold text-white">Upload</span>
                         </div>
                     </label>
+                    {company.logo && (
+                        <button
+                            onClick={(e) => {
+                                e.preventDefault();
+                                handleChange('logo', '');
+                            }}
+                            className="absolute -top-1 -right-1 bg-rose-500 text-white p-1.5 rounded-full shadow-lg hover:bg-rose-600 transition-colors z-[20]"
+                            title="Remove Logo"
+                        >
+                            <X size={14} strokeWidth={3} />
+                        </button>
+                    )}
                 </div>
                 <div>
                     <h4 className="text-white font-bold text-lg">Company Logo</h4>
