@@ -8,6 +8,28 @@ import { motion, AnimatePresence } from "framer-motion";
 import { db } from "@/services/db";
 import { useCurrency } from "@/hooks/useCurrency";
 
+import { useState, useEffect } from "react";
+// ... existing imports ...
+
+const AppVersionDisplay = () => {
+    const [ver, setVer] = useState({ name: "Loading...", code: 0 });
+
+    useEffect(() => {
+        fetch('/version.json?t=' + Date.now())
+            .then(res => res.json())
+            .then(data => setVer({ name: data.versionName, code: data.versionCode }))
+            .catch(() => setVer({ name: "Unknown", code: 0 }));
+    }, []);
+
+    return (
+        <p className="text-center text-xs text-slate-500 font-medium mt-8 mb-2">
+            App Version {ver.name} (Build {ver.code})
+            <br />
+            <span className="opacity-50">Latest Release</span>
+        </p>
+    );
+};
+
 export default function StaffSettings() {
     const { formatCurrency } = useCurrency();
     const router = useRouter();
@@ -549,9 +571,10 @@ export default function StaffSettings() {
                 <span className="text-xl">🔄</span> Force Sync Data
             </button>
 
-            <p className="text-center text-xs text-slate-500 font-medium mt-8">
-                App Version 2.5.1 (Sync Fix)
-                <br />
+            {/* Dynamic Version Display */}
+            <AppVersionDisplay />
+
+            <p className="text-center text-xs text-slate-500 font-medium pb-8 border-t border-white/5 pt-4">
                 Powered by {db.getAppSettings().appName}
             </p>
 
