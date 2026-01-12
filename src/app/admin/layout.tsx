@@ -56,36 +56,74 @@ export default function AdminLayout({
 
 
     const [isProfileOpen, setIsProfileOpen] = useState(false);
-    const [totalBalance, setTotalBalance] = useState(0);
+    const [balanceStats, setBalanceStats] = useState({ total: 0, trend: '0.0', trendUp: true });
     const notificationRef = useRef<HTMLDivElement>(null);
     const profileRef = useRef<HTMLDivElement>(null);
     const { formatCurrency } = useCurrency();
 
-    const calculateBalance = () => {
+    const calculateBalanceStats = () => {
         // Guard for server-side
-        if (typeof window === 'undefined') return 0;
+        if (typeof window === 'undefined') return { total: 0, trend: '0.0', trendUp: true };
 
         const collections = db.getCollections();
         const expenses = db.getExpenses();
 
-        if (!collections || !Array.isArray(collections)) return 0;
+        if (!collections || !Array.isArray(collections)) return { total: 0, trend: '0.0', trendUp: true };
 
-        // Sync with Dashboard: Exclude HANDOVER transactions
-        const totalCollections = collections
-            .filter((t: any) => t && t.status === 'Paid' && !String(t.customer).startsWith('HANDOVER:'))
-            .reduce((sum: number, t: any) => {
+        const now = new Date();
+        const oneWeekAgo = new Date();
+        oneWeekAgo.setDate(now.getDate() - 7);
+
+        // Helper to parse dates safely
+        const getDate = (dateStr: string) => {
+            const d = new Date(dateStr);
+            return isNaN(d.getTime()) ? new Date() : d;
+        };
+
+        // 1. Calculate Totals (Current and Past)
+        let totalIncome = 0;
+        let pastIncome = 0;
+        let totalExpense = 0;
+        let pastExpense = 0;
+
+        collections.forEach((t: any) => {
+            if (t && t.status === 'Paid' && !String(t.customer).startsWith('HANDOVER:')) {
                 const amount = parseFloat(String(t.amount).replace(/,/g, ''));
-                return sum + (isNaN(amount) ? 0 : amount);
-            }, 0);
+                const val = isNaN(amount) ? 0 : amount;
+                totalIncome += val;
 
-        // Sync with Dashboard: Deduct ALL expenses
-        const totalExpenses = (expenses || [])
-            .reduce((sum: number, e: any) => {
-                const amount = parseFloat(String(e.amount).replace(/,/g, ''));
-                return sum + (isNaN(amount) ? 0 : amount);
-            }, 0);
+                if (getDate(t.date) < oneWeekAgo) {
+                    pastIncome += val;
+                }
+            }
+        });
 
-        return totalCollections - totalExpenses;
+        expenses.forEach((e: any) => {
+            const amount = parseFloat(String(e.amount).replace(/,/g, ''));
+            const val = isNaN(amount) ? 0 : amount;
+            totalExpense += val;
+
+            if (getDate(e.date) < oneWeekAgo) {
+                pastExpense += val;
+            }
+        });
+
+        const currentBalance = totalIncome - totalExpense;
+        const pastBalance = pastIncome - pastExpense;
+
+        // 2. Calculate Trend Percentage
+        let percentage = 0;
+        if (pastBalance === 0) {
+            percentage = currentBalance > 0 ? 100 : 0;
+        } else {
+            percentage = ((currentBalance - pastBalance) / Math.abs(pastBalance)) * 100;
+        }
+
+        return {
+            total: currentBalance,
+            trend: percentage.toFixed(1),
+            trendUp: percentage >= 0
+        };
     };
 
     // Click Outside Handler
@@ -111,16 +149,16 @@ export default function AdminLayout({
 
     useEffect(() => {
         // Initial Calculation
-        setTotalBalance(calculateBalance());
+        setBalanceStats(calculateBalanceStats());
 
         // Listen for internal updates (from Dashboard)
-        const handleInternalUpdate = () => setTotalBalance(calculateBalance());
+        const handleInternalUpdate = () => setBalanceStats(calculateBalanceStats());
         window.addEventListener('transaction-updated', handleInternalUpdate);
 
         // Listen for cross-tab updates
         const handleStorageUpdate = (e: StorageEvent) => {
             if (e.key === 'transactions') {
-                setTotalBalance(calculateBalance());
+                setBalanceStats(calculateBalanceStats());
             }
         };
         window.addEventListener('storage', handleStorageUpdate);
@@ -231,8 +269,11 @@ export default function AdminLayout({
                                     <Wallet size={40} />
                                 </div>
                                 <p className="text-blue-100 text-xs font-bold uppercase tracking-wider mb-2">Total Balance</p>
-                                <p className="text-2xl font-bold text-white tracking-tight">{formatCurrency(totalBalance)}</p>
-                                <div className="mt-3 text-xs bg-white/20 inline-block px-2 py-1 rounded w-fit backdrop-blur-sm">+12% this week</div>
+                                <p className="text-2xl font-bold text-white tracking-tight">{formatCurrency(balanceStats.total)}</p>
+                                <div className={`mt-3 text-[10px] font-bold inline-flex items-center gap-1 px-2 py-1 rounded backdrop-blur-sm ${balanceStats.trendUp ? 'bg-emerald-500/20 text-emerald-300' : 'bg-rose-500/20 text-rose-300'}`}>
+                                    {balanceStats.trendUp ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+                                    <span>{balanceStats.trend}% this week</span>
+                                </div>
                                 <div className="mt-2 text-[10px] text-blue-200 font-mono opacity-80">v2.6 • Connected ✅</div>
                             </div>
                         ) : (
