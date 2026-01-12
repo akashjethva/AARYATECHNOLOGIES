@@ -195,6 +195,8 @@ function AdminProfileSettings() {
         name: 'Jayesh Bhai',
         role: 'Administrator',
         email: 'admin@aaryatech.com',
+        phone: '+91 98765 43210',
+        password: 'password123',
         avatar: ''
     });
     const [loading, setLoading] = useState(false);
@@ -237,13 +239,25 @@ function AdminProfileSettings() {
             </div>
 
             <div className="flex items-center gap-6 p-6 bg-[#0f172a]/50 rounded-2xl border border-white/5">
-                <div className="h-24 w-24 rounded-2xl bg-gradient-to-tr from-indigo-500 to-purple-600 p-[2px] shadow-lg relative overflow-hidden group cursor-pointer">
-                    <div className="h-full w-full bg-[#0f172a] rounded-[14px] flex items-center justify-center relative overflow-hidden">
-                        <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="User" className="h-full w-full object-cover" />
-                        <div className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                            <Upload size={24} className="text-white" />
+                <div className="relative group">
+                    <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        id="admin-avatar-upload"
+                        onChange={(e) => handleImageUpload(e, (base64) => handleChange('avatar', base64))}
+                    />
+                    <label
+                        htmlFor="admin-avatar-upload"
+                        className="h-24 w-24 rounded-2xl bg-gradient-to-tr from-indigo-500 to-purple-600 p-[2px] shadow-lg relative overflow-hidden group cursor-pointer block"
+                    >
+                        <div className="h-full w-full bg-[#0f172a] rounded-[14px] flex items-center justify-center relative overflow-hidden">
+                            <img src={profile.avatar || "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix"} alt="User" className="h-full w-full object-cover" />
+                            <div className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                <Upload size={24} className="text-white" />
+                            </div>
                         </div>
-                    </div>
+                    </label>
                 </div>
                 <div>
                     <h4 className="text-white font-bold text-lg">{profile.name}</h4>
@@ -255,6 +269,10 @@ function AdminProfileSettings() {
                 <InputGroup label="Full Name" value={profile.name} onChange={(e: any) => handleChange('name', e.target.value)} icon={<User size={16} />} />
                 <InputGroup label="Role / Designation" value={profile.role} onChange={(e: any) => handleChange('role', e.target.value)} icon={<ShieldCheck size={16} />} />
                 <InputGroup label="Email ID" value={profile.email} onChange={(e: any) => handleChange('email', e.target.value)} icon={<Mail size={16} />} />
+                <InputGroup label="Phone Number" value={(profile as any).phone || ''} onChange={(e: any) => handleChange('phone', e.target.value)} icon={<Phone size={16} />} />
+                <div className="md:col-span-2">
+                    <InputGroup label="Login Password" value={(profile as any).password || ''} onChange={(e: any) => handleChange('password', e.target.value)} icon={<Lock size={16} />} type="password" />
+                </div>
             </div>
 
             <div className="pt-8 border-t border-white/5 flex justify-end">
