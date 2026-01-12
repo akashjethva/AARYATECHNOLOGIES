@@ -380,27 +380,24 @@ export default function StaffHome() {
                 <div className="flex items-center gap-4">
                     <div className="relative cursor-pointer" onClick={() => router.push('/staff/company-profile')}>
                         <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 rounded-2xl bg-white dark:bg-gradient-to-br dark:from-blue-600 dark:to-cyan-500 p-[1px] shadow-md border border-slate-100 dark:border-none">
+                            <div className="w-12 h-12 rounded-2xl bg-white dark:bg-gradient-to-br dark:from-[#1a1d24] dark:to-[#14161b] p-1 shadow-md border border-slate-100 dark:border-white/5">
                                 {/* Company Logo with Fallback */}
-                                <div className="w-full h-full rounded-2xl bg-white dark:bg-[#0a0a0a] flex items-center justify-center overflow-hidden relative">
+                                <div className="w-full h-full rounded-xl bg-white dark:bg-[#0a0a0a] flex items-center justify-center overflow-hidden relative">
                                     {company.logo ? (
                                         <img
                                             src={company.logo}
                                             alt="Logo"
-                                            className="w-full h-full object-cover"
+                                            className="w-full h-full object-contain"
                                             onError={(e) => {
-                                                (e.target as HTMLImageElement).src = '/logo_v3.jpg';
+                                                (e.target as HTMLImageElement).src = '/icon-512x512.png';
                                             }}
                                         />
                                     ) : (
-                                        <>
-                                            <div className="absolute inset-0 bg-gradient-to-tr from-blue-600/10 to-cyan-500/10"></div>
-                                            <img
-                                                src="/logo.jpg"
-                                                alt="AT"
-                                                className="w-full h-full object-cover"
-                                            />
-                                        </>
+                                        <img
+                                            src="/icon-512x512.png"
+                                            alt="AT"
+                                            className="w-full h-full object-contain"
+                                        />
                                     )}
                                 </div>
                             </div>
@@ -428,117 +425,118 @@ export default function StaffHome() {
 
                 <button
                     onClick={() => setShowNotifications(true)}
-                    className="w-12 h-12 rounded-2xl bg-white dark:bg-[#1a1a1a] border border-slate-200 dark:border-white/10 flex items-center justify-center relative active:scale-95 transition-all shadow-sm"
+                    className="w-12 h-12 rounded-2xl bg-white dark:bg-[#1a1a1a] border border-slate-200 dark:border-white/10 flex items-center justify-center relative active:scale-95 transition-all shadow-sm group"
                 >
-                    <Bell size={20} className="text-slate-600 dark:text-slate-400" />
+                    <div className="absolute inset-0 bg-indigo-500/20 rounded-2xl blur-lg opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                    <Bell size={20} className="text-slate-600 dark:text-slate-400 relative z-10" />
                     {myNotifications.some(n => !n.read) && (
-                        <span className="absolute top-3 right-3 w-2 h-2 bg-rose-500 rounded-full ring-2 ring-white dark:ring-[#1a1a1a]"></span>
+                        <span className="absolute top-3 right-3 w-2 h-2 bg-rose-500 rounded-full ring-2 ring-white dark:ring-[#1a1a1a] z-10 animate-pulse"></span>
                     )}
                 </button>
             </header>
 
-            {/* Notification Modal */}
+            {/* Notification Page Overlay */}
             <AnimatePresence>
                 {showNotifications && (
-                    <>
-                        <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            onClick={() => setShowNotifications(false)}
-                            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[110]"
-                        />
-                        <motion.div
-                            transition={{ type: "spring", damping: 25, stiffness: 300 }}
-                            className="fixed top-0 bottom-0 right-0 w-[85vw] md:w-full md:max-w-sm bg-[#0f1115]/95 backdrop-blur-3xl z-[120] border-l border-white/5 flex flex-col shadow-2xl"
-                        >
-                            {/* Header */}
-                            <div className="px-6 py-5 border-b border-white/5 flex justify-between items-center bg-black/20">
-                                <div className="flex items-center gap-3">
-                                    <div className="p-2 bg-indigo-500/10 rounded-xl text-indigo-400">
-                                        <Bell size={20} />
-                                    </div>
-                                    <h2 className="text-lg font-bold text-white tracking-wide">Notifications</h2>
-                                </div>
+                    <motion.div
+                        initial={{ x: "100%" }}
+                        animate={{ x: 0 }}
+                        exit={{ x: "100%" }}
+                        transition={{ type: "spring", damping: 25, stiffness: 200 }}
+                        className="fixed inset-0 bg-[#0f1115] z-[200] flex flex-col pt-safe"
+                    >
+                        {/* Header */}
+                        <div className="px-6 py-6 flex items-center justify-between border-b border-white/5 bg-[#0f1115]/80 backdrop-blur-xl sticky top-0 z-10">
+                            <div className="flex items-center gap-4">
                                 <button
                                     onClick={() => setShowNotifications(false)}
-                                    className="p-2 rounded-full bg-white/5 text-slate-400 hover:text-white hover:bg-white/10 transition-all border border-white/5"
+                                    className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-slate-400 hover:text-white active:scale-95 transition-all"
                                 >
-                                    <XCircle size={20} />
+                                    <ChevronRight size={24} className="rotate-180" />
                                 </button>
+                                <h1 className="text-2xl font-bold text-white">Notifications</h1>
                             </div>
 
-                            {/* Clear All Button - Floating Action Style */}
                             {myNotifications.length > 0 && (
-                                <div className="px-6 py-3 flex justify-between items-center bg-indigo-900/10 border-b border-white/5">
-                                    <span className="text-[10px] font-bold uppercase tracking-widest text-indigo-300">{myNotifications.length} New Messages</span>
-                                    <button
-                                        onClick={async () => {
-                                            await db.clearStaffNotifications();
-                                            setMyNotifications([]);
-                                        }}
-                                        className="text-[10px] font-bold text-rose-400 hover:text-rose-300 flex items-center gap-1 uppercase tracking-wider"
-                                    >
-                                        <Trash2 size={12} /> Clear All
-                                    </button>
+                                <button
+                                    onClick={async () => {
+                                        await db.clearStaffNotifications();
+                                        setMyNotifications([]);
+                                    }}
+                                    className="px-4 py-2 rounded-full bg-rose-500/10 text-rose-400 text-xs font-bold uppercase tracking-wider hover:bg-rose-500/20 transition-colors"
+                                >
+                                    Clear All
+                                </button>
+                            )}
+                        </div>
+
+                        {/* List */}
+                        <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
+                            {myNotifications.length > 0 ? (
+                                myNotifications.map((notif: any) => {
+                                    const notifTime = notif.timestamp || notif.time;
+                                    let timeDisplay = "Just now";
+                                    try {
+                                        const d = new Date(notifTime);
+                                        if (!isNaN(d.getTime())) timeDisplay = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                                    } catch { }
+
+                                    // Dynamic Icon
+                                    const title = (notif.title || "").toLowerCase();
+                                    const msg = (notif.message || "").toLowerCase();
+
+                                    let Icon = Bell;
+                                    let colorClass = "text-indigo-400 bg-indigo-500/10 border-indigo-500/20";
+
+                                    if (title.includes('payment') || title.includes('money') || msg.includes('received')) {
+                                        Icon = Wallet;
+                                        colorClass = "text-emerald-400 bg-emerald-500/10 border-emerald-500/20";
+                                    } else if (title.includes('task') || title.includes('assigned')) {
+                                        Icon = CheckCircle;
+                                        colorClass = "text-blue-400 bg-blue-500/10 border-blue-500/20";
+                                    } else if (title.includes('alert') || title.includes('warning') || title.includes('security')) {
+                                        Icon = ShieldCheck;
+                                        colorClass = "text-amber-400 bg-amber-500/10 border-amber-500/20";
+                                    }
+
+                                    return (
+                                        <div key={notif.id} className="group relative p-4 rounded-2xl bg-[#1a1d24] border border-white/5 hover:border-white/10 active:scale-[0.99] transition-all flex gap-4">
+                                            {/* Icon */}
+                                            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center border ${colorClass} shrink-0`}>
+                                                <Icon size={20} />
+                                            </div>
+
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex justify-between items-start mb-1">
+                                                    <h3 className={`text-sm font-bold truncate ${notif.read ? 'text-slate-400' : 'text-white'}`}>
+                                                        {notif.title || "Notification"}
+                                                    </h3>
+                                                    <span className="text-[10px] font-medium text-slate-500 whitespace-nowrap ml-2">{timeDisplay}</span>
+                                                </div>
+                                                <p className="text-xs text-slate-400 leading-relaxed line-clamp-2">{notif.message}</p>
+                                            </div>
+
+                                            {!notif.read && (
+                                                <div className="absolute top-4 right-4 w-2 h-2 rounded-full bg-indigo-500 shadow-[0_0_10px_rgba(99,102,241,0.5)]"></div>
+                                            )}
+                                        </div>
+                                    );
+                                })
+                            ) : (
+                                <div className="flex flex-col items-center justify-center h-[60vh] text-slate-600 gap-6">
+                                    <div className="w-24 h-24 rounded-full bg-white/5 flex items-center justify-center animate-pulse">
+                                        <BellOff size={40} className="text-slate-500" />
+                                    </div>
+                                    <div className="text-center">
+                                        <p className="text-lg font-bold text-white mb-2">All Caught Up!</p>
+                                        <p className="text-sm text-slate-500">No new notifications for you right now.</p>
+                                    </div>
                                 </div>
                             )}
-
-                            <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
-                                {myNotifications.length > 0 ? (
-                                    myNotifications.map((notif: any) => {
-                                        const notifTime = notif.timestamp || notif.time;
-                                        let timeDisplay = "Just now";
-                                        try {
-                                            const d = new Date(notifTime);
-                                            if (!isNaN(d.getTime())) timeDisplay = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                                        } catch { }
-
-                                        return (
-                                            <div key={notif.id} className="relative pl-4 pr-4 py-4 rounded-2xl bg-gradient-to-br from-[#1a1d24] to-[#14161b] border border-white/5 group active:scale-[0.98] transition-transform">
-                                                <div className={`absolute left-0 top-4 bottom-4 w-1 rounded-r-full ${notif.read ? 'bg-slate-700' : 'bg-indigo-500'}`}></div>
-                                                <div className="flex justify-between items-start mb-1.5">
-                                                    <h3 className={`text-sm font-bold ${notif.read ? 'text-slate-400' : 'text-white'}`}>{notif.title || "Notification"}</h3>
-                                                    <span className="text-[10px] font-mono text-slate-500">{timeDisplay}</span>
-                                                </div>
-                                                <p className="text-xs text-slate-400 leading-relaxed font-medium">{notif.message}</p>
-                                            </div>
-                                        );
-                                    })
-                                ) : (
-                                    <div className="flex flex-col items-center justify-center h-full text-slate-600 gap-6 opacity-60">
-                                        <div className="relative">
-                                            <div className="absolute inset-0 bg-indigo-500/20 blur-xl rounded-full"></div>
-                                            <BellOff size={48} className="relative z-10 text-slate-500" />
-                                        </div>
-                                        <div className="text-center">
-                                            <p className="text-sm font-bold text-slate-400 mb-1">All caught up!</p>
-                                            <p className="text-[10px] text-slate-500 uppercase tracking-widest">No new notifications</p>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Footer Logout */}
-                            <div className="p-4 border-t border-white/5 bg-black/40 backdrop-blur-md">
-                                <button
-                                    onClick={() => {
-                                        if (confirm("Logout from app?")) {
-                                            localStorage.clear();
-                                            window.location.href = '/';
-                                        }
-                                    }}
-                                    className="w-full py-3.5 rounded-xl bg-gradient-to-r from-slate-800 to-slate-900 border border-white/10 text-slate-300 font-bold text-sm flex items-center justify-center gap-2 hover:text-white transition-all active:scale-95 shadow-lg"
-                                >
-                                    <Power size={16} />
-                                    Sign Out
-                                </button>
-                            </div>
-                        </motion.div>
-                    </>
-                )
-                }
-            </AnimatePresence >
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
             <div className="px-6 space-y-8 relative z-10 mt-6">
 
