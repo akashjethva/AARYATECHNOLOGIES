@@ -15,6 +15,14 @@ export default function CustomersPage() {
     useEffect(() => {
         // Load initial data
         setCustomers(db.getCustomers());
+
+        // Listen for updates (from Wallet or Sync)
+        const handleUpdate = () => {
+            setCustomers(db.getCustomers());
+        };
+
+        window.addEventListener('customer-updated', handleUpdate);
+        return () => window.removeEventListener('customer-updated', handleUpdate);
     }, []);
 
     const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
