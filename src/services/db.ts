@@ -195,10 +195,27 @@ export const setupFirebaseSync = () => {
     }, (error) => console.error("Zones Sync Error:", error));
 
     // 7. Settings & Alerts Sync
-    onSnapshot(collection(firestore, "settings"), (snapshot) => {
-        const data = snapshot.docs.map(doc => doc.data());
-        if (data.length > 0) mergeAndSave(STORAGE_KEYS.SETTINGS, data, 'settings-updated');
-    }, (error) => console.error("Settings Sync Error:", error));
+    // Changed to Document Listeners for Single Objects
+    onSnapshot(doc(firestore, "settings", "general"), (doc) => {
+        if (doc.exists()) {
+            localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(doc.data()));
+            window.dispatchEvent(new Event('settings-updated'));
+        }
+    });
+
+    onSnapshot(doc(firestore, "settings", "company"), (doc) => {
+        if (doc.exists()) {
+            localStorage.setItem(STORAGE_KEYS.COMPANY, JSON.stringify(doc.data()));
+            window.dispatchEvent(new Event('company-updated'));
+        }
+    });
+
+    onSnapshot(doc(firestore, "settings", "profile"), (doc) => {
+        if (doc.exists()) {
+            localStorage.setItem(STORAGE_KEYS.ADMIN_PROFILE, JSON.stringify(doc.data()));
+            window.dispatchEvent(new Event('admin-profile-updated'));
+        }
+    });
 
     onSnapshot(collection(firestore, "alerts"), (snapshot) => {
         const data = snapshot.docs.map(doc => doc.data());
@@ -574,6 +591,12 @@ export const db = {
     saveAppSettings: (settings: any) => {
         localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
         window.dispatchEvent(new Event('settings-updated'));
+
+        try {
+            setDoc(doc(firestore, "settings", "general"), settings, { merge: true });
+        } catch (e) {
+            console.error("Failed to sync settings", e);
+        }
         return settings;
     },
 
@@ -601,6 +624,13 @@ export const db = {
         }
 
         window.dispatchEvent(new Event('company-updated'));
+
+        try {
+            setDoc(doc(firestore, "settings", "company"), details, { merge: true });
+        } catch (e) {
+            console.error("Failed to sync company details", e);
+        }
+
         return details;
     },
 
@@ -612,6 +642,13 @@ export const db = {
     saveAdminProfile: (profile: any) => {
         localStorage.setItem(STORAGE_KEYS.ADMIN_PROFILE, JSON.stringify(profile));
         window.dispatchEvent(new Event('admin-profile-updated'));
+
+        try {
+            setDoc(doc(firestore, "settings", "profile"), profile, { merge: true });
+        } catch (e) {
+            console.error("Failed to sync admin profile", e);
+        }
+
         return profile;
     },
 
