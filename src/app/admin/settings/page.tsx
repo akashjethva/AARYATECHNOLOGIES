@@ -193,7 +193,6 @@ function GeneralSettings() {
                 <SelectGroup label="Timezone" options={['(GMT+05:30) India Standard Time', '(GMT+00:00) UTC', '(GMT-05:00) Eastern Time']} value={settings.timezone} onChange={(e: any) => handleChange('timezone', e.target.value)} />
                 <SelectGroup label="Date Format" options={['DD/MM/YYYY', 'MM/DD/YYYY', 'YYYY-MM-DD']} value={settings.dateFormat} onChange={(e: any) => handleChange('dateFormat', e.target.value)} />
                 <SelectGroup label="Financial Year Start" options={['April 1st', 'January 1st']} value={settings.financialYear} onChange={(e: any) => handleChange('financialYear', e.target.value)} />
-                <SelectGroup label="Theme Preference" options={['Dark Mode', 'Light Mode', 'System Default']} value={settings.theme} onChange={(e: any) => handleChange('theme', e.target.value)} />
                 <SelectGroup label="Default Rows Per Page" options={['10', '25', '50', '100']} value={settings.rowsPerPage} onChange={(e: any) => handleChange('rowsPerPage', e.target.value)} />
                 <InputGroup label="Low Balance Threshold (₹)" value={settings.lowBalanceThreshold} onChange={(e: any) => handleChange('lowBalanceThreshold', e.target.value)} placeholder="Ex. 5000" />
             </div>
