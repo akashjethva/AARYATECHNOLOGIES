@@ -107,6 +107,7 @@ export default function CustomersPage() {
                     if (data.row.index === tableRows.length - 1) {
                         data.cell.styles.fontStyle = 'bold';
                         data.cell.styles.textColor = [220, 38, 38]; // Red for total
+                        data.cell.styles.fontSize = 14; // Bigger Font
                         if (data.column.index === 3) data.cell.styles.halign = 'right';
                     }
                 }
