@@ -389,7 +389,7 @@ export default function AdminLayout({
                                 className="h-12 w-12 rounded-2xl bg-gradient-to-tr from-indigo-500 to-purple-600 p-[2px] cursor-pointer shadow-lg hover:shadow-indigo-500/20 transition-all active:scale-95"
                             >
                                 <div className="h-full w-full bg-[#0f172a] rounded-[14px] flex items-center justify-center relative overflow-hidden">
-                                    <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="User" className="h-full w-full rounded-[14px]" />
+                                    <img src={adminProfile.avatar || "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix"} alt="User" className="h-full w-full rounded-[14px] object-cover" />
                                 </div>
                             </button>
 
