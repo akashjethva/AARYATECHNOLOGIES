@@ -18,7 +18,7 @@ export default function StaffSettings() {
     const [handoverStatus, setHandoverStatus] = useState<'idle' | 'confirming' | 'requested'>('idle');
     const [settings, setSettings] = useState({
         notifications: true,
-        darkMode: true,
+        darkMode: true, // Force Dark
         biometric: false
     });
     const [mobilePerms, setMobilePerms] = useState<any>({});
@@ -146,18 +146,20 @@ export default function StaffSettings() {
         const perms = db.getMobilePermissions();
         setMobilePerms(perms);
 
-        // Initialize Theme
-        const isDark = localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        // Initialize Theme (FORCE DARK)
+        // const isDark = localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        const isDark = true;
 
         // Initialize Toggles
         setSettings({
             notifications: localStorage.getItem('staff_notifications') !== 'false', // Default true
-            darkMode: isDark,
-            biometric: perms.enforceBiometric ? true : false // Force ON if enforced
+            darkMode: true, // Force True
+            biometric: perms.enforceBiometric ? true : false
         });
 
-        if (isDark) document.documentElement.classList.add('dark');
-        else document.documentElement.classList.remove('dark');
+        // Force Dark Class
+        document.documentElement.classList.add('dark');
+        localStorage.setItem('theme', 'dark');
 
         // Listen for updates
         // Listen for updates
@@ -281,21 +283,14 @@ export default function StaffSettings() {
         }
     };
 
+    /* 
     const toggleTheme = () => {
-        const newMode = !settings.darkMode;
-        setSettings(prev => ({ ...prev, darkMode: newMode }));
-
-        if (newMode) {
-            document.documentElement.classList.add('dark');
-            localStorage.setItem('theme', 'dark');
-        } else {
-            document.documentElement.classList.remove('dark');
-            localStorage.setItem('theme', 'light');
-        }
-    };
+       // Disabled
+    }; 
+    */
     const toggleSetting = (key: keyof typeof settings) => {
         if (key === 'darkMode') {
-            toggleTheme();
+            // Disabled
         } else if (key === 'notifications') {
             const newVal = !settings.notifications;
             setSettings(prev => ({ ...prev, notifications: newVal }));
@@ -460,12 +455,7 @@ export default function StaffSettings() {
                     value={settings.notifications}
                     onClick={() => toggleSetting('notifications')}
                 />
-                <SettingItem
-                    icon={settings.darkMode ? <Moon size={20} /> : <Sun size={20} />}
-                    title={settings.darkMode ? "Dark Mode" : "Light Mode"}
-                    value={settings.darkMode}
-                    onClick={() => toggleSetting('darkMode')}
-                />
+
                 <SettingItem
                     icon={<Shield size={20} />}
                     title={mobilePerms.enforceBiometric ? "Biometric Locked (Admin)" : "Biometric Lock"}
