@@ -151,10 +151,17 @@ export default function StaffSettings() {
         const isDark = true;
 
         // Initialize Toggles
+        // Read saved settings
+        let savedBiometric = false;
+        try {
+            const saved = localStorage.getItem('staff_settings');
+            if (saved) savedBiometric = JSON.parse(saved).biometric;
+        } catch { }
+
         setSettings({
             notifications: localStorage.getItem('staff_notifications') !== 'false', // Default true
             darkMode: true, // Force True
-            biometric: perms.enforceBiometric ? true : false
+            biometric: perms.enforceBiometric ? true : (savedBiometric || false)
         });
 
         // Force Dark Class

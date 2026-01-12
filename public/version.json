@@ -1,7 +1,7 @@
 {
-    "versionCode": 7,
-    "versionName": "2.16.0",
-    "apkUrl": "https://github.com/akashjethva/AARYATECHNOLOGIES/releases/download/v2.16/app-debug.apk",
+    "versionCode": 8,
+    "versionName": "2.17.0",
+    "apkUrl": "https://github.com/akashjethva/AARYATECHNOLOGIES/releases/download/v2.17/app-debug.apk",
     "forceUpdate": false,
-    "updateMessage": "v2.16: Staff PDF Download & Lock Screen Added! Update Now."
+    "updateMessage": "v2.17: Critical Fix for Lock Screen & PDF. Update Required!"
 }
