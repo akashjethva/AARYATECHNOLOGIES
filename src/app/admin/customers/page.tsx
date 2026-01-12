@@ -1,7 +1,7 @@
 "use client";
 
 import { UserPlus, Search, MoreVertical, Phone, MapPin, Filter, Mail, X, History, ArrowDownRight, ArrowUpRight, Check, AlertCircle, Save, Edit, Trash2, Download, Bell, Navigation, Link as LinkIcon, ShieldCheck, TrendingUp, Map, CheckCircle, MessageSquare, FileText, Wallet, Info, LayoutGrid, List, User } from "lucide-react";
-import { useState, useCallback, memo, useEffect } from "react";
+import { useState, useCallback, memo, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCurrency } from "@/hooks/useCurrency";
@@ -11,6 +11,9 @@ import autoTable from 'jspdf-autotable';
 
 export default function CustomersPage() {
     const [customers, setCustomers] = useState<Customer[]>([]);
+
+    // Sync Selected Customer when list updates
+
 
     useEffect(() => {
         // Load initial data
@@ -26,6 +29,17 @@ export default function CustomersPage() {
     }, []);
 
     const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+
+    // Sync Selected Customer when list updates
+    useEffect(() => {
+        if (selectedCustomer) {
+            const updated = customers.find(c => c.id === selectedCustomer.id);
+            if (updated && JSON.stringify(updated) !== JSON.stringify(selectedCustomer)) {
+                setSelectedCustomer(updated);
+            }
+        }
+    }, [customers, selectedCustomer]);
+
     // Wallet State
     const [walletModal, setWalletModal] = useState<{ open: boolean, customerId: number | null, mode: 'add' | 'history' }>({ open: false, customerId: null, mode: 'add' });
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -35,31 +49,37 @@ export default function CustomersPage() {
     const [isFilterOpen, setIsFilterOpen] = useState(false);
     const [activeFilter, setActiveFilter] = useState("All");
 
-    const handleDownloadPendingReport = () => {
+    const handleDownloadReport = () => {
         const doc = new jsPDF();
+
+        // Use filtered customers to match the current view
+        const dataToExport = filteredCustomers;
+        const totalPending = dataToExport.reduce((sum, c) => sum + (parseFloat(c.balance.replace(/[^0-9.-]+/g, "")) || 0), 0);
+        const reportTitle = activeFilter === 'Pending Dues' ? "Pending Dues Report" : "Customer Balance Report";
 
         // Header
         doc.setFontSize(22);
         doc.setTextColor(40, 40, 40);
-        doc.text("Pending Dues Report", 14, 20);
+        doc.text(reportTitle, 14, 20);
 
         doc.setFontSize(10);
         doc.setTextColor(100, 100, 100);
-        doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 28);
-
-        const pendingCustomers = customers.filter(c => (parseFloat(c.balance.replace(/,/g, '')) || 0) > 0);
-        const totalPending = pendingCustomers.reduce((sum, c) => sum + (parseFloat(c.balance.replace(/,/g, '')) || 0), 0);
-
-        doc.text(`Total Pending Amount: Rs. ${totalPending.toLocaleString('en-IN')}`, 14, 34);
+        doc.text(`Generated on: ${new Date().toLocaleDateString()} | Filter: ${activeFilter}`, 14, 28);
+        doc.text(`Total Customers: ${dataToExport.length}`, 14, 34);
 
         // Table Data
-        const tableColumn = ["Customer Name", "City", "Mobile", "Pending Balance (Rs.)"];
-        const tableRows = pendingCustomers.map(c => [
+        const tableColumn = ["#", "Customer Name", "City", "Mobile", "Balance"];
+        const tableRows = dataToExport.map((c, index) => [
+            index + 1,
             c.name,
             c.city,
             c.phone,
-            c.balance
+            c.balance // Already formatted string
         ]);
+
+        // Add Total Row
+        const totalFormatted = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(totalPending);
+        tableRows.push(["", "", "", "TOTAL PENDING:", totalFormatted]);
 
         // @ts-ignore
         doc.autoTable({
@@ -67,12 +87,24 @@ export default function CustomersPage() {
             body: tableRows,
             startY: 40,
             theme: 'grid',
-            headStyles: { fillColor: [79, 70, 229] }, // Indigo color
+            headStyles: { fillColor: [79, 70, 229], halign: 'left' }, // Indigo
+            columnStyles: {
+                0: { cellWidth: 15 }, // Index
+                4: { halign: 'right', fontStyle: 'bold' } // Balance
+            },
             styles: { fontSize: 10, cellPadding: 3 },
-            alternateRowStyles: { fillColor: [245, 247, 250] }
+            alternateRowStyles: { fillColor: [245, 247, 250] },
+            didParseCell: (data: any) => {
+                // Style Total Row
+                if (data.row.index === tableRows.length - 1) {
+                    data.cell.styles.fontStyle = 'bold';
+                    data.cell.styles.fillColor = [240, 253, 244]; // Light Green
+                    if (data.column.index === 4) data.cell.styles.textColor = [22, 163, 74];
+                }
+            }
         });
 
-        doc.save("pending_dues_report.pdf");
+        doc.save("customer_report.pdf");
     };
 
     // State for Editing
@@ -221,9 +253,9 @@ export default function CustomersPage() {
                 <div className="flex items-center gap-3">
                     {/* PDF Download Button */}
                     <button
-                        onClick={handleDownloadPendingReport}
+                        onClick={handleDownloadReport}
                         className="p-4 rounded-xl bg-[#0f172a] border border-white/10 text-rose-400 hover:bg-rose-500/10 hover:text-rose-300 hover:border-rose-500/30 transition-all shadow-lg flex items-center justify-center"
-                        title="Download Pending Dues Report"
+                        title="Download Report"
                     >
                         <Download size={20} />
                     </button>
