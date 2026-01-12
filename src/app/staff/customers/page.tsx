@@ -33,12 +33,73 @@ export default function StaffCustomers() {
 
     return (
         <div className="pb-20 px-6 pt-16 min-h-screen bg-[#0f1115]">
-            {/* Header */}
-            <div className="flex items-center gap-4 mb-4">
-                <button onClick={() => router.back()} className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-slate-400 hover:text-white transition-colors">
-                    <ArrowLeft size={22} />
+            {/* Header with Download Button */}
+            <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-4">
+                    <button onClick={() => router.back()} className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-slate-400 hover:text-white transition-colors">
+                        <ArrowLeft size={22} />
+                    </button>
+                    <h1 className="text-2xl font-bold text-white leading-none">Customers</h1>
+                </div>
+                <button
+                    onClick={() => {
+                        try {
+                            const doc = new jsPDF();
+                            const dataToExport = filtered || customers;
+
+                            const totalPending = dataToExport.reduce((sum, c) => sum + (parseFloat(c.balance.replace(/[^0-9.-]+/g, "")) || 0), 0);
+
+                            // Header
+                            doc.setFontSize(18);
+                            doc.setTextColor(40, 40, 40);
+                            doc.text("Customer Balance Report", 14, 20);
+
+                            doc.setFontSize(10);
+                            doc.setTextColor(100, 100, 100);
+                            doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 28);
+                            doc.text(`Total Customers: ${dataToExport.length}`, 14, 34);
+
+                            // Table Data
+                            const tableRows = dataToExport.map((c, index) => [
+                                index + 1,
+                                c.name,
+                                c.city,
+                                c.phone,
+                                c.balance
+                            ]);
+
+                            // Total Row
+                            const totalFormatted = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }).format(totalPending);
+                            tableRows.push(["", "", "", "TOTAL PENDING:", totalFormatted]);
+
+                            autoTable(doc, {
+                                head: [["#", "Customer Name", "City", "Mobile", "Balance"]],
+                                body: tableRows,
+                                startY: 40,
+                                theme: 'grid',
+                                headStyles: { fillColor: [79, 70, 229], halign: 'left' },
+                                columnStyles: {
+                                    4: { halign: 'right', fontStyle: 'bold' }
+                                },
+                                didParseCell: (data: any) => {
+                                    if (data.row.index === tableRows.length - 1) {
+                                        data.cell.styles.fontStyle = 'bold';
+                                        data.cell.styles.textColor = [220, 38, 38];
+                                        data.cell.styles.fontSize = 14;
+                                        if (data.column.index === 3) data.cell.styles.halign = 'right';
+                                    }
+                                }
+                            });
+
+                            doc.save(`Customer_Report_${new Date().toISOString().split('T')[0]}.pdf`);
+                        } catch (e) {
+                            alert("PDF Error: " + e);
+                        }
+                    }}
+                    className="w-10 h-10 rounded-full bg-indigo-600/20 text-indigo-400 border border-indigo-600/30 flex items-center justify-center active:scale-95 transition-all shadow-lg"
+                >
+                    <Download size={20} />
                 </button>
-                <h1 className="text-2xl font-bold text-white leading-none">Customers</h1>
             </div>
 
             {/* Stats Header */}
@@ -48,7 +109,7 @@ export default function StaffCustomers() {
                         <User size={40} className="text-indigo-500" />
                     </div>
                     <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider mb-1">Total Customers</p>
-                    <h3 className="text-2xl font-bold text-white">{customers.length}</h3>
+                    <h3 className="text-2xl font-bold text-white">{filtered.length}</h3>
                 </div>
                 <div className="bg-[#1e2128] rounded-2xl p-4 border border-white/5 relative overflow-hidden">
                     <div className="absolute top-0 right-0 p-2 opacity-10">
@@ -57,7 +118,7 @@ export default function StaffCustomers() {
                     <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider mb-1">Total Pending</p>
                     <h3 className="text-2xl font-bold text-white flex items-baseline gap-1">
                         <span className="text-sm font-normal text-slate-400">₹</span>
-                        {customers.reduce((sum, c) => sum + (parseFloat(c.balance.replace(/,/g, '')) || 0), 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                        {filtered.reduce((sum, c) => sum + (parseFloat(c.balance.replace(/,/g, '')) || 0), 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                     </h3>
                 </div>
             </div>

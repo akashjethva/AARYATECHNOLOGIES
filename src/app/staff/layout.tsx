@@ -163,6 +163,83 @@ export default function StaffLayout({
     }, []);
 
 
+    // Biometric Lock Logic
+    const [isLocked, setIsLocked] = useState(false);
+    const [isBiometricSupported, setIsBiometricSupported] = useState(false);
+
+
+    useEffect(() => {
+        // Check if Lock is Enabled
+        const storedSettings = localStorage.getItem('staff_settings');
+        if (storedSettings) {
+            try {
+                const settings = JSON.parse(storedSettings);
+                if (settings.biometric) {
+                    setIsLocked(true);
+                    setIsBiometricSupported(!!window.PublicKeyCredential);
+                }
+            } catch (e) { }
+        }
+    }, []);
+
+    const handleUnlock = () => {
+        const unlock = () => {
+            setIsLocked(false);
+            // Optional: Play unlock sound
+        };
+
+        if (window.PublicKeyCredential) {
+            const challenge = new Uint8Array(32);
+            window.crypto.getRandomValues(challenge);
+            navigator.credentials.create({
+                publicKey: {
+                    challenge,
+                    rp: { name: "Payment App" },
+                    user: {
+                        id: new Uint8Array(16),
+                        name: "User",
+                        displayName: "User"
+                    },
+                    pubKeyCredParams: [{ type: "public-key", alg: -7 }],
+                    timeout: 60000,
+                    authenticatorSelection: { authenticatorAttachment: "platform", userVerification: "required" }
+                }
+            }).then(unlock).catch((e) => {
+                console.error(e);
+                // If cancelled, stay locked.
+                // If not supported error despite check, fallback to simulated tap? 
+                // No, let's keep it strict if they have hardware, but allow a "Simulated" text fallback if it fails repeatedly?
+                // For now, if error name is 'NotAllowed', do nothing.
+                // If other error, maybe force unlock to prevent permanent lockout on buggy devices?
+                // Let's rely on the button being clickable again.
+            });
+        } else {
+            // Simulated Unlock for HTTP
+            unlock();
+        }
+    };
+
+    if (isLocked) {
+        return (
+            <div className="fixed inset-0 z-[9999] bg-black flex flex-col items-center justify-center p-6">
+                <div className="w-24 h-24 rounded-full bg-indigo-500/20 flex items-center justify-center mb-8 animate-pulse">
+                    <span className="text-4xl">🔒</span>
+                </div>
+                <h1 className="text-2xl font-bold text-white mb-2">App Locked</h1>
+                <p className="text-slate-400 text-sm mb-10 text-center">
+                    {window.PublicKeyCredential ? "Scan fingerprint to unlock" : "Tap button to unlock (Simulated Mode)"}
+                </p>
+
+                <button
+                    onClick={handleUnlock}
+                    className="w-full max-w-xs py-4 rounded-2xl bg-gradient-to-r from-indigo-600 to-blue-600 text-white font-bold text-lg shadow-xl shadow-indigo-600/20 active:scale-95 transition-transform"
+                >
+                    {window.PublicKeyCredential ? "Scan Fingerprint" : "Unlock App"}
+                </button>
+            </div>
+        )
+    }
+
     return (
         <div className="min-h-screen w-full bg-white dark:bg-[#0f1115] font-sans transition-colors duration-300 flex flex-col">
             {/* Main Content Area */}
