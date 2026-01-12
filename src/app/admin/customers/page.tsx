@@ -83,7 +83,7 @@ export default function CustomersPage() {
             ]);
 
             // Add Total Row
-            const totalFormatted = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(totalPending);
+            const totalFormatted = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }).format(totalPending);
             tableRows.push(["", "", "", "TOTAL PENDING:", totalFormatted]);
 
             // Perform check
