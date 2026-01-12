@@ -305,14 +305,45 @@ export default function StaffSettings() {
             }
 
             if (!settings.biometric) {
-                // If turning ON, simulate scan
-                setIsScanning(true);
-                setTimeout(() => {
-                    setIsScanning(false);
-                    setSettings(prev => ({ ...prev, biometric: true }));
-                }, 2500); // 2.5s scan duration
+                // Trigger Native Biometric Prompt
+                if (window.PublicKeyCredential) {
+                    setIsScanning(true);
+
+                    // Random challenge (for local verification purposes)
+                    const challenge = new Uint8Array(32);
+                    window.crypto.getRandomValues(challenge);
+
+                    navigator.credentials.create({
+                        publicKey: {
+                            challenge,
+                            rp: { name: "Payment App" },
+                            user: {
+                                id: new Uint8Array(16),
+                                name: currentUser.name || "User",
+                                displayName: currentUser.name || "User"
+                            },
+                            pubKeyCredParams: [{ type: "public-key", alg: -7 }],
+                            timeout: 60000,
+                            authenticatorSelection: {
+                                authenticatorAttachment: "platform", // Forces specific device auth (Fingerprint/FaceID)
+                                userVerification: "required"
+                            }
+                        }
+                    }).then(() => {
+                        // Success: User verified physically on device
+                        setSettings(prev => ({ ...prev, biometric: true }));
+                        showToast("Biometric Lock Enabled", "success");
+                    }).catch((err) => {
+                        console.error("Biometric failed", err);
+                        showToast("Authentication Failed or Cancelled", "error");
+                    }).finally(() => {
+                        setIsScanning(false);
+                    });
+                } else {
+                    showToast("Biometric not supported on this device", "error");
+                }
             } else {
-                // Turn OFF instantly
+                // Turn OFF instantly (or require auth to turn off? simpler to just allow off for now)
                 setSettings(prev => ({ ...prev, biometric: false }));
             }
         } else {
