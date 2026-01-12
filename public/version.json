@@ -1,7 +1,9 @@
+```json
 {
-    "versionCode": 5,
-    "versionName": "2.14.0",
-    "apkUrl": "https://github.com/akashjethva/AARYATECHNOLOGIES/releases/download/v2.0/app-debug.apk",
-    "forceUpdate": true,
-    "updateMessage": "v2.14: Biometric Lock Fixed (Real Device Check). Update Now!"
+    "versionCode": 6,
+    "versionName": "2.15.0",
+    "apkUrl": "https://github.com/akashjethva/AARYATECHNOLOGIES/releases/download/v2.15/app-debug.apk",
+    "forceUpdate": false,
+    "updateMessage": "v2.15: Staff Stats Added & Biometric Fixed! Update Now."
 }
+```
