@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useCurrency } from "@/hooks/useCurrency";
 import { db, Customer, Collection } from "@/services/db";
 import jsPDF from "jspdf";
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 
 export default function CustomersPage() {
     const [customers, setCustomers] = useState<Customer[]>([]);
@@ -86,8 +86,11 @@ export default function CustomersPage() {
             const totalFormatted = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(totalPending);
             tableRows.push(["", "", "", "TOTAL PENDING:", totalFormatted]);
 
+            // Perform check
+            console.log("PDF Debug: autoTable type is", typeof autoTable);
+
             // Generate Table
-            (doc as any).autoTable({
+            autoTable(doc, {
                 head: [tableColumn],
                 body: tableRows,
                 startY: 40,
