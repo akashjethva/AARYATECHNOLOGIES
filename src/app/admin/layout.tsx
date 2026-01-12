@@ -223,11 +223,12 @@ export default function AdminLayout({
                     <div className="p-6 flex flex-col items-center justify-center text-center gap-1 border-b border-white/5 min-h-[100px]">
                         {(isSidebarOpen || isMobile) ? (
                             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                                <h1 className="text-4xl font-extrabold text-slate-300 tracking-widest leading-none drop-shadow-lg">
-                                    AARYA
-                                </h1>
-                                <p className="text-sm font-bold text-slate-500 tracking-[0.3em] uppercase mt-2">Technologies</p>
-                                <p className="text-[10px] bg-rose-500/10 text-rose-500 font-bold px-2 py-0.5 rounded-full inline-block mt-4 border border-rose-500/20">v2.6 (Force Update)</p>
+                                <Link href="/admin/dashboard" className="cursor-pointer block group">
+                                    <h1 className="text-4xl font-extrabold text-slate-300 tracking-widest leading-none drop-shadow-lg group-hover:text-white transition-colors">
+                                        AARYA
+                                    </h1>
+                                    <p className="text-sm font-bold text-slate-500 tracking-[0.3em] uppercase mt-2 group-hover:text-slate-400 transition-colors">Technologies</p>
+                                </Link>
                             </motion.div>
                         ) : (
                             <h1 className="text-2xl font-extrabold text-slate-400">AT</h1>
