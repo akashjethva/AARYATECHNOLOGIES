@@ -606,7 +606,7 @@ export const db = {
 
     // --- ADMIN PROFILE ---
     getAdminProfile: () => {
-        return safeParse(STORAGE_KEYS.ADMIN_PROFILE, { name: 'Jayesh Bhai', role: 'Administrator', avatar: '', email: 'admin@aaryatech.com' });
+        return safeParse(STORAGE_KEYS.ADMIN_PROFILE, { name: 'AKASH JETHVA', role: 'Administrator', avatar: '', email: 'admin@aaryatech.com' });
     },
 
     saveAdminProfile: (profile: any) => {
