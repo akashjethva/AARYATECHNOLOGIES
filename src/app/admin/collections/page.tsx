@@ -320,8 +320,8 @@ export default function CollectionsPage() {
     return (
         <div className="w-full space-y-8 relative">
 
-            {/* Header Stats Section */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Header Stats Section - SMART GRID */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 xl:gap-8">
                 <Link href="/admin/reports" className="block transform hover:scale-[1.02] transition-transform duration-300">
                     <div className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-[2rem] p-8 text-white relative overflow-hidden shadow-2xl shadow-indigo-900/40 border border-white/10 group h-full">
                         <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl translate-x-10 -translate-y-10 group-hover:scale-110 transition-transform duration-500"></div>

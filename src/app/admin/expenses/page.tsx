@@ -189,8 +189,8 @@ export default function ExpensesPage() {
 
     return (
         <div className="max-w-[1600px] mx-auto space-y-8 pb-20">
-            {/* Header / Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Header / Stats - SMART GRID (Fixed 3 for now as there are only 3 cards) */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 xl:gap-8">
                 <div className="bg-rose-500 rounded-[2.5rem] p-8 relative overflow-hidden shadow-2xl">
                     <div className="relative z-10">
                         <div className="flex items-center gap-3 mb-2">

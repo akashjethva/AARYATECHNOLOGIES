@@ -571,8 +571,8 @@ export default function ReportsPage() {
                 </div>
             </div>
 
-            {/* Top Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            {/* Top Stats Cards - SMART GRID */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-5 gap-6">
                 <StatCard
                     title="Net Revenue"
                     value={formatCurrency(totalRevenue)}
