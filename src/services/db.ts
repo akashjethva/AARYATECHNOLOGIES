@@ -56,6 +56,18 @@ export interface Staff {
     pin?: string; // Security PIN for login
     employeeId?: string;
     lastSeen?: number; // Timestamp for online status
+    walletBalance?: number; // Current Wallet Balance
+}
+
+export interface StaffWalletLog {
+    id: string;
+    staffId: number;
+    amount: number;
+    type: 'Credit' | 'Debit';
+    date: string;
+    time: string;
+    remarks: string;
+    adminName: string;
 }
 
 // Keys
@@ -72,7 +84,8 @@ const STORAGE_KEYS = {
     NOTIFICATIONS: 'admin_notification_settings_v1',
     MOBILE_PERMISSIONS: 'admin_mobile_permissions_v1',
     ALERTS: 'admin_alerts_v1',
-    ADMIN_SECURITY: 'admin_security_v1'
+    ADMIN_SECURITY: 'admin_security_v1',
+    STAFF_WALLET_LOGS: 'admin_staff_wallet_logs_v1'
 };
 
 export interface Zone {
@@ -90,6 +103,7 @@ const INITIAL_COLLECTIONS: Collection[] = [];
 const INITIAL_DEALERS: any[] = [];
 
 const INITIAL_STAFF: Staff[] = [];
+const INITIAL_WALLET_LOGS: StaffWalletLog[] = [];
 
 const INITIAL_ZONES: Zone[] = [];
 
@@ -544,6 +558,59 @@ export const db = {
         }
 
         window.dispatchEvent(new Event('staff-updated'));
+        return true;
+    },
+
+    // Wallet Methods
+    getStaffWalletLogs: (staffId: number) => {
+        const allLogs = safeParse(STORAGE_KEYS.STAFF_WALLET_LOGS, INITIAL_WALLET_LOGS);
+        return allLogs.filter((log: StaffWalletLog) => log.staffId === staffId).sort((a: any, b: any) => new Date(b.date + ' ' + b.time).getTime() - new Date(a.date + ' ' + a.time).getTime());
+    },
+
+    updateStaffWallet: (staffId: number, amount: number, type: 'Credit' | 'Debit', remarks: string, adminName: string) => {
+        // 1. Update Balance
+        let staffList = safeParse(STORAGE_KEYS.STAFF, INITIAL_STAFF);
+        const index = staffList.findIndex((s: Staff) => s.id === staffId);
+        if (index === -1) return false;
+
+        const currentBalance = staffList[index].walletBalance || 0;
+        const newBalance = type === 'Credit' ? currentBalance + amount : currentBalance - amount;
+        staffList[index].walletBalance = newBalance;
+
+        localStorage.setItem(STORAGE_KEYS.STAFF, JSON.stringify(staffList));
+
+        // 2. Add Log
+        let logs = safeParse(STORAGE_KEYS.STAFF_WALLET_LOGS, INITIAL_WALLET_LOGS);
+        const newLog: StaffWalletLog = {
+            id: Date.now().toString(),
+            staffId,
+            amount,
+            type,
+            date: new Date().toISOString().split('T')[0],
+            time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+            remarks,
+            adminName
+        };
+        logs.push(newLog);
+        localStorage.setItem(STORAGE_KEYS.STAFF_WALLET_LOGS, JSON.stringify(logs));
+
+        // 3. Dispatch Events & Sync
+        window.dispatchEvent(new Event('staff-updated'));
+
+        // Sync Staff (Balance)
+        try {
+            setDoc(doc(firestore, "staff", String(staffId)), { walletBalance: newBalance }, { merge: true });
+        } catch (e) { console.error("Sync Error", e); }
+
+        // Sync Logs (Separate Collection)
+        // Ideally we would sync the logs array or specific log doc. 
+        // For simplicity, we assume local-first here, but let's try to persist log to subcollection or main collection
+        // if we want full offline.
+        try {
+            // Saving log as a separate doc in top-level 'wallet_logs' collection for easier querying
+            setDoc(doc(firestore, "staff_wallet_logs", newLog.id), newLog);
+        } catch (e) { console.error("Log Sync Error", e); }
+
         return true;
     },
 

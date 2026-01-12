@@ -1,6 +1,6 @@
 "use client";
 
-import { UserPlus, Search, MoreVertical, Phone, X, Save, Edit, Trash2, Shield, Calendar, TrendingUp, LayoutGrid, List, CheckCircle, Clock } from "lucide-react";
+import { UserPlus, Search, MoreVertical, Phone, X, Save, Edit, Trash2, Shield, Calendar, TrendingUp, LayoutGrid, List, CheckCircle, Clock, CreditCard } from "lucide-react";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCurrency } from "@/hooks/useCurrency";
@@ -12,7 +12,11 @@ export default function StaffPage() {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+
     const [editingId, setEditingId] = useState<number | null>(null);
+
+    // Wallet State
+    const [walletModal, setWalletModal] = useState<{ open: boolean, staffId: number | null, mode: 'add' | 'history' }>({ open: false, staffId: null, mode: 'add' });
 
     const [staffList, setStaffList] = useState<Staff[]>([]);
     const [collections, setCollections] = useState<Collection[]>([]);
@@ -223,6 +227,7 @@ export default function StaffPage() {
                                         staff={{ ...staff, collectedToday: getCollectedToday(staff.name) }}
                                         onEdit={() => openEditModal(staff)}
                                         onDelete={() => handleDelete(staff.id)}
+                                        onWallet={(mode: 'add' | 'history') => setWalletModal({ open: true, staffId: staff.id, mode })}
                                     />
                                 </motion.div>
                             ))}
@@ -444,11 +449,123 @@ export default function StaffPage() {
                     </div>
                 )}
             </AnimatePresence>
+
+            {/* Wallet Modal */}
+            <WalletModal
+                isOpen={walletModal.open}
+                onClose={() => setWalletModal({ ...walletModal, open: false })}
+                staffId={walletModal.staffId}
+                initialMode={walletModal.mode}
+            />
         </div>
     );
 }
 
-function StaffCard({ staff, onEdit, onDelete }: any) {
+function WalletModal({ isOpen, onClose, staffId, initialMode }: any) {
+    const [mode, setMode] = useState<'add' | 'history'>(initialMode);
+    const [amount, setAmount] = useState('');
+    const [type, setType] = useState<'Credit' | 'Debit'>('Credit');
+    const [remarks, setRemarks] = useState('');
+    const [logs, setLogs] = useState<any[]>([]);
+    const [loading, setLoading] = useState(false);
+
+    useEffect(() => { setMode(initialMode); }, [initialMode, isOpen]);
+
+    useEffect(() => {
+        if (isOpen && staffId) {
+            setLogs(db.getStaffWalletLogs(staffId));
+        }
+    }, [isOpen, staffId, mode]); // reload on mode switch too to be safe? mainly open
+
+    const handleSubmit = () => {
+        if (!amount || !remarks || !staffId) return;
+        setLoading(true);
+        setTimeout(() => {
+            const adminName = db.getAdminProfile().name;
+            const success = db.updateStaffWallet(staffId, parseFloat(amount), type, remarks, adminName);
+            if (success) {
+                setAmount('');
+                setRemarks('');
+                setLogs(db.getStaffWalletLogs(staffId)); // refresh logs immediately
+                if (mode === 'add') onClose(); // Close if adding, or maybe switch to history? let's close.
+            }
+            setLoading(false);
+        }, 500);
+    };
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+            <motion.div
+                initial={{ scale: 0.95, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className="bg-[#1e293b] rounded-[2rem] shadow-2xl w-full max-w-lg overflow-hidden border border-white/10 relative z-10"
+            >
+                {/* Header */}
+                <div className="p-6 border-b border-white/5 flex justify-between items-center bg-[#0f172a]/50">
+                    <div className="flex gap-4">
+                        <button onClick={() => setMode('add')} className={`text-sm font-bold px-4 py-2 rounded-xl transition-colors ${mode === 'add' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'}`}>Update Balance</button>
+                        <button onClick={() => setMode('history')} className={`text-sm font-bold px-4 py-2 rounded-xl transition-colors ${mode === 'history' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'}`}>History Log</button>
+                    </div>
+                    <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full text-slate-400 hover:text-white"><X size={20} /></button>
+                </div>
+
+                {/* Body */}
+                <div className="p-6">
+                    {mode === 'add' ? (
+                        <div className="space-y-4">
+                            <div className="flex bg-[#0f172a] p-1 rounded-xl border border-white/10">
+                                <button onClick={() => setType('Credit')} className={`flex-1 py-3 rounded-lg font-bold text-sm flex items-center justify-center gap-2 transition-all ${type === 'Credit' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}>
+                                    <TrendingUp size={16} /> Add (Credit)
+                                </button>
+                                <button onClick={() => setType('Debit')} className={`flex-1 py-3 rounded-lg font-bold text-sm flex items-center justify-center gap-2 transition-all ${type === 'Debit' ? 'bg-rose-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}>
+                                    <TrendingUp size={16} className="rotate-180" /> Deduct (Debit)
+                                </button>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Amount (₹)</label>
+                                <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" autoFocus className="w-full bg-[#0f172a] border border-white/10 rounded-xl px-4 py-3 text-white font-bold text-lg outline-none focus:border-indigo-500 transition-all placeholder:text-slate-600" />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Remarks / Reason</label>
+                                <textarea value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="e.g. Advance Salary, Expense Reimbursement..." rows={3} className="w-full bg-[#0f172a] border border-white/10 rounded-xl px-4 py-3 text-white font-medium outline-none focus:border-indigo-500 transition-all placeholder:text-slate-600 resize-none" />
+                            </div>
+
+                            <button onClick={handleSubmit} disabled={loading || !amount} className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white py-4 rounded-xl font-bold text-lg shadow-lg mt-2 transition-all active:scale-95">
+                                {loading ? 'Processing...' : (type === 'Credit' ? 'Add Funds' : 'Deduct Funds')}
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="space-y-4">
+                            <div className="max-h-[300px] overflow-y-auto custom-scrollbar pr-2 space-y-3">
+                                {logs.length > 0 ? logs.map((log) => (
+                                    <div key={log.id} className="bg-[#0f172a] p-4 rounded-2xl border border-white/5 flex justify-between items-center">
+                                        <div>
+                                            <p className={`text-sm font-bold ${log.type === 'Credit' ? 'text-emerald-400' : 'text-rose-400'}`}>{log.type === 'Credit' ? 'Credit (+)' : 'Debit (-)'}</p>
+                                            <p className="text-xs text-slate-500 mt-1">{log.date} at {log.time}</p>
+                                            <p className="text-xs text-slate-300 mt-1 italic">"{log.remarks}"</p>
+                                            <p className="text-[10px] text-slate-600 mt-1">By {log.adminName}</p>
+                                        </div>
+                                        <div className={`text-lg font-bold ${log.type === 'Credit' ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                            {log.type === 'Credit' ? '+' : '-'}{log.amount}
+                                        </div>
+                                    </div>
+                                )) : (
+                                    <div className="text-center py-10 text-slate-500 text-sm font-medium">No history available</div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </motion.div>
+        </div>
+    )
+}
+
+function StaffCard({ staff, onEdit, onDelete, onWallet }: any) {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
 
     const formatCurrency = (amount: number) => {
@@ -483,10 +600,13 @@ function StaffCard({ staff, onEdit, onDelete }: any) {
                             onMouseLeave={() => setIsMenuOpen(false)}
                         >
                             <button onClick={() => { onEdit(); setIsMenuOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-300 hover:text-white hover:bg-white/5 rounded-lg text-left transition-colors">
-                                <Edit size={14} className="text-amber-400" /> Edit
+                                <Edit size={14} className="text-amber-400" /> Edit Details
+                            </button>
+                            <button onClick={() => { onWallet('history'); setIsMenuOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-300 hover:text-white hover:bg-white/5 rounded-lg text-left transition-colors">
+                                <Clock size={14} className="text-blue-400" /> View History
                             </button>
                             <button onClick={() => { onDelete(); setIsMenuOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2 text-sm font-bold text-rose-400 hover:bg-rose-500/10 rounded-lg text-left transition-colors">
-                                <Trash2 size={14} /> Delete
+                                <Trash2 size={14} /> Delete Staff
                             </button>
                         </motion.div>
                     )}
@@ -526,7 +646,17 @@ function StaffCard({ staff, onEdit, onDelete }: any) {
                         );
                     })()}
                 </div>
+                {/* WALLET SECTION */}
                 <div className="text-right">
+                    <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-1">WALLET</p>
+                    <div className="flex items-center justify-end gap-2">
+                        <span className="text-white font-bold text-xl tracking-tight">{formatCurrency(staff.walletBalance || 0)}</span>
+                        <button onClick={(e) => { e.stopPropagation(); onWallet('add'); }} className="h-8 w-8 bg-indigo-600 hover:bg-indigo-500 rounded-lg flex items-center justify-center text-white shadow-lg shadow-indigo-500/20 active:scale-95 transition-all" title="Add/Deduct Balance">
+                            <CreditCard size={14} />
+                        </button>
+                    </div>
+                </div>
+                <div className="text-right hidden sm:block">
                     <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-1 flex items-center justify-end gap-1"><TrendingUp size={12} /> COLLECTED TODAY</p>
                     <p className="text-indigo-400 font-bold text-xl">{formatCurrency(staff.collectedToday)}</p>
                 </div>
