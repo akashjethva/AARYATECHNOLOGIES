@@ -11,16 +11,53 @@ import { db } from "@/services/db";
 import { useCurrency } from "@/hooks/useCurrency";
 
 // Helper for Image Upload
+// Helper for Image Upload with Compression
 const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, callback: (base64: string) => void) => {
     const file = e.target.files?.[0];
     if (file) {
-        if (file.size > 1024 * 1024) { // 1MB Limit
-            alert("File size too large. Max 1MB allowed.");
+        if (file.size > 5 * 1024 * 1024) { // Allow up to 5MB input, we will compress it down
+            alert("File size too large. Max 5MB allowed.");
             return;
         }
+
         const reader = new FileReader();
-        reader.onloadend = () => {
-            callback(reader.result as string);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const MAX_WIDTH = 800;
+                const MAX_HEIGHT = 800;
+                let width = img.width;
+                let height = img.height;
+
+                if (width > height) {
+                    if (width > MAX_WIDTH) {
+                        height *= MAX_WIDTH / width;
+                        width = MAX_WIDTH;
+                    }
+                } else {
+                    if (height > MAX_HEIGHT) {
+                        width *= MAX_HEIGHT / height;
+                        height = MAX_HEIGHT;
+                    }
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx?.drawImage(img, 0, 0, width, height);
+
+                // Compress to JPEG at 70% quality
+                const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+
+                // Final safety check
+                if (dataUrl.length > 900 * 1024) { // If still > 900KB
+                    alert("Image is too complex to compress. Please try a simpler image.");
+                } else {
+                    callback(dataUrl);
+                }
+            };
+            img.src = event.target?.result as string;
         };
         reader.readAsDataURL(file);
     }
