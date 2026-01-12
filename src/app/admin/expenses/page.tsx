@@ -74,7 +74,7 @@ export default function ExpensesPage() {
                 expense.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                 expense.party.toLowerCase().includes(searchQuery.toLowerCase()) ||
                 expense.category.toLowerCase().includes(searchQuery.toLowerCase());
-            const matchesFilter = filterStatus === 'All' || expense.category === filterStatus;
+            const matchesFilter = filterStatus === 'All' || expense.category === filterStatus || expense.status === filterStatus;
             return matchesSearch && matchesFilter;
         });
     }, [expenses, searchQuery, filterStatus]);
@@ -203,16 +203,18 @@ export default function ExpensesPage() {
                         </p>
                     </div>
                     <div className="absolute -right-6 -bottom-6 text-black/10 transform rotate-[-15deg]"><DollarSign size={160} /></div>
+                    {/* Click Overlay */}
+                    <div className="absolute inset-0 z-20 cursor-pointer" onClick={() => setFilterStatus('All')}></div>
                 </div>
 
-                <div className="bg-[#1e293b]/60 backdrop-blur-xl border border-white/5 rounded-[2.5rem] p-8 relative overflow-hidden shadow-xl">
-                    <div className="relative z-10">
+                <div className="bg-[#1e293b]/60 backdrop-blur-xl border border-white/5 rounded-[2.5rem] p-8 relative overflow-hidden shadow-xl group cursor-pointer" onClick={() => setFilterStatus('Pending')}>
+                    <div className="relative z-10 group-hover:scale-105 transition-transform duration-300">
                         <div className="flex items-center gap-3 mb-2">
                             <div className="p-2 bg-amber-500/20 rounded-xl rounded-tl-none text-amber-500"><Clock size={20} /></div>
                             <span className="text-slate-400 font-bold tracking-wider text-sm uppercase">Pending Payouts</span>
                         </div>
                         <h3 className="text-4xl font-extrabold text-white">{formatCurrency(stats.pendingAmount)}</h3>
-                        <p className="text-slate-400 font-medium mt-2 text-sm">{stats.pendingCount} Payments Due</p>
+                        <p className="text-slate-400 font-medium mt-2 text-sm max-w-[80%] group-hover:text-amber-400 transition-colors">{stats.pendingCount} Payments Due</p>
                     </div>
                 </div>
 
@@ -276,13 +278,47 @@ export default function ExpensesPage() {
                     )}
                     {activeTab === 'transactions' && (
                         <div className="flex gap-2">
-                            <button
-                                onClick={() => setIsFilterOpen(!isFilterOpen)}
-                                className={`flex items-center gap-2 bg-[#0f172a] hover:bg-white/5 text-white px-6 py-4 rounded-2xl font-bold transition-colors border ${filterStatus !== 'All' ? 'border-indigo-500 text-indigo-400' : 'border-white/10'}`}
-                            >
-                                <Filter size={18} className={filterStatus !== 'All' ? "text-indigo-400" : "text-slate-400"} />
-                                <span className="hidden md:inline">{filterStatus === 'All' ? 'Filter' : filterStatus}</span>
-                            </button>
+                            <div className="relative">
+                                <button
+                                    onClick={() => setIsFilterOpen(!isFilterOpen)}
+                                    className={`flex items-center gap-2 bg-[#0f172a] hover:bg-white/5 text-white px-6 py-4 rounded-2xl font-bold transition-colors border ${filterStatus !== 'All' ? 'border-indigo-500 text-indigo-400' : 'border-white/10'}`}
+                                >
+                                    <Filter size={18} className={filterStatus !== 'All' ? "text-indigo-400" : "text-slate-400"} />
+                                    <span className="hidden md:inline">{filterStatus === 'All' ? 'Filter' : filterStatus}</span>
+                                </button>
+                                <AnimatePresence>
+                                    {isFilterOpen && (
+                                        <motion.div
+                                            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                                            exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                                            className="absolute right-0 top-full mt-2 w-56 bg-[#0f172a] border border-white/10 rounded-2xl shadow-xl overflow-hidden z-30 flex flex-col p-2"
+                                        >
+                                            <div className="text-xs font-bold text-slate-500 uppercase tracking-wider px-3 py-2">By Status</div>
+                                            {['All', 'Pending', 'Paid', 'Approved', 'Rejected'].map(status => (
+                                                <button
+                                                    key={status}
+                                                    onClick={() => { setFilterStatus(status); setIsFilterOpen(false); }}
+                                                    className={`text-left px-3 py-2 rounded-xl text-sm font-bold transition-colors ${filterStatus === status ? 'bg-indigo-600 text-white' : 'text-slate-300 hover:bg-white/5 hover:text-white'}`}
+                                                >
+                                                    {status}
+                                                </button>
+                                            ))}
+                                            <div className="h-px bg-white/10 my-1"></div>
+                                            <div className="text-xs font-bold text-slate-500 uppercase tracking-wider px-3 py-2">By Category</div>
+                                            {['Stock Purchase', 'Rent', 'Salary', 'Utility Bill', 'Other'].map(cat => (
+                                                <button
+                                                    key={cat}
+                                                    onClick={() => { setFilterStatus(cat); setIsFilterOpen(false); }}
+                                                    className={`text-left px-3 py-2 rounded-xl text-sm font-bold transition-colors ${filterStatus === cat ? 'bg-indigo-600 text-white' : 'text-slate-300 hover:bg-white/5 hover:text-white'}`}
+                                                >
+                                                    {cat}
+                                                </button>
+                                            ))}
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                            </div>
                             <button
                                 onClick={handleExport}
                                 className="flex items-center gap-2 bg-[#0f172a] hover:bg-white/5 text-white px-6 py-4 rounded-2xl font-bold transition-colors border border-white/10"
