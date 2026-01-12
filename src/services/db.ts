@@ -70,6 +70,17 @@ export interface StaffWalletLog {
     adminName: string;
 }
 
+export interface CustomerWalletLog {
+    id: string;
+    customerId: number;
+    amount: number;
+    type: 'Credit' | 'Debit';
+    date: string;
+    time: string;
+    remarks: string;
+    adminName: string;
+}
+
 // Keys
 const STORAGE_KEYS = {
     CUSTOMERS: 'admin_customers_v3',
@@ -85,7 +96,10 @@ const STORAGE_KEYS = {
     MOBILE_PERMISSIONS: 'admin_mobile_permissions_v1',
     ALERTS: 'admin_alerts_v1',
     ADMIN_SECURITY: 'admin_security_v1',
-    STAFF_WALLET_LOGS: 'admin_staff_wallet_logs_v1'
+    ALERTS: 'admin_alerts_v1',
+    ADMIN_SECURITY: 'admin_security_v1',
+    STAFF_WALLET_LOGS: 'admin_staff_wallet_logs_v1',
+    CUSTOMER_WALLET_LOGS: 'admin_customer_wallet_logs_v1'
 };
 
 export interface Zone {
@@ -104,6 +118,7 @@ const INITIAL_DEALERS: any[] = [];
 
 const INITIAL_STAFF: Staff[] = [];
 const INITIAL_WALLET_LOGS: StaffWalletLog[] = [];
+const INITIAL_CUST_WALLET_LOGS: CustomerWalletLog[] = [];
 
 const INITIAL_ZONES: Zone[] = [];
 
@@ -307,6 +322,56 @@ export const db = {
         } catch (e) { console.error(e); }
 
         return newCustomers;
+    },
+
+    // Customer Wallet Methods
+    getCustomerWalletLogs: (customerId: number) => {
+        const allLogs = safeParse(STORAGE_KEYS.CUSTOMER_WALLET_LOGS, INITIAL_CUST_WALLET_LOGS);
+        return allLogs.filter((log: CustomerWalletLog) => log.customerId === customerId).sort((a: any, b: any) => new Date(b.date + ' ' + b.time).getTime() - new Date(a.date + ' ' + a.time).getTime());
+    },
+
+    updateCustomerWallet: (customerId: number, amount: number, type: 'Credit' | 'Debit', remarks: string, adminName: string) => {
+        // 1. Update Balance
+        let list = safeParse(STORAGE_KEYS.CUSTOMERS, INITIAL_CUSTOMERS);
+        const index = list.findIndex((c: Customer) => c.id === customerId);
+        if (index === -1) return false;
+
+        const cust = list[index];
+        // Parse "1,50,000" -> 150000
+        const currentBalance = parseFloat(String(cust.balance).replace(/[^0-9.-]+/g, "")) || 0;
+        const newBalanceVal = type === 'Credit' ? currentBalance + amount : currentBalance - amount;
+
+        // Format back to "1,50,000" (or similar locale string) 
+        const newBalanceStr = new Intl.NumberFormat('en-IN').format(newBalanceVal);
+
+        list[index] = { ...cust, balance: newBalanceStr };
+        localStorage.setItem(STORAGE_KEYS.CUSTOMERS, JSON.stringify(list));
+
+        // 2. Add Log
+        let logs = safeParse(STORAGE_KEYS.CUSTOMER_WALLET_LOGS, INITIAL_CUST_WALLET_LOGS);
+        const newLog: CustomerWalletLog = {
+            id: Date.now().toString(),
+            customerId,
+            amount,
+            type,
+            date: new Date().toISOString().split('T')[0],
+            time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+            remarks,
+            adminName
+        };
+        logs.push(newLog);
+        localStorage.setItem(STORAGE_KEYS.CUSTOMER_WALLET_LOGS, JSON.stringify(logs));
+
+        // 3. Dispatch & Sync
+        window.dispatchEvent(new Event('customer-updated'));
+
+        try {
+            setDoc(doc(firestore, "customers", String(customerId)), { balance: newBalanceStr }, { merge: true });
+            // Log sync
+            setDoc(doc(firestore, "customer_wallet_logs", newLog.id), newLog);
+        } catch (e) { console.error("Sync Error", e); }
+
+        return true;
     },
 
     // Expenses
