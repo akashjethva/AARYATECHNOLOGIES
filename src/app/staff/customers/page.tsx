@@ -49,61 +49,54 @@ export default function StaffCustomers() {
                                 customers: customers || []
                             };
 
-                            import("jspdf").then((jsPDFModule) => {
-                                import("jspdf-autotable").then((autoTableModule) => {
-                                    const jsPDF = jsPDFModule.default;
-                                    const autoTable = autoTableModule.default;
+                            const doc = new jsPDF();
+                            const dataToExport = params.filtered.length > 0 ? params.filtered : params.customers;
 
-                                    const doc = new jsPDF();
-                                    const dataToExport = params.filtered.length > 0 ? params.filtered : params.customers;
+                            const totalPending = dataToExport.reduce((sum: any, c: any) => sum + (parseFloat(String(c.balance).replace(/[^0-9.-]+/g, "")) || 0), 0);
 
-                                    const totalPending = dataToExport.reduce((sum: any, c: any) => sum + (parseFloat(String(c.balance).replace(/[^0-9.-]+/g, "")) || 0), 0);
+                            // Header
+                            doc.setFontSize(18);
+                            doc.setTextColor(40, 40, 40);
+                            doc.text("Customer Balance Report", 14, 20);
 
-                                    // Header
-                                    doc.setFontSize(18);
-                                    doc.setTextColor(40, 40, 40);
-                                    doc.text("Customer Balance Report", 14, 20);
+                            doc.setFontSize(10);
+                            doc.setTextColor(100, 100, 100);
+                            doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 28);
+                            doc.text(`Total Customers: ${dataToExport.length}`, 14, 34);
 
-                                    doc.setFontSize(10);
-                                    doc.setTextColor(100, 100, 100);
-                                    doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 28);
-                                    doc.text(`Total Customers: ${dataToExport.length}`, 14, 34);
+                            // Table Data
+                            const tableRows = dataToExport.map((c: any, index: number) => [
+                                index + 1,
+                                c.name,
+                                c.city,
+                                c.phone,
+                                c.balance
+                            ]);
 
-                                    // Table Data
-                                    const tableRows = dataToExport.map((c: any, index: number) => [
-                                        index + 1,
-                                        c.name,
-                                        c.city,
-                                        c.phone,
-                                        c.balance
-                                    ]);
+                            // Total Row
+                            const totalFormatted = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }).format(totalPending);
+                            tableRows.push(["", "", "", "TOTAL PENDING:", totalFormatted]);
 
-                                    // Total Row
-                                    const totalFormatted = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }).format(totalPending);
-                                    tableRows.push(["", "", "", "TOTAL PENDING:", totalFormatted]);
-
-                                    (doc as any).autoTable({
-                                        head: [["#", "Customer Name", "City", "Mobile", "Balance"]],
-                                        body: tableRows,
-                                        startY: 40,
-                                        theme: 'grid',
-                                        headStyles: { fillColor: [79, 70, 229], halign: 'left' },
-                                        columnStyles: {
-                                            4: { halign: 'right', fontStyle: 'bold' }
-                                        },
-                                        didParseCell: (data: any) => {
-                                            if (data.row.index === tableRows.length - 1) {
-                                                data.cell.styles.fontStyle = 'bold';
-                                                data.cell.styles.textColor = [220, 38, 38];
-                                                data.cell.styles.fontSize = 14;
-                                                if (data.column.index === 3) data.cell.styles.halign = 'right';
-                                            }
-                                        }
-                                    });
-
-                                    doc.save(`Customer_Report_${new Date().toISOString().split('T')[0]}.pdf`);
-                                });
+                            (doc as any).autoTable({
+                                head: [["#", "Customer Name", "City", "Mobile", "Balance"]],
+                                body: tableRows,
+                                startY: 40,
+                                theme: 'grid',
+                                headStyles: { fillColor: [79, 70, 229], halign: 'left' },
+                                columnStyles: {
+                                    4: { halign: 'right', fontStyle: 'bold' }
+                                },
+                                didParseCell: (data: any) => {
+                                    if (data.row.index === tableRows.length - 1) {
+                                        data.cell.styles.fontStyle = 'bold';
+                                        data.cell.styles.textColor = [220, 38, 38];
+                                        data.cell.styles.fontSize = 14;
+                                        if (data.column.index === 3) data.cell.styles.halign = 'right';
+                                    }
+                                }
                             });
+
+                            doc.save(`Customer_Report_${new Date().toISOString().split('T')[0]}.pdf`);
 
                         } catch (e: any) {
                             alert("PDF Error: " + e.message);

@@ -1,7 +1,7 @@
 {
-    "versionCode": 9,
-    "versionName": "2.18.0",
-    "apkUrl": "https://github.com/akashjethva/AARYATECHNOLOGIES/releases/download/v2.18/app-debug.apk",
+    "versionCode": 10,
+    "versionName": "2.19.0",
+    "apkUrl": "https://github.com/akashjethva/AARYATECHNOLOGIES/releases/download/v2.19/app-debug.apk",
     "forceUpdate": false,
-    "updateMessage": "v2.18: New Notifications UI, Logo Fix & Camera Access Added!"
+    "updateMessage": "v2.19: PDF Download Fix & Ready for Morning Build!"
 }
