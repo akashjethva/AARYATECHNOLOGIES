@@ -438,15 +438,27 @@ export default function ReportsPage() {
         const monthlyData = new Array(5).fill(0);
         const yearlyData = new Array(12).fill(0);
 
-        const currentYear = new Date().getFullYear();
-        const currentMonth = new Date().getMonth();
-        const now = new Date(); // Current date for week calc based on actual current week
+        // Parse Selected Date (e.g., "Jan 2026")
+        const [selMonthStr, selYearStr] = selectedDate.split(' ');
+        const currentYear = parseInt(selYearStr) || new Date().getFullYear();
 
-        // Helper: Get Monday of current week
+        // Map Month String to Index
+        const monthMap: { [key: string]: number } = { 'Jan': 0, 'Feb': 1, 'Mar': 2, 'Apr': 3, 'May': 4, 'Jun': 5, 'Jul': 6, 'Aug': 7, 'Sep': 8, 'Oct': 9, 'Nov': 10, 'Dec': 11 };
+        const currentMonth = monthMap[selMonthStr] ?? new Date().getMonth();
+
+        const now = new Date(); // Current date for week calc based on actual current week (or should this also be based on selected date? Usually 'Week' view implies *current* week, but 'Month' view implies *selected* month)
+        // Let's assume Week view is always "Current real-time Week" for now, but Month/Year views respect the Dropdown.
+        // Actually, for consistency, if I select "Dec 2025", Month view should show Dec 2025 weeks.
+
+        // Helper: Get Start of Selected Month (for Week calc if we want to be specific, but 'Week' usually means 'This Week')
+        // Let's keep 'Week' as relative to TODAY for utility, but 'Month' and 'Year' relative to SELECTION.
+
         const startOfWeek = new Date(now);
         const dayOfWeek = startOfWeek.getDay() || 7; // 1=Mon, 7=Sun
         if (dayOfWeek !== 1) startOfWeek.setHours(-24 * (dayOfWeek - 1));
         else startOfWeek.setHours(0, 0, 0, 0); // It is Monday
+
+
 
         // Helper to parse amount
         const parseAmount = (amt: any) => parseFloat(String(amt).replace(/,/g, '')) || 0;
@@ -496,7 +508,7 @@ export default function ReportsPage() {
             Year: { data: yearlyData, labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] }
         };
 
-    }, [transactions, expenses, selectedStat]);
+    }, [transactions, expenses, selectedStat, selectedDate]);
 
     return (
         <div className="max-w-[1600px] mx-auto space-y-8 pb-20">
@@ -617,12 +629,12 @@ export default function ReportsPage() {
                                 <h3 key={selectedStat} className="text-2xl font-bold text-white transition-all">{getGraphTitle()}</h3>
                                 <p className="text-slate-400 text-sm font-bold uppercase tracking-wider mt-1">Income Over Time</p>
                             </div>
-                            <div className="flex bg-[#0f172a]/80 p-1.5 rounded-xl border border-white/5 backdrop-blur-md">
+                            <div className="flex bg-[#0f172a]/80 p-1.5 rounded-xl border border-white/5 backdrop-blur-md gap-2">
                                 {['Week', 'Month', 'Year'].map((period) => (
                                     <button
                                         key={period}
                                         onClick={() => setChartPeriod(period as any)}
-                                        className={`px - 6 py - 2.5 rounded - lg text - sm font - bold transition - all ${chartPeriod === period ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/25' : 'text-slate-400 hover:text-white hover:bg-white/5'} `}
+                                        className={`px-4 py-2.5 rounded-lg text-sm font-bold transition-all ${chartPeriod === period ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/25' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}
                                     >
                                         {period}
                                     </button>
