@@ -271,14 +271,20 @@ export default function StaffHome() {
 
     const handleUpdateApp = async () => {
         if (updateInfo) {
-            // NUCLEAR OPTION: Clear EVERYTHING
-            localStorage.clear();
-            sessionStorage.clear();
+            // Check if it's a Native APK Update (Major Version)
+            if (updateInfo.apkUrl && updateInfo.apkUrl.trim() !== "") {
+                window.open(updateInfo.apkUrl, '_blank');
+                return;
+            }
 
-            // Re-save essential if needed (or let user login again/fetch fresh)
-            localStorage.setItem('app_version', updateInfo.versionName);
-
+            // Otherwise, it's a Live Update (JS Bundle Refresh)
+            // NUCLEAR OPTION: Clear EVERYTHING to force fresh JS load
             try {
+                localStorage.clear();
+                sessionStorage.clear();
+                // Persist new version to satisfy check logic after reload
+                localStorage.setItem('app_version', updateInfo.versionName);
+
                 // 1. Unregister Service Workers
                 if ('serviceWorker' in navigator) {
                     const registrations = await navigator.serviceWorker.getRegistrations();
