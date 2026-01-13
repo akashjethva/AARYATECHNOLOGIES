@@ -1,7 +1,7 @@
 {
-    "versionCode": 13,
-    "versionName": "2.22.0",
-    "apkUrl": "https://github.com/akashjethva/AARYATECHNOLOGIES/releases/download/v2.22/app-debug.apk",
+    "versionCode": 14,
+    "versionName": "2.23.0",
+    "apkUrl": "https://github.com/akashjethva/AARYATECHNOLOGIES/releases/download/v2.23/app-debug.apk",
     "forceUpdate": true,
-    "updateMessage": "v2.22: Final Fixes for Biometric & UI. Update Now!"
+    "updateMessage": "v2.23: Camera Added to Company Profile! Check Now."
 }
