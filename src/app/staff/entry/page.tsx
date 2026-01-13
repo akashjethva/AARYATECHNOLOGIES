@@ -564,27 +564,34 @@ export default function StaffEntry() {
                     <div className="w-full space-y-2">
                         <div className="bg-[#15171c]/50 rounded-xl p-3 border border-white/5 flex items-center gap-3 focus-within:border-indigo-500/50 focus-within:bg-[#15171c] transition-all relative">
 
-                            {/* Camera Button with Direct Input Trigger */}
+                            {/* Camera Button with Native Plugin Trigger */}
                             <button
-                                type="button" // Explicitly prevent form submit
-                                onClick={(e) => {
-                                    e.preventDefault(); // Prevent bubbling
-                                    // Debug alert if needed, but let's just trigger
-                                    fileInputRef.current?.click();
+                                type="button"
+                                onClick={async (e) => {
+                                    e.preventDefault();
+                                    try {
+                                        const image = await Camera.getPhoto({
+                                            quality: 70,
+                                            allowEditing: false,
+                                            resultType: CameraResultType.DataUrl,
+                                            source: CameraSource.Prompt, // Asks: Camera or Photos?
+                                            promptLabelHeader: "Select Image",
+                                            promptLabelPhoto: "Choose from Gallery",
+                                            promptLabelPicture: "Take Photo"
+                                        });
+
+                                        if (image.dataUrl) {
+                                            setFormData(prev => ({ ...prev, image: image.dataUrl }));
+                                        }
+                                    } catch (err) {
+                                        console.log("Camera dismissed", err);
+                                    }
                                 }}
                                 className={`p-3 rounded-xl transition-all relative flex-shrink-0 active:scale-95 ${formData.image ? 'text-emerald-400 bg-emerald-500/10 ring-1 ring-emerald-500/50' : 'text-slate-400 bg-white/5 hover:text-indigo-400 hover:bg-white/10'}`}
                             >
-                                <Camera size={20} />
+                                <CameraIcon size={20} />
                             </button>
-                            <input
-                                type="file"
-                                ref={fileInputRef}
-                                accept="image/*"
-                                // Removed capture to allow Gallery OR Camera choice
-                                onChange={handleFileChange}
-                                className="sr-only" // Use sr-only instead of hidden to keep it in render tree but invisible
-                                style={{ display: 'none' }} // Double safety, or just remove if sr-only is enough. React 'hidden' is fine, but let's try standard.
-                            />
+                            {/* Native Camera doesn't need <input type="file"> */}
 
                             <input
                                 type="text"

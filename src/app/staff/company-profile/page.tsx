@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ArrowLeft, Globe, Mail, Phone, MapPin, Building2, ExternalLink, Camera } from "lucide-react";
+import { ArrowLeft, Globe, Mail, Phone, MapPin, Building2, ExternalLink, Camera as CameraIcon } from "lucide-react";
+import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 
