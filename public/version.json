@@ -1,7 +1,7 @@
 {
-    "versionCode": 17,
-    "versionName": "2.26.0",
+    "versionCode": 18,
+    "versionName": "2.27.0",
     "apkUrl": "",
     "forceUpdate": true,
-    "updateMessage": "v2.26: UI Polish (Notifications) ✨"
+    "updateMessage": "v2.27: Receipt & Notifications Fixed! 📄"
 }

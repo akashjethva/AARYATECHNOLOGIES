@@ -171,119 +171,124 @@ export default function StaffEntry() {
     // ... handleDownloadPDF keeps existing ...
 
     const handleDownloadPDF = () => {
-        const appSettings = db.getAppSettings();
-        const companyName = appSettings.appName || "My Company";
+        try {
+            const appSettings = db.getAppSettings();
+            const companyName = appSettings.appName || "My Company";
 
-        let staffName = "Staff Member";
-        if (typeof window !== 'undefined') {
-            try {
-                const userStr = localStorage.getItem('payment_app_user');
-                if (userStr) {
-                    const user = JSON.parse(userStr);
-                    staffName = user.name || "Staff Member";
+            let staffName = "Staff Member";
+            if (typeof window !== 'undefined') {
+                try {
+                    const userStr = localStorage.getItem('payment_app_user');
+                    if (userStr) {
+                        const user = JSON.parse(userStr);
+                        staffName = user.name || "Staff Member";
+                    }
+                } catch (e) {
+                    console.error("Error parsing staff user", e);
                 }
-            } catch (e) {
-                console.error("Error parsing staff user", e);
             }
-        }
 
-        const doc = new jsPDF({
-            orientation: 'portrait',
-            unit: 'mm',
-            format: [80, 150]
-        });
+            const doc = new jsPDF({
+                orientation: 'portrait',
+                unit: 'mm',
+                format: [80, 150]
+            });
 
-        doc.setFontSize(14);
-        doc.setFont("helvetica", "bold");
-        doc.text(companyName, 40, 10, { align: 'center' });
-
-        doc.setFontSize(8);
-        doc.setFont("helvetica", "normal");
-        doc.text(formData.type === 'Visit' ? "Visit Receipt" : "Receipt", 40, 15, { align: 'center' });
-        doc.text("------------------------------------------------", 40, 18, { align: 'center' });
-
-        doc.setFontSize(16);
-        doc.setFont("helvetica", "bold");
-        if (formData.type !== 'Visit') {
-            doc.text(`Rs. ${formData.amount}`, 40, 28, { align: 'center' });
-        } else {
-            doc.text("Visit Logged", 40, 28, { align: 'center' });
-        }
-
-        doc.setFontSize(9);
-        doc.setFont("helvetica", "normal");
-
-        let y = 40;
-        const lineHeight = 6;
-
-        doc.text(`Date: ${new Date().toLocaleDateString()}`, 5, y);
-        y += lineHeight;
-        doc.text(`Time: ${new Date().toLocaleTimeString()}`, 5, y);
-        y += lineHeight;
-        doc.text("------------------------------------------------", 40, y, { align: 'center' });
-        y += lineHeight;
-
-        const partyLabel = formData.type === 'Collection' || formData.type === 'Visit' ? 'Customer:' : 'Category:';
-        const partyValue = formData.type === 'Collection' || formData.type === 'Visit' ? formData.customer : formData.category;
-
-        doc.setFont("helvetica", "bold");
-        doc.text(partyLabel, 5, y);
-        doc.setFont("helvetica", "normal");
-        const splitText = doc.splitTextToSize(partyValue || "", 45);
-        doc.text(splitText, 30, y);
-        y += (lineHeight * splitText.length);
-
-        if (formData.type !== 'Visit') {
+            doc.setFontSize(14);
             doc.setFont("helvetica", "bold");
-            doc.text("Mode:", 5, y);
+            doc.text(companyName, 40, 10, { align: 'center' });
+
+            doc.setFontSize(8);
             doc.setFont("helvetica", "normal");
-            doc.text(formData.mode, 30, y);
+            doc.text(formData.type === 'Visit' ? "Visit Receipt" : "Receipt", 40, 15, { align: 'center' });
+            doc.text("------------------------------------------------", 40, 18, { align: 'center' });
+
+            doc.setFontSize(16);
+            doc.setFont("helvetica", "bold");
+            if (formData.type !== 'Visit') {
+                doc.text(`Rs. ${formData.amount}`, 40, 28, { align: 'center' });
+            } else {
+                doc.text("Visit Logged", 40, 28, { align: 'center' });
+            }
+
+            doc.setFontSize(9);
+            doc.setFont("helvetica", "normal");
+
+            let y = 40;
+            const lineHeight = 6;
+
+            doc.text(`Date: ${new Date().toLocaleDateString()}`, 5, y);
             y += lineHeight;
-        }
+            doc.text(`Time: ${new Date().toLocaleTimeString()}`, 5, y);
+            y += lineHeight;
+            doc.text("------------------------------------------------", 40, y, { align: 'center' });
+            y += lineHeight;
 
-        if (formData.remarks) {
+            const partyLabel = formData.type === 'Collection' || formData.type === 'Visit' ? 'Customer:' : 'Category:';
+            const partyValue = formData.type === 'Collection' || formData.type === 'Visit' ? formData.customer : formData.category;
+
             doc.setFont("helvetica", "bold");
-            doc.text(formData.type === 'Visit' ? "Reason:" : "Remarks:", 5, y);
+            doc.text(partyLabel, 5, y);
             doc.setFont("helvetica", "normal");
-            const splitRemark = doc.splitTextToSize(formData.remarks || "", 45);
-            doc.text(splitRemark, 30, y);
-            y += (lineHeight * splitRemark.length);
-        }
+            const splitText = doc.splitTextToSize(partyValue || "", 45);
+            doc.text(splitText, 30, y);
+            y += (lineHeight * splitText.length);
 
-        if (formData.type === 'Collection') {
-            try {
-                const customers = db.getCustomers();
-                const customer = customers.find(c => c.name.trim() === formData.customer.trim());
-                if (customer) {
-                    const currentBalance = parseFloat(customer.balance.replace(/,/g, '')) || 0;
-                    const paidAmount = parseFloat(formData.amount) || 0;
-                    const remainingBalance = currentBalance - paidAmount;
-
-                    doc.setFont("helvetica", "bold");
-                    doc.text("Pending Bal:", 5, y);
-                    doc.setFont("helvetica", "normal");
-                    doc.text(`Rs. ${remainingBalance.toLocaleString('en-IN')}`, 30, y);
-                    y += lineHeight;
-                }
-            } catch (e) {
-                console.error("Error calculating balance", e);
+            if (formData.type !== 'Visit') {
+                doc.setFont("helvetica", "bold");
+                doc.text("Mode:", 5, y);
+                doc.setFont("helvetica", "normal");
+                doc.text(formData.mode, 30, y);
+                y += lineHeight;
             }
+
+            if (formData.remarks) {
+                doc.setFont("helvetica", "bold");
+                doc.text(formData.type === 'Visit' ? "Reason:" : "Remarks:", 5, y);
+                doc.setFont("helvetica", "normal");
+                const splitRemark = doc.splitTextToSize(formData.remarks || "", 45);
+                doc.text(splitRemark, 30, y);
+                y += (lineHeight * splitRemark.length);
+            }
+
+            if (formData.type === 'Collection') {
+                try {
+                    const customers = db.getCustomers();
+                    const customer = customers.find(c => c.name.trim() === formData.customer.trim());
+                    if (customer) {
+                        const currentBalance = parseFloat(customer.balance.replace(/,/g, '')) || 0;
+                        const paidAmount = parseFloat(formData.amount) || 0;
+                        const remainingBalance = currentBalance - paidAmount;
+
+                        doc.setFont("helvetica", "bold");
+                        doc.text("Pending Bal:", 5, y);
+                        doc.setFont("helvetica", "normal");
+                        doc.text(`Rs. ${remainingBalance.toLocaleString('en-IN')}`, 30, y);
+                        y += lineHeight;
+                    }
+                } catch (e) {
+                    console.error("Error calculating balance", e);
+                }
+            }
+
+            y += 5;
+            doc.text("------------------------------------------------", 40, y, { align: 'center' });
+            y += 5;
+
+            doc.setFont("helvetica", "bold");
+            doc.text("Recorded By:", 5, y);
+            doc.setFont("helvetica", "normal");
+            doc.text(staffName, 30, y);
+            y += 10;
+
+            doc.setFontSize(7);
+            doc.text("Thank you!", 40, y, { align: 'center' });
+
+            doc.save(`Payment_Receipt_${Date.now()}.pdf`);
+        } catch (error: any) {
+            console.error("PDF Generation Error:", error);
+            alert("Failed to generate PDF: " + (error?.message || "Unknown error"));
         }
-
-        y += 5;
-        doc.text("------------------------------------------------", 40, y, { align: 'center' });
-        y += 5;
-
-        doc.setFont("helvetica", "bold");
-        doc.text("Recorded By:", 5, y);
-        doc.setFont("helvetica", "normal");
-        doc.text(staffName, 30, y);
-        y += 10;
-
-        doc.setFontSize(7);
-        doc.text("Thank you!", 40, y, { align: 'center' });
-
-        doc.save(`Receipt_${Date.now()}.pdf`);
     };
 
 
