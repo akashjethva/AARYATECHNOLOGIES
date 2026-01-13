@@ -1,6 +1,7 @@
 "use client";
 
-import { ArrowLeft, Camera, User, X, Check, Banknote, CreditCard, Building2 } from "lucide-react";
+import { ArrowLeft, Wallet, CreditCard, Camera as CameraIcon, X, User, Check, Banknote, Building2 } from "lucide-react";
+import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 import Link from "next/link";
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";

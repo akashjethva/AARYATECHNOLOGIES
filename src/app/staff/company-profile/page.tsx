@@ -67,7 +67,33 @@ export default function CompanyProfile() {
                 <div className="absolute bottom-0 left-0 w-64 h-64 bg-cyan-500/10 rounded-full blur-[80px]"></div>
 
                 <div className="relative z-10 flex flex-col items-center text-center">
-                    <div className="relative group cursor-pointer" onClick={() => document.getElementById('logo-upload')?.click()}>
+                    <div className="relative group cursor-pointer" onClick={async () => {
+                        try {
+                            const image = await Camera.getPhoto({
+                                quality: 70,
+                                allowEditing: true, // Allow cropping
+                                resultType: CameraResultType.DataUrl,
+                                source: CameraSource.Prompt,
+                                promptLabelHeader: "Update Logo",
+                                promptLabelPhoto: "Choose from Gallery",
+                                promptLabelPicture: "Take Photo"
+                            });
+
+                            if (image.dataUrl) {
+                                const dataUrl = image.dataUrl;
+                                // Save to DB
+                                const newDetails = { ...db.getCompanyDetails(), logo: dataUrl };
+                                db.saveCompanyDetails(newDetails);
+                                setCompany(prev => ({ ...prev, logo: dataUrl }));
+
+                                // Dispatch events
+                                window.dispatchEvent(new Event('company-updated'));
+                                window.dispatchEvent(new Event('storage'));
+                            }
+                        } catch (err) {
+                            console.log("Camera dismissed", err);
+                        }
+                    }}>
                         <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-blue-600 to-cyan-500 p-[1px] shadow-xl mb-6 overflow-hidden">
                             <div className="w-full h-full rounded-3xl bg-[#0a0a0a] flex items-center justify-center relative overflow-hidden">
                                 {company.logo ? (
@@ -81,69 +107,70 @@ export default function CompanyProfile() {
                         </div>
                         {/* Camera Overlay */}
                         <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity">
-                            <Camera className="text-white" size={24} />
+                            <CameraIcon className="text-white" size={24} />
                         </div>
-                        <input
-                            type="file"
-                            id="logo-upload"
-                            className="hidden"
-                            accept="image/*"
-                            onChange={(e) => {
-                                const file = e.target.files?.[0];
-                                if (file) {
-                                    if (file.size > 5 * 1024 * 1024) {
-                                        alert("Image too large (Max 5MB)");
-                                        return;
-                                    }
-                                    const reader = new FileReader();
-                                    reader.onload = (ev) => {
-                                        // Compression Logic
-                                        const img = new Image();
-                                        img.onload = () => {
-                                            const canvas = document.createElement('canvas');
-                                            const MAX_SIZE = 512;
-                                            let w = img.width;
-                                            let h = img.height;
-                                            if (w > h) { if (w > MAX_SIZE) { h *= MAX_SIZE / w; w = MAX_SIZE; } }
-                                            else { if (h > MAX_SIZE) { w *= MAX_SIZE / h; h = MAX_SIZE; } }
-                                            canvas.width = w;
-                                            canvas.height = h;
-                                            const ctx = canvas.getContext('2d');
-                                            ctx?.drawImage(img, 0, 0, w, h);
-                                            const dataUrl = canvas.toDataURL('image/png', 0.8);
-
-                                            // Save to DB
-                                            const newDetails = { ...db.getCompanyDetails(), logo: dataUrl };
-                                            db.saveCompanyDetails(newDetails);
-                                            setCompany(prev => ({ ...prev, logo: dataUrl }));
-
-                                            // Dispatch events to update other components
-                                            window.dispatchEvent(new Event('company-updated'));
-                                            window.dispatchEvent(new Event('storage'));
-                                        };
-                                        img.src = ev.target?.result as string;
-                                    };
-                                    reader.readAsDataURL(file);
-                                }
-                            }}
-                        />
                     </div>
+                    <input
+                        type="file"
+                        id="logo-upload"
+                        className="hidden"
+                        accept="image/*"
+                        onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                                if (file.size > 5 * 1024 * 1024) {
+                                    alert("Image too large (Max 5MB)");
+                                    return;
+                                }
+                                const reader = new FileReader();
+                                reader.onload = (ev) => {
+                                    // Compression Logic
+                                    const img = new Image();
+                                    img.onload = () => {
+                                        const canvas = document.createElement('canvas');
+                                        const MAX_SIZE = 512;
+                                        let w = img.width;
+                                        let h = img.height;
+                                        if (w > h) { if (w > MAX_SIZE) { h *= MAX_SIZE / w; w = MAX_SIZE; } }
+                                        else { if (h > MAX_SIZE) { w *= MAX_SIZE / h; h = MAX_SIZE; } }
+                                        canvas.width = w;
+                                        canvas.height = h;
+                                        const ctx = canvas.getContext('2d');
+                                        ctx?.drawImage(img, 0, 0, w, h);
+                                        const dataUrl = canvas.toDataURL('image/png', 0.8);
 
-                    <h2 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-b from-white to-slate-400 mb-2">{company.companyName}</h2>
-                    <p className="text-slate-400 font-medium text-sm max-w-xs mx-auto">Innovating the future of digital payments and financial solutions.</p>
+                                        // Save to DB
+                                        const newDetails = { ...db.getCompanyDetails(), logo: dataUrl };
+                                        db.saveCompanyDetails(newDetails);
+                                        setCompany(prev => ({ ...prev, logo: dataUrl }));
+
+                                        // Dispatch events to update other components
+                                        window.dispatchEvent(new Event('company-updated'));
+                                        window.dispatchEvent(new Event('storage'));
+                                    };
+                                    img.src = ev.target?.result as string;
+                                };
+                                reader.readAsDataURL(file);
+                            }
+                        }}
+                    />
                 </div>
-            </motion.div>
 
-            {/* Info Grid */}
-            <div className="space-y-4">
+                <h2 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-b from-white to-slate-400 mb-2">{company.companyName}</h2>
+                <p className="text-slate-400 font-medium text-sm max-w-xs mx-auto">Innovating the future of digital payments and financial solutions.</p>
+        </div>
+            </motion.div >
+
+        {/* Info Grid */ }
+        < div className = "space-y-4" >
                 <InfoCard icon={<Globe />} label="Website" value={company.website} color="text-blue-400" bg="bg-blue-400/10" />
                 <InfoCard icon={<Mail />} label="Email" value={company.email} color="text-purple-400" bg="bg-purple-400/10" />
                 <InfoCard icon={<Phone />} label="Support" value={company.mobile} color="text-emerald-400" bg="bg-emerald-400/10" />
                 <InfoCard icon={<MapPin />} label="Headquarters" value={company.address} color="text-rose-400" bg="bg-rose-400/10" />
-            </div>
+            </div >
 
-            {/* About Section */}
-            <div className="mt-8">
+        {/* About Section */ }
+        < div className = "mt-8" >
                 <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
                     <Building2 size={20} className="text-indigo-400" />
                     About Us
@@ -153,13 +180,13 @@ export default function CompanyProfile() {
                         {company.companyName} is a premier software solutions provider, dedicated to streamlining business operations through cutting-edge ERP and payment systems. Established in 2024, we serve over 500+ clients across the state.
                     </p>
                 </div>
-            </div>
+            </div >
 
-            <div className="mt-12 text-center">
-                <p className="text-xs text-slate-600 font-bold uppercase tracking-widest">© 2026 {company.companyName}</p>
-                <p className="text-[10px] text-slate-700 mt-1">Version 2.0.1 (Stable)</p>
-            </div>
+        <div className="mt-12 text-center">
+            <p className="text-xs text-slate-600 font-bold uppercase tracking-widest">© 2026 {company.companyName}</p>
+            <p className="text-[10px] text-slate-700 mt-1">Version 2.0.1 (Stable)</p>
         </div>
+        </div >
     );
 }
 
