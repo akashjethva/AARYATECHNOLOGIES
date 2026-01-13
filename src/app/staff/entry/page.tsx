@@ -564,23 +564,28 @@ export default function StaffEntry() {
                     <div className="w-full space-y-2">
                         <div className="bg-[#15171c]/50 rounded-xl p-3 border border-white/5 flex items-center gap-3 focus-within:border-indigo-500/50 focus-within:bg-[#15171c] transition-all relative">
 
-                            {/* Camera Button with Direct Input Overlay */}
-                            <div className={`p-2 rounded-lg transition-colors relative flex-shrink-0 ${formData.image ? 'text-emerald-400 bg-emerald-500/10' : 'text-slate-500 hover:text-indigo-400 hover:bg-white/5'}`}>
-                                <Camera size={18} />
-                                <input
-                                    type="file"
-                                    accept="image/*"
-                                    onChange={handleFileChange}
-                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                                />
-                            </div>
+                            {/* Camera Button with Direct Input Trigger */}
+                            <button
+                                onClick={() => fileInputRef.current?.click()}
+                                className={`p-3 rounded-xl transition-all relative flex-shrink-0 active:scale-95 ${formData.image ? 'text-emerald-400 bg-emerald-500/10 ring-1 ring-emerald-500/50' : 'text-slate-400 bg-white/5 hover:text-indigo-400 hover:bg-white/10'}`}
+                            >
+                                <Camera size={20} />
+                            </button>
+                            <input
+                                type="file"
+                                ref={fileInputRef}
+                                accept="image/*"
+                                capture="environment"
+                                onChange={handleFileChange}
+                                className="hidden"
+                            />
 
                             <input
                                 type="text"
                                 placeholder="Add remark..."
                                 value={formData.remarks}
                                 onChange={(e) => setFormData(prev => ({ ...prev, remarks: e.target.value }))}
-                                className="bg-transparent border-none outline-none text-white text-sm w-full placeholder:text-slate-600"
+                                className="bg-transparent border-none outline-none text-white text-sm w-full placeholder:text-slate-600 h-10"
                             />
 
                             {formData.image && (
