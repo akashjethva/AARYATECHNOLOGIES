@@ -449,7 +449,7 @@ export default function StaffHome() {
                         animate={{ x: 0 }}
                         exit={{ x: "100%" }}
                         transition={{ type: "spring", damping: 25, stiffness: 200 }}
-                        className="fixed inset-0 bg-[#0f1115] z-[200] flex flex-col pt-safe"
+                        className="fixed inset-0 bg-[#0f1115] z-[200] flex flex-col pt-16" // Increased top padding
                     >
                         {/* Header */}
                         <div className="px-6 py-6 flex items-center justify-between border-b border-white/5 bg-[#0f1115]/80 backdrop-blur-xl sticky top-0 z-10">
@@ -530,12 +530,12 @@ export default function StaffHome() {
                                 })
                             ) : (
                                 <div className="flex flex-col items-center justify-center h-[60vh] text-slate-600 gap-6">
-                                    <div className="w-24 h-24 rounded-full bg-white/5 flex items-center justify-center animate-pulse">
+                                    <div className="w-24 h-24 rounded-full bg-white/5 flex items-center justify-center">
                                         <BellOff size={40} className="text-slate-500" />
                                     </div>
                                     <div className="text-center">
-                                        <p className="text-lg font-bold text-white mb-2">All Caught Up!</p>
-                                        <p className="text-sm text-slate-500">No new notifications for you right now.</p>
+                                        <p className="text-lg font-bold text-white mb-2">No Notifications</p>
+                                        <p className="text-sm text-slate-500">You are all caught up!</p>
                                     </div>
                                 </div>
                             )}
