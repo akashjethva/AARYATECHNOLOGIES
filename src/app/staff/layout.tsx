@@ -234,7 +234,7 @@ export default function StaffLayout({
                     onClick={handleUnlock}
                     className="w-full max-w-xs py-4 rounded-2xl bg-gradient-to-r from-indigo-600 to-blue-600 text-white font-bold text-lg shadow-xl shadow-indigo-600/20 active:scale-95 transition-transform"
                 >
-                    {window.PublicKeyCredential ? "Scan Fingerprint" : "Unlock App"}
+                    {isBiometricSupported ? "Scan Fingerprint / Tap" : "Tap to Unlock"}
                 </button>
             </div>
         )

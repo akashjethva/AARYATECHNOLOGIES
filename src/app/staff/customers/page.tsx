@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { db } from "@/services/db";
 import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
+import autoTable from 'jspdf-autotable';
 
 export default function StaffCustomers() {
     const [searchQuery, setSearchQuery] = useState("");

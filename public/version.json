@@ -1,7 +1,7 @@
 {
-    "versionCode": 12,
-    "versionName": "2.21.0",
-    "apkUrl": "https://github.com/akashjethva/AARYATECHNOLOGIES/releases/download/v2.21/app-debug.apk",
-    "forceUpdate": false,
-    "updateMessage": "v2.21: PDF & Logo UI Fixes! Ready for APK Build."
+    "versionCode": 13,
+    "versionName": "2.22.0",
+    "apkUrl": "https://github.com/akashjethva/AARYATECHNOLOGIES/releases/download/v2.22/app-debug.apk",
+    "forceUpdate": true,
+    "updateMessage": "v2.22: Final Fixes for Biometric & UI. Update Now!"
 }
