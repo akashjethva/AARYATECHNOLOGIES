@@ -380,9 +380,9 @@ export default function StaffHome() {
                 <div className="flex items-center gap-4">
                     <div className="relative cursor-pointer" onClick={() => router.push('/staff/company-profile')}>
                         <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 rounded-2xl bg-white dark:bg-gradient-to-br dark:from-[#1a1d24] dark:to-[#14161b] p-1 shadow-md border border-slate-100 dark:border-white/5">
-                                {/* Company Logo with Fallback */}
-                                <div className="w-full h-full rounded-xl bg-white dark:bg-[#0a0a0a] flex items-center justify-center overflow-hidden relative">
+                            <div className="w-14 h-14 flex items-center justify-center">
+                                {/* Company Logo - Clean & Open */}
+                                <div className="w-full h-full rounded-xl flex items-center justify-center overflow-hidden relative">
                                     {company.logo ? (
                                         <img
                                             src={company.logo}

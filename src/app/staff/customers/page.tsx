@@ -77,7 +77,7 @@ export default function StaffCustomers() {
                             const totalFormatted = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }).format(totalPending);
                             tableRows.push(["", "", "", "TOTAL PENDING:", totalFormatted]);
 
-                            (doc as any).autoTable({
+                            autoTable(doc, {
                                 head: [["#", "Customer Name", "City", "Mobile", "Balance"]],
                                 body: tableRows,
                                 startY: 40,

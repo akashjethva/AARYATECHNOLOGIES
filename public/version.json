@@ -1,7 +1,7 @@
 {
-    "versionCode": 11,
-    "versionName": "2.20.0",
-    "apkUrl": "https://github.com/akashjethva/AARYATECHNOLOGIES/releases/download/v2.20/app-debug.apk",
+    "versionCode": 12,
+    "versionName": "2.21.0",
+    "apkUrl": "https://github.com/akashjethva/AARYATECHNOLOGIES/releases/download/v2.21/app-debug.apk",
     "forceUpdate": false,
-    "updateMessage": "v2.20: Settings Version Fixed & Dynamic!"
+    "updateMessage": "v2.21: PDF & Logo UI Fixes! Ready for APK Build."
 }
