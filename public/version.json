@@ -1,7 +1,7 @@
 {
     "versionCode": 14,
     "versionName": "2.23.0",
-    "apkUrl": "https://github.com/akashjethva/AARYATECHNOLOGIES/releases/download/v2.23/app-debug.apk",
+    "apkUrl": "",
     "forceUpdate": true,
     "updateMessage": "v2.23: Camera Added to Company Profile! Check Now."
 }
