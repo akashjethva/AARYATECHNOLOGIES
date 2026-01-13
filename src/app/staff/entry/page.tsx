@@ -566,7 +566,12 @@ export default function StaffEntry() {
 
                             {/* Camera Button with Direct Input Trigger */}
                             <button
-                                onClick={() => fileInputRef.current?.click()}
+                                type="button" // Explicitly prevent form submit
+                                onClick={(e) => {
+                                    e.preventDefault(); // Prevent bubbling
+                                    // Debug alert if needed, but let's just trigger
+                                    fileInputRef.current?.click();
+                                }}
                                 className={`p-3 rounded-xl transition-all relative flex-shrink-0 active:scale-95 ${formData.image ? 'text-emerald-400 bg-emerald-500/10 ring-1 ring-emerald-500/50' : 'text-slate-400 bg-white/5 hover:text-indigo-400 hover:bg-white/10'}`}
                             >
                                 <Camera size={20} />
@@ -575,9 +580,10 @@ export default function StaffEntry() {
                                 type="file"
                                 ref={fileInputRef}
                                 accept="image/*"
-                                capture="environment"
+                                // Removed capture to allow Gallery OR Camera choice
                                 onChange={handleFileChange}
-                                className="hidden"
+                                className="sr-only" // Use sr-only instead of hidden to keep it in render tree but invisible
+                                style={{ display: 'none' }} // Double safety, or just remove if sr-only is enough. React 'hidden' is fine, but let's try standard.
                             />
 
                             <input
