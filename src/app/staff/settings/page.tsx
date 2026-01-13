@@ -339,7 +339,8 @@ export default function StaffSettings() {
 
                 const enableSimulated = () => {
                     setSettings(prev => ({ ...prev, biometric: true }));
-                    showToast("Biometric Enabled (Simulated Mode)", "default");
+                    showToast("Biometric Enabled (Tap Mode Active) ✅", "success");
+                    setTimeout(() => setIsScanning(false), 500);
                 }
 
                 if (window.PublicKeyCredential) {
